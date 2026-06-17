@@ -29,8 +29,17 @@ public class LocalDiskMediaStore : IMediaStore
 
     public Task<Stream> OpenReadAsync(string mediaPath, CancellationToken ct)
     {
-        var path = Path.Combine(_root, mediaPath);
+        var path = ResolveWithinRoot(mediaPath);
         Stream stream = File.OpenRead(path);
         return Task.FromResult(stream);
+    }
+
+    private string ResolveWithinRoot(string mediaPath)
+    {
+        var rootFull = Path.GetFullPath(_root);
+        var full = Path.GetFullPath(Path.Combine(rootFull, mediaPath));
+        if (!full.StartsWith(rootFull + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            throw new ArgumentException("Media key escapes the storage root.", nameof(mediaPath));
+        return full;
     }
 }

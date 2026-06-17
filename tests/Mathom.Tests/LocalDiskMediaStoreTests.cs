@@ -40,4 +40,20 @@ public class LocalDiskMediaStoreTests
             if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
         }
     }
+
+    [Fact]
+    public async Task OpenReadAsync_RejectsPathTraversal()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "mathom-media-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var store = new LocalDiskMediaStore(ConfigWithRoot(root));
+            await Assert.ThrowsAsync<ArgumentException>(
+                () => store.OpenReadAsync("../escape.txt", CancellationToken.None));
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
 }
