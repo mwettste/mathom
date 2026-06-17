@@ -1,5 +1,6 @@
 using Mathom.Web.Data;
 using Mathom.Web.Processing;
+using Mathom.Web.Search;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -8,6 +9,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<MathomDbContext>(o =>
     o.UseNpgsql(builder.Configuration.GetConnectionString("Mathom")));
 
+builder.Services.AddRazorPages();
+builder.Services.AddScoped<SearchService>();
 builder.Services.AddControllers();
 
 builder.Services.AddScoped<ItemProcessor>();
@@ -26,9 +29,12 @@ if (!builder.Environment.IsEnvironment("Testing"))
 
 var app = builder.Build();
 
+app.UseStaticFiles();
+
 app.MapGet("/healthz", () => Results.Ok("ok"));
 
 app.MapControllers();
+app.MapRazorPages();
 
 app.Run();
 

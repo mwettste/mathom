@@ -1,0 +1,32 @@
+@page
+@model CaptureModel
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Capture · Mathom</title>
+</head>
+<body>
+    <h1>Capture</h1>
+    <form id="capture-form">
+        <textarea id="text" rows="5" placeholder="Dump an idea…" required></textarea>
+        <button type="submit">Capture</button>
+    </form>
+    <p id="status"></p>
+    <script>
+        const form = document.getElementById('capture-form');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const text = document.getElementById('text').value;
+            const res = await fetch('/capture', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, idempotencyKey: crypto.randomUUID() })
+            });
+            document.getElementById('status').textContent = res.ok ? 'captured ✓' : 'failed';
+            if (res.ok) document.getElementById('text').value = '';
+        });
+    </script>
+</body>
+</html>

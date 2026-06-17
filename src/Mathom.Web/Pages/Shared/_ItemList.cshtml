@@ -1,0 +1,18 @@
+@model IReadOnlyList<Mathom.Web.Search.ItemSummary>
+@if (Model.Count == 0)
+{
+    <p>Nothing here yet.</p>
+}
+else
+{
+    <ul>
+        @foreach (var item in Model)
+        {
+            <li>
+                <strong>@item.Title</strong>
+                <em>(@item.ItemType)</em>
+                <div>@item.CleanText</div>
+            </li>
+        }
+    </ul>
+}
