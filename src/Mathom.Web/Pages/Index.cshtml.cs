@@ -17,6 +17,14 @@ public class IndexModel : PageModel
     public async Task OnGetAsync(CancellationToken ct)
         => Items = await _search.TimelineAsync(50, ct);
 
+    // Polled by HTMX while in-flight items exist, so transcribing/processing entries
+    // advance to Ready without a manual reload.
+    public async Task<IActionResult> OnGetTimelineAsync(CancellationToken ct)
+    {
+        Items = await _search.TimelineAsync(50, ct);
+        return Partial("Shared/_ItemList", Items);
+    }
+
     public async Task<IActionResult> OnGetSearchAsync(string? q, CancellationToken ct)
     {
         Items = string.IsNullOrWhiteSpace(q)

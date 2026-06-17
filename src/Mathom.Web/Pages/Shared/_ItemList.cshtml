@@ -1,18 +1,57 @@
+@using Mathom.Web.Domain
 @model IReadOnlyList<Mathom.Web.Search.ItemSummary>
+
 @if (Model.Count == 0)
 {
-    <p>Nothing here yet.</p>
+    <p class="empty">No thoughts yet. <a href="/Capture">Capture one →</a></p>
 }
 else
 {
-    <ul>
+    <ul class="entries">
         @foreach (var item in Model)
         {
-            <li>
-                <strong>@item.Title</strong>
-                <em>(@item.ItemType)</em>
-                <div>@item.CleanText</div>
+            var inflight = StatusView.InFlight(item.Status);
+            var (pillCss, pillLabel) = StatusView.Pill(item.Status, item.SourceType);
+            var title = item.Title
+                ?? (item.SourceType == SourceType.Voice ? "Voice note" : "Quick note");
+            <li class="entry @(inflight ? "entry--inflight" : "")">
+                <div class="entry__head">
+                    <a class="entry__title" href="/Note/@item.Id">@title</a>
+                    <span class="entry__time">@RelativeTime.Ago(item.CreatedAt)</span>
+                </div>
+                @if (!string.IsNullOrEmpty(item.CleanText))
+                {
+                    <p class="entry__body">@item.CleanText</p>
+                }
+                <div class="entry__meta">
+                    @if (!string.IsNullOrEmpty(pillLabel))
+                    {
+                        <span class="pill @pillCss"><span class="dot"></span>@pillLabel</span>
+                    }
+                    else
+                    {
+                        @if (item.ItemType is not null)
+                        {
+                            <span class="kind">@item.ItemType.ToString()!.ToLowerInvariant()</span>
+                        }
+                        @if (item.Actionable)
+                        {
+                            <span class="flag">actionable</span>
+                        }
+                        @foreach (var tag in item.Tags)
+                        {
+                            <span class="tag">#@tag</span>
+                        }
+                    }
+                </div>
             </li>
         }
     </ul>
+
+    @if (Model.Any(i => StatusView.InFlight(i.Status)))
+    {
+        <div class="poller" aria-hidden="true"
+             hx-get="/?handler=Timeline" hx-trigger="every 3s"
+             hx-target="#item-list" hx-swap="innerHTML"></div>
+    }
 }

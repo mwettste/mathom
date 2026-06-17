@@ -45,6 +45,28 @@ public class SearchServiceTests
     }
 
     [Fact]
+    public async Task Timeline_IncludesInFlightItems_WithStatus()
+    {
+        var pending = new Item
+        {
+            Id = Guid.NewGuid(),
+            Status = ItemStatus.Pending,
+            SourceType = SourceType.Voice,
+            RawText = "",
+            IdempotencyKey = Guid.NewGuid().ToString(),
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+        await using (var seed = _fx.NewDbContext()) { seed.Items.Add(pending); await seed.SaveChangesAsync(); }
+
+        await using var db = _fx.NewDbContext();
+        var result = await new SearchService(db).TimelineAsync(50, CancellationToken.None);
+
+        var found = result.Single(r => r.Id == pending.Id);
+        Assert.Equal(ItemStatus.Pending, found.Status);
+        Assert.Equal(SourceType.Voice, found.SourceType);
+    }
+
+    [Fact]
     public async Task Search_MatchesKeywordInBody()
     {
         var match = Ready("Recipe", "a note about sourdough bread", ItemType.Reference, DateTimeOffset.UtcNow);

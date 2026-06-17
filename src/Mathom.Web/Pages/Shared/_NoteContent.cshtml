@@ -1,0 +1,67 @@
+@using Mathom.Web.Domain
+@model Mathom.Web.Search.ItemDetail
+@{
+    var (pillCss, pillLabel) = StatusView.Pill(Model.Status, Model.SourceType);
+    var inflight = StatusView.InFlight(Model.Status);
+    var title = Model.Title ?? (Model.SourceType == SourceType.Voice ? "Voice note" : "Quick note");
+}
+<header class="note__head">
+    <h1 class="note__title">@title</h1>
+    <div class="note__meta">
+        @if (!string.IsNullOrEmpty(pillLabel))
+        {
+            <span class="pill @pillCss"><span class="dot"></span>@pillLabel</span>
+        }
+        else
+        {
+            @if (Model.ItemType is not null)
+            {
+                <span class="kind">@Model.ItemType.ToString()!.ToLowerInvariant()</span>
+            }
+            @if (Model.Actionable)
+            {
+                <span class="flag">actionable</span>
+            }
+        }
+        <span class="note__time">@RelativeTime.Ago(Model.CreatedAt)</span>
+    </div>
+</header>
+
+@if (Model.Status == ItemStatus.Failed)
+{
+    <p class="note__error">Couldn't process this note. <span>@Model.Error</span></p>
+}
+
+@if (!string.IsNullOrEmpty(Model.CleanText))
+{
+    <div class="note__body">@Model.CleanText</div>
+}
+else if (inflight)
+{
+    <p class="note__pending">Working on it…</p>
+}
+
+@if (Model.SourceType == SourceType.Voice && !string.IsNullOrEmpty(Model.RawText) && Model.RawText != Model.CleanText)
+{
+    <section class="note__transcript">
+        <h2 class="note__subhead">Transcript</h2>
+        <p>@Model.RawText</p>
+    </section>
+}
+
+@if (Model.Tags.Count > 0)
+{
+    <div class="note__tags">
+        @foreach (var t in Model.Tags)
+        {
+            <span class="tag">#@t</span>
+        }
+    </div>
+}
+
+@if (inflight)
+{
+    <div aria-hidden="true"
+         hx-get="@($"/Note/{Model.Id}?handler=Content")" hx-trigger="every 3s"
+         hx-target="#note-content" hx-swap="innerHTML"></div>
+}

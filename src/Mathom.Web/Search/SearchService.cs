@@ -9,25 +9,66 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Mathom.Web.Search;
 
-public record ItemSummary(Guid Id, string? Title, string? CleanText, ItemType? ItemType, DateTimeOffset CreatedAt);
+public record ItemSummary(
+    Guid Id,
+    string? Title,
+    string? CleanText,
+    ItemType? ItemType,
+    DateTimeOffset CreatedAt,
+    ItemStatus Status,
+    SourceType SourceType,
+    bool Actionable,
+    IReadOnlyList<string> Tags);
 
 public record SearchFilters(ItemType? ItemType, bool? Actionable);
+
+public record ItemDetail(
+    Guid Id,
+    string? Title,
+    string? CleanText,
+    string RawText,
+    ItemType? ItemType,
+    SourceType SourceType,
+    ItemStatus Status,
+    bool Actionable,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? ProcessedAt,
+    string? Error,
+    IReadOnlyList<string> Tags);
 
 public class SearchService
 {
     private readonly MathomDbContext _db;
     public SearchService(MathomDbContext db) => _db = db;
 
+    // Full single item for the detail page (includes the raw transcript and any error).
+    public async Task<ItemDetail?> GetAsync(Guid id, CancellationToken ct)
+    {
+        return await _db.Items
+            .Where(i => i.Id == id)
+            .Select(i => new ItemDetail(
+                i.Id, i.Title, i.CleanText, i.RawText, i.ItemType, i.SourceType,
+                i.Status, i.Actionable, i.CreatedAt, i.ProcessedAt, i.Error,
+                i.ItemTags.Select(it => it.Tag.Name).ToList()))
+            .FirstOrDefaultAsync(ct);
+    }
+
+    // Timeline shows ALL recent items regardless of status, so freshly-captured items
+    // appear immediately with their in-flight status (captured / transcribing / failed)
+    // and settle into Ready as the background worker finishes.
     public async Task<IReadOnlyList<ItemSummary>> TimelineAsync(int take, CancellationToken ct)
     {
         return await _db.Items
-            .Where(i => i.Status == ItemStatus.Ready)
             .OrderByDescending(i => i.CreatedAt)
             .Take(take)
-            .Select(i => new ItemSummary(i.Id, i.Title, i.CleanText, i.ItemType, i.CreatedAt))
+            .Select(i => new ItemSummary(
+                i.Id, i.Title, i.CleanText, i.ItemType, i.CreatedAt,
+                i.Status, i.SourceType, i.Actionable,
+                i.ItemTags.Select(it => it.Tag.Name).ToList()))
             .ToListAsync(ct);
     }
 
+    // Search only returns finished items — in-flight items have no clean text to match.
     public async Task<IReadOnlyList<ItemSummary>> SearchAsync(
         string query, SearchFilters filters, int take, CancellationToken ct)
     {
@@ -44,7 +85,10 @@ public class SearchService
         return await q
             .OrderByDescending(i => i.SearchVector!.Rank(EF.Functions.WebSearchToTsQuery("english", query)))
             .Take(take)
-            .Select(i => new ItemSummary(i.Id, i.Title, i.CleanText, i.ItemType, i.CreatedAt))
+            .Select(i => new ItemSummary(
+                i.Id, i.Title, i.CleanText, i.ItemType, i.CreatedAt,
+                i.Status, i.SourceType, i.Actionable,
+                i.ItemTags.Select(it => it.Tag.Name).ToList()))
             .ToListAsync(ct);
     }
 }

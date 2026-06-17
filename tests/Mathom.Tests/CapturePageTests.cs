@@ -23,8 +23,9 @@ public class CapturePageTests
         var resp = await app.CreateClient().GetAsync("/Capture");
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
         var html = await resp.Content.ReadAsStringAsync();
-        Assert.Contains("/capture/voice", html);
-        Assert.Contains("alpine.min.js", html);
-        Assert.Contains("Record", html);
+        Assert.Contains("Speak", html);             // voice mode heading
+        Assert.Contains("Record", html);            // record button label
+        Assert.Contains("capture.js", html);        // Alpine components (voice posts to /capture/voice)
+        Assert.Contains("alpine.min.js", html);     // Alpine runtime (from layout)
     }
 }
