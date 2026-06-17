@@ -16,5 +16,16 @@ public class FakeLlmClientTests
         Assert.Equal(ItemType.Note, result.ItemType);
         Assert.Single(result.Tags);
         Assert.Equal(1, fake.Calls);
+        Assert.Equal("Title: buy milk", result.Title);
+        Assert.False(result.Actionable);
+    }
+
+    [Fact]
+    public async Task ThrowFlag_ThrowsAndStillIncrementsCalls()
+    {
+        var fake = new FakeLlmClient { Throw = true };
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => fake.CleanupAsync("x", CancellationToken.None));
+        Assert.Equal(1, fake.Calls);
     }
 }
