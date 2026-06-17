@@ -16,4 +16,14 @@ public class FakeTranscriberTests
         Assert.Equal("hello world", text);
         Assert.Equal(1, fake.Calls);
     }
+
+    [Fact]
+    public async Task ThrowFlag_ThrowsAndStillIncrementsCalls()
+    {
+        var fake = new FakeTranscriber { Throw = true };
+        using var ms = new MemoryStream();
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => fake.TranscribeAsync(ms, "note.webm", CancellationToken.None));
+        Assert.Equal(1, fake.Calls);
+    }
 }
