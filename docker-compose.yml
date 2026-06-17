@@ -24,6 +24,10 @@ services:
       ASPNETCORE_HTTP_PORTS: "8080"
       # Connection string is composed from the Postgres credentials so they stay in one place.
       ConnectionStrings__Mathom: "Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+      # Store audio on the mounted volume below. Set explicitly (absolute) so durability
+      # doesn't depend on the container's working directory. Local `dotnet run` uses the
+      # relative `media` default from appsettings.json instead.
+      Media__Root: /app/media
     # LLM provider keys (and any other overrides) come from the .env file.
     env_file:
       - .env
