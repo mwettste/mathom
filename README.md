@@ -33,6 +33,24 @@ Needs a local PostgreSQL matching `ConnectionStrings:Mathom` in `appsettings.jso
 then `dotnet run --project src/Mathom.Web`. Put provider keys in `appsettings.Development.json`
 (gitignored).
 
+## PWA & offline
+
+Mathom is an installable PWA that opens to the capture screen and works offline.
+
+- **Install:** open the app in a browser and use "Install app" / "Add to Home Screen".
+  The installed app launches straight to `/Capture`.
+- **Offline capture:** if you capture while offline, the note (text or voice audio) is
+  queued in the browser (IndexedDB) and shown as "Saved offline — will sync when you're
+  back." It replays automatically when connectivity returns (on reconnect, when the tab
+  becomes visible, or on next load). Replays are idempotent, so nothing is duplicated.
+- **Browsing/search are online-only** — only capture works offline.
+- **HTTPS is required for install + service worker.** `localhost` is exempt (so local dev
+  works), but installing on your phone over the tailnet needs HTTPS — serve it via
+  `tailscale serve` (or `tailscale cert` + your reverse proxy) so the `*.ts.net` host has
+  a valid certificate. Plain-HTTP over the tailnet will load but won't install or go offline.
+- **iOS note:** background replay is unreliable on iOS Safari, so Mathom replays the queue
+  whenever the app is foregrounded or reconnects, which works across iOS, Android, and desktop.
+
 ## Stack
 
 ASP.NET Core (Razor Pages) · HTMX · Alpine.js · PostgreSQL + pgvector · PWA (offline-capable
