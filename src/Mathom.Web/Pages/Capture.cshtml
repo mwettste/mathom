@@ -32,23 +32,29 @@
                 text: '', busy: false, status: '',
                 async submit() {
                     this.busy = true;
-                    const res = await fetch('/capture', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ text: this.text, idempotencyKey: crypto.randomUUID() })
-                    });
-                    this.status = res.ok ? 'captured ✓' : 'failed';
-                    if (res.ok) this.text = '';
-                    this.busy = false;
+                    try {
+                        const res = await fetch('/capture', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ text: this.text, idempotencyKey: crypto.randomUUID() })
+                        });
+                        this.status = res.ok ? 'captured ✓' : 'failed';
+                        if (res.ok) this.text = '';
+                    } catch {
+                        this.status = 'failed';
+                    } finally {
+                        this.busy = false;
+                    }
                 }
             };
         }
 
         function voiceCapture() {
             return {
-                recording: false, elapsed: 0, status: '',
+                recording: false, uploading: false, elapsed: 0, status: '',
                 _recorder: null, _chunks: [], _timer: null,
                 async toggle() {
+                    if (this.uploading) return;
                     if (this.recording) { this._recorder.stop(); return; }
                     let stream;
                     try {
@@ -73,15 +79,22 @@
                     this._timer = setInterval(() => this.elapsed++, 1000);
                 },
                 async upload() {
-                    const type = this._recorder.mimeType || 'audio/webm';
-                    const ext = type.includes('mp4') || type.includes('mpeg') ? 'm4a' : 'webm';
-                    const blob = new Blob(this._chunks, { type });
-                    const form = new FormData();
-                    form.append('audio', blob, `note.${ext}`);
-                    form.append('idempotencyKey', crypto.randomUUID());
-                    this.status = 'uploading…';
-                    const res = await fetch('/capture/voice', { method: 'POST', body: form });
-                    this.status = res.ok ? 'captured ✓' : 'failed';
+                    this.uploading = true;
+                    try {
+                        const type = this._recorder.mimeType || 'audio/webm';
+                        const ext = type.includes('mp4') || type.includes('mpeg') ? 'm4a' : 'webm';
+                        const blob = new Blob(this._chunks, { type });
+                        const form = new FormData();
+                        form.append('audio', blob, `note.${ext}`);
+                        form.append('idempotencyKey', crypto.randomUUID());
+                        this.status = 'uploading…';
+                        const res = await fetch('/capture/voice', { method: 'POST', body: form });
+                        this.status = res.ok ? 'captured ✓' : 'failed';
+                    } catch {
+                        this.status = 'failed';
+                    } finally {
+                        this.uploading = false;
+                    }
                 }
             };
         }
