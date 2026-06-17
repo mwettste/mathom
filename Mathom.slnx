@@ -1,8 +1,0 @@
-<Solution>
-  <Folder Name="/src/">
-    <Project Path="src/Mathom.Web/Mathom.Web.csproj" />
-  </Folder>
-  <Folder Name="/tests/">
-    <Project Path="tests/Mathom.Tests/Mathom.Tests.csproj" />
-  </Folder>
-</Solution>

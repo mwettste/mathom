@@ -1,5 +1,3 @@
-using Xunit;
-
 namespace Mathom.Tests;
 
 public class SmokeTest
