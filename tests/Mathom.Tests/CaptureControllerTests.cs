@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Mathom.Web.Capture;
 using Mathom.Web.Data;
 using Mathom.Web.Domain;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -20,7 +21,10 @@ public class CaptureControllerTests
 
     private WebApplicationFactory<Program> CreateApp() =>
         new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
-            b.UseSetting("ConnectionStrings:Mathom", _fx.ConnectionString));
+        {
+            b.UseEnvironment("Testing");
+            b.UseSetting("ConnectionStrings:Mathom", _fx.ConnectionString);
+        });
 
     [Fact]
     public async Task Post_Capture_CreatesPendingItem()

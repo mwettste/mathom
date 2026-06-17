@@ -26,7 +26,7 @@ public class ItemProcessor
     {
         var item = await _db.Items.FirstOrDefaultAsync(i => i.Id == itemId, ct);
         if (item is null) return;
-        if (item.Status is not (ItemStatus.Pending or ItemStatus.Failed)) return;
+        if (item.Status is not (ItemStatus.Pending or ItemStatus.Failed or ItemStatus.Processing)) return;
 
         item.Status = ItemStatus.Processing;
         await _db.SaveChangesAsync(ct);
