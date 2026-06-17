@@ -46,4 +46,23 @@ public class PwaTests
         Assert.Contains("rel=\"manifest\" href=\"/manifest.webmanifest\"", html);
         Assert.Contains("apple-touch-icon", html);
     }
+
+    [Fact]
+    public async Task ServiceWorker_IsServed_AsJavaScript()
+    {
+        using var app = CreateApp();
+        var resp = await app.CreateClient().GetAsync("/sw.js");
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        var ct = resp.Content.Headers.ContentType?.MediaType;
+        Assert.True(ct == "text/javascript" || ct == "application/javascript", $"unexpected content-type: {ct}");
+    }
+
+    [Fact]
+    public async Task Layout_RegistersServiceWorker()
+    {
+        using var app = CreateApp();
+        var html = await app.CreateClient().GetStringAsync("/Capture");
+        Assert.Contains("serviceWorker", html);
+        Assert.Contains("/sw.js", html);
+    }
 }
