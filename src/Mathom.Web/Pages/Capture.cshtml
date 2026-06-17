@@ -5,14 +5,13 @@
 <section class="capture">
     <div class="card" x-data="textCapture()">
         <h2 class="card__title">Type</h2>
-        <form @@submit.prevent="submit()">
-            <textarea class="field" x-model="text" rows="4" placeholder="Dump an idea…" required></textarea>
-            <div class="card__actions">
-                <button class="btn btn--primary" type="submit"
-                        x-bind:disabled="busy" x-text="busy ? 'Saving…' : 'Capture'"></button>
-                <span class="hint" x-text="status"></span>
-            </div>
-        </form>
+        <textarea class="field" x-model="text" rows="4" placeholder="Dump an idea…"
+                  @@keydown.cmd.enter="submit()" @@keydown.ctrl.enter="submit()"></textarea>
+        <div class="card__actions">
+            <button class="btn btn--primary" type="button" @@click="submit()"
+                    x-bind:disabled="busy" x-text="busy ? 'Saving…' : 'Capture'"></button>
+            <span class="hint" x-text="status"></span>
+        </div>
     </div>
 
     <div class="card" x-data="voiceCapture()">

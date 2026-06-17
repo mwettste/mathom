@@ -7,6 +7,7 @@ function textCapture() {
     busy: false,
     status: '',
     async submit() {
+      if (!this.text.trim()) { this.status = 'Type something first.'; return; }
       this.busy = true;
       try {
         const res = await fetch('/capture', {
