@@ -18,6 +18,8 @@ builder.Services.AddScoped<ItemProcessor>();
 builder.Services.AddSingleton<IMediaStore, LocalDiskMediaStore>();
 builder.Services.AddHttpClient<InfomaniakLlmClient>();
 builder.Services.AddHttpClient<OpenRouterLlmClient>();
+builder.Services.AddHttpClient<InfomaniakTranscriber>();
+builder.Services.AddScoped<ITranscriber>(sp => sp.GetRequiredService<InfomaniakTranscriber>());
 builder.Services.AddScoped<ILlmClient>(sp => new FallbackLlmClient(
     new ILlmClient[]
     {
