@@ -1,4 +1,10 @@
+using Mathom.Web.Data;
+using Microsoft.EntityFrameworkCore;
+
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddDbContext<MathomDbContext>(o =>
+    o.UseNpgsql(builder.Configuration.GetConnectionString("Mathom")));
 
 var app = builder.Build();
 
