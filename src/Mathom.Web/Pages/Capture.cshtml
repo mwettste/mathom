@@ -23,6 +23,9 @@
             <span x-text="recording ? ('Stop · ' + fmt(elapsed)) : (uploading ? 'Uploading…' : 'Record')"></span>
         </button>
         <p class="hint" x-text="status"></p>
-        <p class="hint" x-show="done" x-cloak><a href="/">View timeline →</a></p>
+        <div class="hint capture__done" x-show="done" x-cloak>
+            <span class="pill processing"><span class="dot"></span>transcribing in the background</span>
+            <a href="/">View timeline →</a>
+        </div>
     </div>
 </section>

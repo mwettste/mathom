@@ -7,11 +7,28 @@
   --line: #EAE9E5;
   --accent: #3B6E5F;
   --accent-soft: #ECF2EF;
+  --on-accent: #FFFFFF;
   --danger: #A23B36;
   --radius: 10px;
   --maxw: 660px;
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
+
+[data-theme="dark"] {
+  --bg: #16161A;
+  --surface: #1F1F25;
+  --ink: #ECEBE5;
+  --muted: #A09E95;
+  --faint: #6F6D66;
+  --line: #2C2C34;
+  --accent: #6FB39C;
+  --accent-soft: #1E2A26;
+  --on-accent: #14140F;
+  --danger: #D98179;
+}
+
+html { color-scheme: light; }
+html[data-theme="dark"] { color-scheme: dark; }
 
 * { box-sizing: border-box; }
 
@@ -55,9 +72,20 @@ a:hover { text-decoration: underline; }
   font-size: 1.05rem;
 }
 .brand:hover { text-decoration: none; }
-.nav { display: flex; gap: 1.1rem; font-size: 0.92rem; }
+.nav { display: flex; align-items: center; gap: 1.1rem; font-size: 0.92rem; }
 .nav a { color: var(--muted); }
 .nav a.active { color: var(--ink); font-weight: 600; }
+.theme-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.2rem 0.35rem;
+  border-radius: 6px;
+}
+.theme-toggle:hover { color: var(--ink); }
 
 .container {
   max-width: var(--maxw);
@@ -93,7 +121,8 @@ a:hover { text-decoration: underline; }
   justify-content: space-between;
   gap: 0.75rem;
 }
-.entry__title { font-weight: 600; letter-spacing: -0.01em; }
+.entry__title { font-weight: 600; letter-spacing: -0.01em; color: var(--ink); text-decoration: none; }
+.entry__title:hover { color: var(--accent); text-decoration: none; }
 .entry__time { color: var(--faint); font-size: 0.8rem; white-space: nowrap; flex: none; }
 .entry__body {
   margin: 0.25rem 0 0;
@@ -127,6 +156,26 @@ a:hover { text-decoration: underline; }
 
 .empty { color: var(--muted); padding: 2.5rem 0; text-align: center; }
 
+/* ---- note detail ---- */
+.back { margin: 0 0 1.25rem; font-size: 0.9rem; }
+.note__head { margin-bottom: 1.25rem; }
+.note__title { font-size: 1.5rem; line-height: 1.25; letter-spacing: -0.02em; margin: 0 0 0.5rem; }
+.note__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; font-size: 0.85rem; color: var(--muted); }
+.note__time { color: var(--faint); }
+.note__body { font-size: 1.05rem; line-height: 1.7; white-space: pre-wrap; }
+.note__pending { color: var(--muted); }
+.note__error {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 9%, transparent);
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius);
+}
+.note__error span { color: var(--muted); }
+.note__transcript { margin-top: 1.75rem; padding-top: 1.1rem; border-top: 1px solid var(--line); }
+.note__subhead { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--faint); margin: 0 0 0.4rem; }
+.note__transcript p { color: var(--muted); line-height: 1.6; white-space: pre-wrap; margin: 0; }
+.note__tags { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.5rem; }
+
 /* ---- capture ---- */
 .capture { display: grid; gap: 1rem; }
 .card {
@@ -158,8 +207,8 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
 }
 .btn:disabled { opacity: 0.55; cursor: default; }
-.btn--primary { background: var(--accent); color: #fff; }
-.btn--primary:hover:not(:disabled) { background: #335f52; }
+.btn--primary { background: var(--accent); color: var(--on-accent); }
+.btn--primary:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 86%, #000); }
 .btn--record {
   display: inline-flex;
   align-items: center;
@@ -172,6 +221,7 @@ a:hover { text-decoration: underline; }
 .btn--record.is-recording { border-color: var(--danger); color: var(--danger); }
 .rec-dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; background: var(--danger); animation: pulse 1.1s ease-in-out infinite; }
 .hint { color: var(--muted); font-size: 0.85rem; margin: 0.5rem 0 0; }
+.capture__done { display: flex; align-items: center; flex-wrap: wrap; gap: 0.75rem; }
 
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 @keyframes rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }

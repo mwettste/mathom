@@ -1,0 +1,9 @@
+@page "{id:guid}"
+@model NoteModel
+@{ ViewData["Title"] = Model.Item?.Title ?? "Note"; }
+
+<p class="back"><a href="/">← Timeline</a></p>
+
+<article id="note-content">
+    <partial name="Shared/_NoteContent" model="Model.Item" />
+</article>

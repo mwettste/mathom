@@ -16,7 +16,7 @@ else
                 ?? (item.SourceType == SourceType.Voice ? "Voice note" : "Quick note");
             <li class="entry @(inflight ? "entry--inflight" : "")">
                 <div class="entry__head">
-                    <span class="entry__title">@title</span>
+                    <a class="entry__title" href="/Note/@item.Id">@title</a>
                     <span class="entry__time">@RelativeTime.Ago(item.CreatedAt)</span>
                 </div>
                 @if (!string.IsNullOrEmpty(item.CleanText))

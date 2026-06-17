@@ -22,10 +22,36 @@ public record ItemSummary(
 
 public record SearchFilters(ItemType? ItemType, bool? Actionable);
 
+public record ItemDetail(
+    Guid Id,
+    string? Title,
+    string? CleanText,
+    string RawText,
+    ItemType? ItemType,
+    SourceType SourceType,
+    ItemStatus Status,
+    bool Actionable,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? ProcessedAt,
+    string? Error,
+    IReadOnlyList<string> Tags);
+
 public class SearchService
 {
     private readonly MathomDbContext _db;
     public SearchService(MathomDbContext db) => _db = db;
+
+    // Full single item for the detail page (includes the raw transcript and any error).
+    public async Task<ItemDetail?> GetAsync(Guid id, CancellationToken ct)
+    {
+        return await _db.Items
+            .Where(i => i.Id == id)
+            .Select(i => new ItemDetail(
+                i.Id, i.Title, i.CleanText, i.RawText, i.ItemType, i.SourceType,
+                i.Status, i.Actionable, i.CreatedAt, i.ProcessedAt, i.Error,
+                i.ItemTags.Select(it => it.Tag.Name).ToList()))
+            .FirstOrDefaultAsync(ct);
+    }
 
     // Timeline shows ALL recent items regardless of status, so freshly-captured items
     // appear immediately with their in-flight status (captured / transcribing / failed)

@@ -77,7 +77,7 @@ function voiceCapture() {
         form.append('idempotencyKey', crypto.randomUUID());
         this.status = 'Uploading…';
         const res = await fetch('/capture/voice', { method: 'POST', body: form });
-        this.status = res.ok ? 'Filed ✓ — transcribing in the background.' : 'Something went wrong — try again.';
+        this.status = res.ok ? 'Filed ✓' : 'Something went wrong — try again.';
         this.done = res.ok;
       } catch {
         this.status = 'Network error — try again.';

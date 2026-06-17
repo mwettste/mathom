@@ -5,6 +5,30 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script>
+        // Resolve theme before paint (no flash): stored choice, else OS preference.
+        (function () {
+            var root = document.documentElement;
+            function apply(t) { root.setAttribute('data-theme', t); }
+            function current() { return root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; }
+            var saved = localStorage.getItem('mathom-theme');
+            apply(saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+            function sync() {
+                var btn = document.getElementById('theme-toggle');
+                if (!btn) return;
+                var dark = current() === 'dark';
+                btn.textContent = dark ? '☀' : '☾';
+                btn.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+            }
+            window.toggleTheme = function () {
+                var next = current() === 'dark' ? 'light' : 'dark';
+                localStorage.setItem('mathom-theme', next);
+                apply(next);
+                sync();
+            };
+            document.addEventListener('DOMContentLoaded', sync);
+        })();
+    </script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>@(ViewData["Title"] ?? "Mathom") · Mathom</title>
@@ -19,6 +43,7 @@
         <nav class="nav">
             <a href="/Capture" class="@Active("/Capture")">Capture</a>
             <a href="/" class="@Active("/")">Timeline</a>
+            <button id="theme-toggle" class="theme-toggle" type="button" onclick="toggleTheme()" aria-label="Toggle theme">☾</button>
         </nav>
     </header>
     <main class="container">
