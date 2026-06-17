@@ -2,6 +2,7 @@ using Mathom.Web.Data;
 using Mathom.Web.Media;
 using Mathom.Web.Processing;
 using Mathom.Web.Search;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -41,7 +42,9 @@ if (!app.Environment.IsEnvironment("Testing"))
     scope.ServiceProvider.GetRequiredService<MathomDbContext>().Database.Migrate();
 }
 
-app.UseStaticFiles();
+var contentTypes = new FileExtensionContentTypeProvider();
+contentTypes.Mappings[".webmanifest"] = "application/manifest+json";
+app.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = contentTypes });
 
 app.MapGet("/healthz", () => Results.Ok("ok"));
 

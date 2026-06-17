@@ -33,6 +33,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>@(ViewData["Title"] ?? "Mathom") · Mathom</title>
     <link rel="stylesheet" href="~/css/mathom.css" asp-append-version="true" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#FBFBFA" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#16161A" media="(prefers-color-scheme: dark)" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon-180.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Mathom" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <script defer src="~/lib/htmx.min.js"></script>
     <script defer src="~/js/capture.js" asp-append-version="true"></script>
     <script defer src="~/lib/alpine.min.js"></script>
