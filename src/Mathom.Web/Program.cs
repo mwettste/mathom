@@ -1,6 +1,7 @@
 using Mathom.Web.Data;
 using Mathom.Web.Processing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,8 +11,15 @@ builder.Services.AddDbContext<MathomDbContext>(o =>
 builder.Services.AddControllers();
 
 builder.Services.AddScoped<ItemProcessor>();
-// TODO(Task 9): replace with real provider + fallback
-builder.Services.AddScoped<ILlmClient, NotConfiguredLlmClient>();
+builder.Services.AddHttpClient<InfomaniakLlmClient>();
+builder.Services.AddHttpClient<OpenRouterLlmClient>();
+builder.Services.AddScoped<ILlmClient>(sp => new FallbackLlmClient(
+    new ILlmClient[]
+    {
+        sp.GetRequiredService<InfomaniakLlmClient>(),
+        sp.GetRequiredService<OpenRouterLlmClient>(),
+    },
+    sp.GetRequiredService<ILogger<FallbackLlmClient>>()));
 
 if (!builder.Environment.IsEnvironment("Testing"))
     builder.Services.AddHostedService<ProcessingWorker>();
