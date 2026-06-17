@@ -41,7 +41,7 @@ public abstract class OpenAiCompatibleLlmClient : ILlmClient
         var payload = new
         {
             model = _model,
-            response_format = new { type = "json_object" },
+            response_format = BuildResponseFormat(),
             messages = new object[]
             {
                 new { role = "system", content = CleanupPromptBuilder.BuildSystemPrompt() },
@@ -56,4 +56,10 @@ public abstract class OpenAiCompatibleLlmClient : ILlmClient
             .GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString()!;
         return CleanupResultParser.Parse(content);
     }
+
+    /// <summary>
+    /// The OpenAI <c>response_format</c> object. Defaults to <c>json_object</c> (works on most
+    /// providers, e.g. OpenRouter); a provider can override to require a JSON schema.
+    /// </summary>
+    protected virtual object BuildResponseFormat() => new { type = "json_object" };
 }
