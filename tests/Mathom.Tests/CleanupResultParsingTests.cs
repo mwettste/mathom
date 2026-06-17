@@ -35,4 +35,11 @@ public class CleanupResultParsingTests
         var json = """{"title":"t","clean_text":"x","item_type":"banana","actionable":false,"tags":[]}""";
         Assert.Throws<FormatException>(() => CleanupResultParser.Parse(json));
     }
+
+    [Fact]
+    public void Parse_ActionableAsString_ThrowsFormatException()
+    {
+        var json = """{"title":"t","clean_text":"x","item_type":"note","actionable":"yes","tags":[]}""";
+        Assert.Throws<FormatException>(() => CleanupResultParser.Parse(json));
+    }
 }

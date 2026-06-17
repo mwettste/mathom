@@ -12,18 +12,21 @@ public class FallbackLlmClient : ILlmClient
     private const int AttemptsPerProvider = 2;
     private readonly IReadOnlyList<ILlmClient> _providers;
     private readonly ILogger<FallbackLlmClient> _logger;
+    private readonly TimeSpan _retryDelay;
 
-    public FallbackLlmClient(IEnumerable<ILlmClient> providers, ILogger<FallbackLlmClient> logger)
+    public FallbackLlmClient(IEnumerable<ILlmClient> providers, ILogger<FallbackLlmClient> logger, TimeSpan? retryDelay = null)
     {
         _providers = providers.ToList();
         _logger = logger;
+        _retryDelay = retryDelay ?? TimeSpan.FromMilliseconds(200);
     }
 
     public async Task<CleanupResult> CleanupAsync(string rawText, CancellationToken ct)
     {
         Exception? last = null;
-        foreach (var provider in _providers)
+        for (var providerIndex = 0; providerIndex < _providers.Count; providerIndex++)
         {
+            var provider = _providers[providerIndex];
             for (var attempt = 1; attempt <= AttemptsPerProvider; attempt++)
             {
                 try
@@ -35,6 +38,14 @@ public class FallbackLlmClient : ILlmClient
                     last = ex;
                     _logger.LogWarning(ex, "Provider {Provider} attempt {Attempt} failed",
                         provider.GetType().Name, attempt);
+
+                    // Delay only when there is another attempt remaining (either for this provider or another provider after it).
+                    bool isLastAttemptForProvider = attempt == AttemptsPerProvider;
+                    bool isLastProvider = providerIndex == _providers.Count - 1;
+                    if (!isLastAttemptForProvider || !isLastProvider)
+                    {
+                        await Task.Delay(_retryDelay * attempt, ct);
+                    }
                 }
             }
         }

@@ -20,12 +20,12 @@ public class FallbackLlmClientTests
             Respond = _ => new CleanupResult("ok", "ok", ItemType.Note, false, Array.Empty<CleanupTag>())
         };
 
-        var fallback = new FallbackLlmClient(new ILlmClient[] { primary, secondary }, NullLogger<FallbackLlmClient>.Instance);
+        var fallback = new FallbackLlmClient(new ILlmClient[] { primary, secondary }, NullLogger<FallbackLlmClient>.Instance, retryDelay: TimeSpan.Zero);
         var result = await fallback.CleanupAsync("hi", CancellationToken.None);
 
         Assert.Equal("ok", result.CleanText);
-        Assert.True(primary.Calls >= 1);
-        Assert.True(secondary.Calls >= 1);
+        Assert.Equal(2, primary.Calls);
+        Assert.Equal(1, secondary.Calls);
     }
 
     [Fact]
@@ -33,7 +33,8 @@ public class FallbackLlmClientTests
     {
         var fallback = new FallbackLlmClient(
             new ILlmClient[] { new FakeLlmClient { Throw = true }, new FakeLlmClient { Throw = true } },
-            NullLogger<FallbackLlmClient>.Instance);
+            NullLogger<FallbackLlmClient>.Instance,
+            retryDelay: TimeSpan.Zero);
 
         await Assert.ThrowsAnyAsync<Exception>(() => fallback.CleanupAsync("hi", CancellationToken.None));
     }

@@ -17,7 +17,16 @@ public static class CleanupResultParser
             var title = GetRequiredString(root, "title");
             var cleanText = GetRequiredString(root, "clean_text");
             var itemType = ParseEnum<ItemType>(GetRequiredString(root, "item_type"));
-            var actionable = root.TryGetProperty("actionable", out var a) && a.ValueKind == JsonValueKind.True;
+            bool actionable = false;
+            if (root.TryGetProperty("actionable", out var a))
+            {
+                if (a.ValueKind == JsonValueKind.True)
+                    actionable = true;
+                else if (a.ValueKind == JsonValueKind.False)
+                    actionable = false;
+                else
+                    throw new FormatException("Field 'actionable' must be a boolean.");
+            }
 
             var tags = new List<CleanupTag>();
             if (root.TryGetProperty("tags", out var tagsEl) && tagsEl.ValueKind == JsonValueKind.Array)
