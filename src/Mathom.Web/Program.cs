@@ -1,4 +1,5 @@
 using Mathom.Web.Data;
+using Mathom.Web.Media;
 using Mathom.Web.Processing;
 using Mathom.Web.Search;
 using Microsoft.EntityFrameworkCore;
@@ -14,6 +15,7 @@ builder.Services.AddScoped<SearchService>();
 builder.Services.AddControllers();
 
 builder.Services.AddScoped<ItemProcessor>();
+builder.Services.AddSingleton<IMediaStore, LocalDiskMediaStore>();
 builder.Services.AddHttpClient<InfomaniakLlmClient>();
 builder.Services.AddHttpClient<OpenRouterLlmClient>();
 builder.Services.AddScoped<ILlmClient>(sp => new FallbackLlmClient(
