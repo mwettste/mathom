@@ -1,0 +1,17 @@
+# .NET
+bin/
+obj/
+*.user
+.vs/
+
+# Secrets / local config
+appsettings.Development.json
+appsettings.Local.json
+*.env
+.env
+
+# Media volume (local dev)
+media/
+
+# OS
+.DS_Store
