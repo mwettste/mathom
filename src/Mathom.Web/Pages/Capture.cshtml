@@ -6,27 +6,98 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Capture · Mathom</title>
+    <script defer src="~/lib/alpine.min.js"></script>
 </head>
 <body>
     <h1>Capture</h1>
-    <form id="capture-form">
-        <textarea id="text" rows="5" placeholder="Dump an idea…" required></textarea>
-        <button type="submit">Capture</button>
-    </form>
-    <p id="status"></p>
+
+    <section x-data="textCapture()">
+        <h2>Type</h2>
+        <form @@submit.prevent="submit()">
+            <textarea x-model="text" rows="5" placeholder="Dump an idea…" required></textarea>
+            <button type="submit" x-bind:disabled="busy">Capture</button>
+        </form>
+        <p x-text="status"></p>
+    </section>
+
+    <section x-data="voiceCapture()">
+        <h2>Speak</h2>
+        <button type="button" @@click="toggle()" x-text="recording ? `Stop (${elapsed}s)` : 'Record'"></button>
+        <p x-text="status"></p>
+    </section>
+
     <script>
-        const form = document.getElementById('capture-form');
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const text = document.getElementById('text').value;
-            const res = await fetch('/capture', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text, idempotencyKey: crypto.randomUUID() })
-            });
-            document.getElementById('status').textContent = res.ok ? 'captured ✓' : 'failed';
-            if (res.ok) document.getElementById('text').value = '';
-        });
+        function textCapture() {
+            return {
+                text: '', busy: false, status: '',
+                async submit() {
+                    this.busy = true;
+                    try {
+                        const res = await fetch('/capture', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ text: this.text, idempotencyKey: crypto.randomUUID() })
+                        });
+                        this.status = res.ok ? 'captured ✓' : 'failed';
+                        if (res.ok) this.text = '';
+                    } catch {
+                        this.status = 'failed';
+                    } finally {
+                        this.busy = false;
+                    }
+                }
+            };
+        }
+
+        function voiceCapture() {
+            return {
+                recording: false, uploading: false, elapsed: 0, status: '',
+                _recorder: null, _chunks: [], _timer: null,
+                async toggle() {
+                    if (this.uploading) return;
+                    if (this.recording) { this._recorder.stop(); return; }
+                    let stream;
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    } catch {
+                        this.status = 'microphone unavailable';
+                        return;
+                    }
+                    this._chunks = [];
+                    this._recorder = new MediaRecorder(stream);
+                    this._recorder.ondataavailable = e => { if (e.data.size) this._chunks.push(e.data); };
+                    this._recorder.onstop = async () => {
+                        clearInterval(this._timer);
+                        this.recording = false;
+                        stream.getTracks().forEach(t => t.stop());
+                        await this.upload();
+                    };
+                    this._recorder.start();
+                    this.recording = true;
+                    this.elapsed = 0;
+                    this.status = '';
+                    this._timer = setInterval(() => this.elapsed++, 1000);
+                },
+                async upload() {
+                    this.uploading = true;
+                    try {
+                        const type = this._recorder.mimeType || 'audio/webm';
+                        const ext = type.includes('mp4') || type.includes('mpeg') ? 'm4a' : 'webm';
+                        const blob = new Blob(this._chunks, { type });
+                        const form = new FormData();
+                        form.append('audio', blob, `note.${ext}`);
+                        form.append('idempotencyKey', crypto.randomUUID());
+                        this.status = 'uploading…';
+                        const res = await fetch('/capture/voice', { method: 'POST', body: form });
+                        this.status = res.ok ? 'captured ✓' : 'failed';
+                    } catch {
+                        this.status = 'failed';
+                    } finally {
+                        this.uploading = false;
+                    }
+                }
+            };
+        }
     </script>
 </body>
 </html>

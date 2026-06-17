@@ -19,4 +19,5 @@ COPY --from=build /app/publish .
 # The aspnet image listens on 8080 by default; make it explicit.
 ENV ASPNETCORE_HTTP_PORTS=8080
 EXPOSE 8080
+RUN mkdir -p /app/media
 ENTRYPOINT ["dotnet", "Mathom.Web.dll"]

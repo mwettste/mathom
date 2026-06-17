@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Mathom.Web.Data;
 using Mathom.Web.Domain;
+using Mathom.Web.Media;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -13,12 +14,21 @@ public class ItemProcessor
 {
     private readonly MathomDbContext _db;
     private readonly ILlmClient _llm;
+    private readonly ITranscriber _transcriber;
+    private readonly IMediaStore _media;
     private readonly ILogger<ItemProcessor> _logger;
 
-    public ItemProcessor(MathomDbContext db, ILlmClient llm, ILogger<ItemProcessor> logger)
+    public ItemProcessor(
+        MathomDbContext db,
+        ILlmClient llm,
+        ITranscriber transcriber,
+        IMediaStore media,
+        ILogger<ItemProcessor> logger)
     {
         _db = db;
         _llm = llm;
+        _transcriber = transcriber;
+        _media = media;
         _logger = logger;
     }
 
@@ -33,6 +43,14 @@ public class ItemProcessor
 
         try
         {
+            // Voice items have no text yet — transcribe the stored audio first.
+            if (item.SourceType == SourceType.Voice && string.IsNullOrEmpty(item.RawText) && item.MediaPath is not null)
+            {
+                await using var audio = await _media.OpenReadAsync(item.MediaPath, ct);
+                item.RawText = await _transcriber.TranscribeAsync(audio, item.MediaPath, ct);
+                await _db.SaveChangesAsync(ct);
+            }
+
             var result = await _llm.CleanupAsync(item.RawText, ct);
 
             item.Title = result.Title;

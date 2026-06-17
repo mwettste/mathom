@@ -1,8 +1,10 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Mathom.Web.Domain;
+using Mathom.Web.Media;
 using Mathom.Web.Processing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -34,7 +36,7 @@ public class ItemProcessorTests
 
         await using (var db = _fx.NewDbContext())
         {
-            var processor = new ItemProcessor(db, fake, NullLogger<ItemProcessor>.Instance);
+            var processor = new ItemProcessor(db, fake, new FakeTranscriber(), new FakeMediaStore(), NullLogger<ItemProcessor>.Instance);
             await processor.ProcessAsync(item.Id, CancellationToken.None);
         }
 
@@ -63,7 +65,7 @@ public class ItemProcessorTests
 
         await using (var db = _fx.NewDbContext())
         {
-            var processor = new ItemProcessor(db, new FakeLlmClient { Throw = true }, NullLogger<ItemProcessor>.Instance);
+            var processor = new ItemProcessor(db, new FakeLlmClient { Throw = true }, new FakeTranscriber(), new FakeMediaStore(), NullLogger<ItemProcessor>.Instance);
             await processor.ProcessAsync(item.Id, CancellationToken.None);
         }
 
@@ -94,11 +96,85 @@ public class ItemProcessorTests
         };
 
         await using (var db = _fx.NewDbContext())
-            await new ItemProcessor(db, fake, NullLogger<ItemProcessor>.Instance).ProcessAsync(a.Id, CancellationToken.None);
+            await new ItemProcessor(db, fake, new FakeTranscriber(), new FakeMediaStore(), NullLogger<ItemProcessor>.Instance).ProcessAsync(a.Id, CancellationToken.None);
         await using (var db = _fx.NewDbContext())
-            await new ItemProcessor(db, fake, NullLogger<ItemProcessor>.Instance).ProcessAsync(b.Id, CancellationToken.None);
+            await new ItemProcessor(db, fake, new FakeTranscriber(), new FakeMediaStore(), NullLogger<ItemProcessor>.Instance).ProcessAsync(b.Id, CancellationToken.None);
 
         await using (var verify = _fx.NewDbContext())
             Assert.Equal(1, await verify.Tags.CountAsync(t => t.Name == "shared"));
+    }
+
+    [Fact]
+    public async Task ProcessAsync_Voice_TranscribesThenCleans()
+    {
+        var media = new FakeMediaStore();
+        string mediaKey;
+        using (var audio = new MemoryStream(new byte[] { 1, 2, 3, 4 }))
+            mediaKey = await media.SaveAsync(audio, ".webm", CancellationToken.None);
+
+        var item = new Item
+        {
+            Id = Guid.NewGuid(),
+            Status = ItemStatus.Pending,
+            SourceType = SourceType.Voice,
+            RawText = "",
+            MediaPath = mediaKey,
+            IdempotencyKey = Guid.NewGuid().ToString(),
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+        await using (var seed = _fx.NewDbContext()) { seed.Items.Add(item); await seed.SaveChangesAsync(); }
+
+        var transcriber = new FakeTranscriber { Respond = _ => "spoken note about tomatoes" };
+        var llm = new FakeLlmClient
+        {
+            Respond = raw => new CleanupResult("Tomatoes", raw.Trim(), ItemType.Idea, true,
+                new[] { new CleanupTag("garden", TagKind.Topic) })
+        };
+
+        await using (var db = _fx.NewDbContext())
+            await new ItemProcessor(db, llm, transcriber, media, NullLogger<ItemProcessor>.Instance)
+                .ProcessAsync(item.Id, CancellationToken.None);
+
+        await using (var verify = _fx.NewDbContext())
+        {
+            var loaded = await verify.Items.SingleAsync(i => i.Id == item.Id);
+            Assert.Equal(ItemStatus.Ready, loaded.Status);
+            Assert.Equal("spoken note about tomatoes", loaded.RawText);   // transcript preserved
+            Assert.Equal("spoken note about tomatoes", loaded.CleanText); // cleaned from transcript
+            Assert.Equal(ItemType.Idea, loaded.ItemType);
+        }
+        Assert.Equal(1, transcriber.Calls);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_Voice_OnTranscriptionFailure_SetsFailed()
+    {
+        var media = new FakeMediaStore();
+        string mediaKey;
+        using (var audio = new MemoryStream(new byte[] { 9 }))
+            mediaKey = await media.SaveAsync(audio, ".webm", CancellationToken.None);
+
+        var item = new Item
+        {
+            Id = Guid.NewGuid(),
+            Status = ItemStatus.Pending,
+            SourceType = SourceType.Voice,
+            RawText = "",
+            MediaPath = mediaKey,
+            IdempotencyKey = Guid.NewGuid().ToString(),
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+        await using (var seed = _fx.NewDbContext()) { seed.Items.Add(item); await seed.SaveChangesAsync(); }
+
+        await using (var db = _fx.NewDbContext())
+            await new ItemProcessor(db, new FakeLlmClient(), new FakeTranscriber { Throw = true }, media,
+                NullLogger<ItemProcessor>.Instance).ProcessAsync(item.Id, CancellationToken.None);
+
+        await using (var verify = _fx.NewDbContext())
+        {
+            var loaded = await verify.Items.SingleAsync(i => i.Id == item.Id);
+            Assert.Equal(ItemStatus.Failed, loaded.Status);
+            Assert.False(string.IsNullOrEmpty(loaded.Error));
+        }
     }
 }
