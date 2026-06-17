@@ -1,0 +1,28 @@
+@{
+    var path = ViewContext.HttpContext.Request.Path.Value ?? "/";
+    string Active(string p) => string.Equals(path, p, StringComparison.OrdinalIgnoreCase) ? "active" : "";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@(ViewData["Title"] ?? "Mathom") · Mathom</title>
+    <link rel="stylesheet" href="~/css/mathom.css" asp-append-version="true" />
+    <script defer src="~/lib/htmx.min.js"></script>
+    <script defer src="~/js/capture.js" asp-append-version="true"></script>
+    <script defer src="~/lib/alpine.min.js"></script>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="/">Mathom</a>
+        <nav class="nav">
+            <a href="/Capture" class="@Active("/Capture")">Capture</a>
+            <a href="/" class="@Active("/")">Timeline</a>
+        </nav>
+    </header>
+    <main class="container">
+        @RenderBody()
+    </main>
+</body>
+</html>

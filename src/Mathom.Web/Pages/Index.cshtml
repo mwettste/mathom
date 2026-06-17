@@ -1,21 +1,14 @@
 @page
 @model IndexModel
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Mathom</title>
-    <script src="~/lib/htmx.min.js" asp-append-version="true"></script>
-</head>
-<body>
-    <h1>Mathom</h1>
-    <a href="/Capture">+ Capture</a>
-    <input type="search" name="q" placeholder="Search your brain…"
+@{ ViewData["Title"] = "Timeline"; }
+
+<div class="toolbar">
+    <input class="search" type="search" name="q" placeholder="Search your brain…" autocomplete="off"
+           aria-label="Search notes"
            hx-get="/?handler=Search" hx-trigger="input changed delay:300ms, search"
            hx-target="#item-list" hx-swap="innerHTML" />
-    <div id="item-list">
-        <partial name="Shared/_ItemList" model="Model.Items" />
-    </div>
-</body>
-</html>
+</div>
+
+<div id="item-list">
+    <partial name="Shared/_ItemList" model="Model.Items" />
+</div>
