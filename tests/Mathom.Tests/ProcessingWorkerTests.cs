@@ -44,4 +44,28 @@ public class ProcessingWorkerTests
         var claimed = await ProcessingWorker.ClaimNextPendingIdAsync(db, CancellationToken.None);
         Assert.Null(claimed);
     }
+
+    [Fact]
+    public async Task ResetOrphanedProcessing_FlipsProcessingItemBackToPending()
+    {
+        // Seed an item directly in Processing status (simulating a crash-orphaned item).
+        var orphaned = Item.CreatePending(SourceType.Text, "orphaned", Guid.NewGuid().ToString(), DateTimeOffset.UtcNow);
+        await using (var seed = _fx.NewDbContext())
+        {
+            seed.Items.Add(orphaned);
+            await seed.SaveChangesAsync();
+            await seed.Items
+                .Where(i => i.Id == orphaned.Id)
+                .ExecuteUpdateAsync(s => s.SetProperty(i => i.Status, ItemStatus.Processing));
+        }
+
+        await using var db = _fx.NewDbContext();
+        var resetCount = await ProcessingWorker.ResetOrphanedProcessingAsync(db, CancellationToken.None);
+
+        Assert.True(resetCount >= 1);
+
+        await using var verify = _fx.NewDbContext();
+        var item = await verify.Items.SingleAsync(i => i.Id == orphaned.Id);
+        Assert.Equal(ItemStatus.Pending, item.Status);
+    }
 }

@@ -17,10 +17,12 @@ public abstract class OpenAiCompatibleLlmClient : ILlmClient
 {
     private readonly HttpClient _http;
     private readonly string _model;
+    private readonly string _providerName;
 
     protected OpenAiCompatibleLlmClient(HttpClient http, IConfiguration config, string configSection, string defaultBaseUrl)
     {
         _http = http;
+        _providerName = configSection;
         var section = config.GetSection(configSection);
         _model = section["Model"] ?? string.Empty;
         _http.BaseAddress ??= new Uri(section["BaseUrl"] ?? defaultBaseUrl);
@@ -31,6 +33,10 @@ public abstract class OpenAiCompatibleLlmClient : ILlmClient
 
     public async Task<CleanupResult> CleanupAsync(string rawText, CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(_model))
+            throw new InvalidOperationException(
+                $"LLM model is not configured for '{_providerName}'. Set {_providerName}:Model (and ApiKey) in appsettings.Local.json.");
+
         var payload = new
         {
             model = _model,

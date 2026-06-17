@@ -24,6 +24,16 @@ public class ProcessingWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // On startup, any item still in Processing was orphaned by a previous crash/restart.
+        // Because there is exactly one worker, we can safely reset them to Pending for retry.
+        using (var startupScope = _scopeFactory.CreateScope())
+        {
+            var db = startupScope.ServiceProvider.GetRequiredService<MathomDbContext>();
+            var resetCount = await ResetOrphanedProcessingAsync(db, stoppingToken);
+            if (resetCount > 0)
+                _logger.LogWarning("Reset {Count} orphaned Processing item(s) to Pending on startup.", resetCount);
+        }
+
         while (!stoppingToken.IsCancellationRequested)
         {
             Guid? claimedId = null;
@@ -47,6 +57,15 @@ public class ProcessingWorker : BackgroundService
             if (claimedId is null)
                 await Task.Delay(_idleDelay, stoppingToken);
         }
+    }
+
+    // Resets all orphaned Processing items back to Pending. Returns the count of rows reset.
+    // Safe to call at startup because there is exactly one worker — any Processing row is stale.
+    public static async Task<int> ResetOrphanedProcessingAsync(MathomDbContext db, CancellationToken ct)
+    {
+        return await db.Items
+            .Where(i => i.Status == ItemStatus.Processing)
+            .ExecuteUpdateAsync(s => s.SetProperty(i => i.Status, ItemStatus.Pending), ct);
     }
 
     // Claims the oldest pending item using row-level locking so concurrent workers don't double-process.
