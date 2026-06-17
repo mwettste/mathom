@@ -35,7 +35,8 @@ public abstract class OpenAiCompatibleLlmClient : ILlmClient
     {
         if (string.IsNullOrWhiteSpace(_model))
             throw new InvalidOperationException(
-                $"LLM model is not configured for '{_providerName}'. Set {_providerName}:Model (and ApiKey) in appsettings.Local.json.");
+                $"LLM model is not configured for '{_providerName}'. Set {_providerName}:Model and {_providerName}:ApiKey " +
+                $"via configuration — e.g. appsettings.Development.json, or the {_providerName.Replace(":", "__")}__Model environment variable.");
 
         var payload = new
         {

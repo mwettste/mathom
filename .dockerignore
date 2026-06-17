@@ -1,0 +1,18 @@
+# Build artifacts
+**/bin
+**/obj
+
+# VCS / IDE
+.git
+.gitignore
+.vs
+
+# Not needed in the image
+tests
+docs
+*.md
+
+# Never bake secrets/local config into the image
+.env
+**/appsettings.Local.json
+**/appsettings.Development.json

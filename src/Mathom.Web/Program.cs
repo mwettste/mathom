@@ -29,6 +29,14 @@ if (!builder.Environment.IsEnvironment("Testing"))
 
 var app = builder.Build();
 
+// Apply EF Core migrations on startup so a fresh container/DB is ready to use.
+// Skipped under the Testing environment, where integration tests manage the schema themselves.
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    using var scope = app.Services.CreateScope();
+    scope.ServiceProvider.GetRequiredService<MathomDbContext>().Database.Migrate();
+}
+
 app.UseStaticFiles();
 
 app.MapGet("/healthz", () => Results.Ok("ok"));
