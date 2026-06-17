@@ -5,6 +5,7 @@ using Mathom.Web.Data;
 using Mathom.Web.Domain;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace Mathom.Web.Capture;
 
@@ -31,8 +32,17 @@ public class CaptureController : ControllerBase
 
         var item = Item.CreatePending(SourceType.Text, req.Text, key, DateTimeOffset.UtcNow);
         _db.Items.Add(item);
-        await _db.SaveChangesAsync(ct);
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex)
+            when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            var race = await _db.Items.FirstOrDefaultAsync(i => i.IdempotencyKey == key, ct);
+            return Ok(new { id = race!.Id });
+        }
 
-        return Created($"/items/{item.Id}", new { id = item.Id });
+        return Created((string?)null, new { id = item.Id });
     }
 }
