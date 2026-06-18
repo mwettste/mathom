@@ -243,3 +243,7 @@ a:hover { text-decoration: underline; }
 .nav-user { font-size: 0.8rem; opacity: 0.7; }
 .nav-logout { display: inline; margin: 0; }
 .linklike { background: none; border: 0; color: inherit; cursor: pointer; font: inherit; text-decoration: underline; padding: 0; }
+
+/* ---- offline auth banner ---- */
+.auth-banner { position: fixed; bottom: 0; left: 0; right: 0; padding: 0.6rem 1rem; background: #c0392b; color: #fff; text-align: center; font-size: 0.85rem; z-index: 50; }
+.auth-banner a { color: #fff; text-decoration: underline; }

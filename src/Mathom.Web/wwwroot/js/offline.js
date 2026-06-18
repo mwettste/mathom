@@ -65,7 +65,12 @@ window.mathomOutbox = (function () {
       for (const rec of await getAll()) {
         try {
           const res = await post(rec);
-          // ok = stored; 4xx = idempotent dup or permanent reject -> drop either way.
+          if (res.status === 401 || res.status === 403) {
+            // Session expired: keep the capture queued and stop draining.
+            window.dispatchEvent(new CustomEvent('mathom:auth-required'));
+            return;
+          }
+          // ok = stored; other 4xx = idempotent dup or permanent reject -> drop.
           if (res.ok || (res.status >= 400 && res.status < 500)) await remove(rec.id);
           else return; // 5xx -> keep, try again later
         } catch {
@@ -94,6 +99,16 @@ window.mathomOutbox = (function () {
     if (document.visibilityState === 'visible') drain();
   });
   document.addEventListener('DOMContentLoaded', drain);
+
+  window.addEventListener('mathom:auth-required', () => {
+    // Soft prompt; the capture stays safely in the outbox.
+    if (document.getElementById('auth-required-banner')) return;
+    const b = document.createElement('div');
+    b.id = 'auth-required-banner';
+    b.className = 'auth-banner';
+    b.innerHTML = 'Your session expired — <a href="/Login">sign in</a> to sync queued notes.';
+    document.body.appendChild(b);
+  });
 
   return { send, drain, getAll };
 })();
