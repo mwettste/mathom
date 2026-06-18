@@ -52,6 +52,6 @@ else
     {
         <div class="poller" aria-hidden="true"
              hx-get="/?handler=Timeline" hx-trigger="every 3s"
-             hx-target="#item-list" hx-swap="innerHTML"></div>
+             hx-target="#item-list" hx-ext="morph" hx-swap="morph:innerHTML"></div>
     }
 }

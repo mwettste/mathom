@@ -63,5 +63,5 @@ else if (inflight)
 {
     <div aria-hidden="true"
          hx-get="@($"/Note/{Model.Id}?handler=Content")" hx-trigger="every 3s"
-         hx-target="#note-content" hx-swap="innerHTML"></div>
+         hx-target="#note-content" hx-ext="morph" hx-swap="morph:innerHTML"></div>
 }
