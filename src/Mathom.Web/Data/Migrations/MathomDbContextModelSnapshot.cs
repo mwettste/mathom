@@ -137,9 +137,11 @@ namespace Mathom.Web.Data.Migrations
                     b.Property<string>("Title")
                         .HasColumnType("text");
 
-                    b.HasKey("Id");
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
 
-                    b.HasIndex("CreatedAt");
+                    b.HasKey("Id");
 
                     b.HasIndex("IdempotencyKey")
                         .IsUnique();
@@ -149,6 +151,8 @@ namespace Mathom.Web.Data.Migrations
                     NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SearchVector"), "GIN");
 
                     b.HasIndex("Status");
+
+                    b.HasIndex("UserId", "CreatedAt");
 
                     b.ToTable("Items");
                 });
@@ -321,6 +325,15 @@ namespace Mathom.Web.Data.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("Mathom.Web.Domain.Item", b =>
+                {
+                    b.HasOne("Mathom.Web.Domain.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Mathom.Web.Domain.ItemTag", b =>

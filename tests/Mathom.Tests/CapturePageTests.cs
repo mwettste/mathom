@@ -1,7 +1,5 @@
 using System.Net;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
 
 namespace Mathom.Tests;
@@ -15,11 +13,8 @@ public class CapturePageTests
     [Fact]
     public async Task CapturePage_RendersTextAndVoiceModes()
     {
-        using var app = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
-        {
-            b.UseSetting("ConnectionStrings:Mathom", _fx.ConnectionString);
-            b.UseEnvironment("Testing");
-        });
+        using var app = new TestWebAppFactory(_fx.ConnectionString);
+        await app.SeedUsersAsync();
         var resp = await app.CreateClient().GetAsync("/Capture");
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
         var html = await resp.Content.ReadAsStringAsync();

@@ -5,8 +5,6 @@ using System.Threading.Tasks;
 using Mathom.Web.Data;
 using Mathom.Web.Domain;
 using Mathom.Web.Media;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -20,17 +18,16 @@ public class VoiceCaptureControllerTests
     private readonly PostgresFixture _fx;
     public VoiceCaptureControllerTests(PostgresFixture fx) => _fx = fx;
 
-    private WebApplicationFactory<Program> CreateApp(FakeMediaStore media) =>
-        new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
+    private async Task<TestWebAppFactory> CreateAppAsync(FakeMediaStore media)
+    {
+        var app = new TestWebAppFactory(_fx.ConnectionString, s =>
         {
-            b.UseSetting("ConnectionStrings:Mathom", _fx.ConnectionString);
-            b.UseEnvironment("Testing");
-            b.ConfigureServices(s =>
-            {
-                s.RemoveAll(typeof(IMediaStore));
-                s.AddSingleton<IMediaStore>(media);
-            });
+            s.RemoveAll(typeof(IMediaStore));
+            s.AddSingleton<IMediaStore>(media);
         });
+        await app.SeedUsersAsync();
+        return app;
+    }
 
     private static MultipartFormDataContent VoicePayload(byte[] audio, string idempotencyKey)
     {
@@ -46,7 +43,7 @@ public class VoiceCaptureControllerTests
     public async Task Post_Voice_CreatesPendingVoiceItem_WithMediaPath()
     {
         var media = new FakeMediaStore();
-        using var app = CreateApp(media);
+        using var app = await CreateAppAsync(media);
         var client = app.CreateClient();
 
         var resp = await client.PostAsync("/capture/voice", VoicePayload(new byte[] { 1, 2, 3 }, "voice-1"));
@@ -64,7 +61,7 @@ public class VoiceCaptureControllerTests
     public async Task Post_Voice_IsIdempotent()
     {
         var media = new FakeMediaStore();
-        using var app = CreateApp(media);
+        using var app = await CreateAppAsync(media);
         var client = app.CreateClient();
 
         await client.PostAsync("/capture/voice", VoicePayload(new byte[] { 1 }, "voice-dup"));
@@ -79,7 +76,7 @@ public class VoiceCaptureControllerTests
     public async Task Post_Voice_RejectsMissingAudio()
     {
         var media = new FakeMediaStore();
-        using var app = CreateApp(media);
+        using var app = await CreateAppAsync(media);
         var client = app.CreateClient();
 
         var form = new MultipartFormDataContent { { new StringContent("voice-empty"), "idempotencyKey" } };

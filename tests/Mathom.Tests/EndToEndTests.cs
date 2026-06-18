@@ -6,8 +6,6 @@ using Mathom.Web.Capture;
 using Mathom.Web.Domain;
 using Mathom.Web.Processing;
 using Mathom.Web.Search;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -36,17 +34,13 @@ public class EndToEndTests
                 new[] { new CleanupTag("gardening", TagKind.Topic) })
         };
 
-        using var app = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
+        using var app = new TestWebAppFactory(_fx.ConnectionString, s =>
         {
-            b.UseSetting("ConnectionStrings:Mathom", _fx.ConnectionString);
-            b.UseEnvironment("Testing"); // prevents Program.cs from registering the worker
-            b.ConfigureServices(s =>
-            {
-                s.RemoveAll(typeof(ILlmClient));
-                s.AddScoped<ILlmClient>(_ => fake);
-                s.AddHostedService<ProcessingWorker>(); // exactly one worker, from this registration
-            });
+            s.RemoveAll(typeof(ILlmClient));
+            s.AddScoped<ILlmClient>(_ => fake);
+            s.AddHostedService<ProcessingWorker>(); // exactly one worker, from this registration
         });
+        await app.SeedUsersAsync();
 
         var client = app.CreateClient();
         var resp = await client.PostAsJsonAsync("/capture",
@@ -76,7 +70,7 @@ public class EndToEndTests
 
         await using var verify = _fx.NewDbContext();
         var results = await new SearchService(verify)
-            .SearchAsync("tomatoes", new SearchFilters(null, null), 50, CancellationToken.None);
+            .SearchAsync(TestUsers.AliceId, "tomatoes", new SearchFilters(null, null), 50, CancellationToken.None);
         Assert.Contains(results, r => r.Id == id);
     }
 }

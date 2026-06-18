@@ -21,6 +21,22 @@ public class PostgresFixture : IAsyncLifetime
         return new MathomDbContext(options);
     }
 
+    public async Task EnsureUserAsync(string id, string email)
+    {
+        await using var db = NewDbContext();
+        if (await db.Users.FindAsync(id) is not null) return;
+        db.Users.Add(new Mathom.Web.Domain.ApplicationUser
+        {
+            Id = id,
+            UserName = email,
+            NormalizedUserName = email.ToUpperInvariant(),
+            Email = email,
+            NormalizedEmail = email.ToUpperInvariant(),
+            SecurityStamp = id,
+        });
+        await db.SaveChangesAsync();
+    }
+
     public async Task InitializeAsync()
     {
         await _container.StartAsync();

@@ -1,10 +1,12 @@
 using System;
 using System.IO;
+using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using Mathom.Web.Data;
 using Mathom.Web.Domain;
 using Mathom.Web.Media;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,6 +16,7 @@ namespace Mathom.Web.Capture;
 
 [ApiController]
 [Route("capture")]
+[Authorize]
 public class CaptureController : ControllerBase
 {
     private readonly MathomDbContext _db;
@@ -38,7 +41,8 @@ public class CaptureController : ControllerBase
         if (existing is not null)
             return Ok(new { id = existing.Id });
 
-        var item = Item.CreatePending(SourceType.Text, req.Text, key, DateTimeOffset.UtcNow);
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var item = Item.CreatePending(SourceType.Text, req.Text, key, userId, DateTimeOffset.UtcNow);
         _db.Items.Add(item);
         try
         {
@@ -79,7 +83,8 @@ public class CaptureController : ControllerBase
         await using (var stream = audio.OpenReadStream())
             mediaPath = await _media.SaveAsync(stream, ext, ct);
 
-        var item = Item.CreatePending(SourceType.Voice, "", key, DateTimeOffset.UtcNow);
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var item = Item.CreatePending(SourceType.Voice, "", key, userId, DateTimeOffset.UtcNow);
         item.MediaPath = mediaPath;
         _db.Items.Add(item);
         try

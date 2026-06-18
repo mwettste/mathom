@@ -4,8 +4,6 @@ using System.Threading.Tasks;
 using Mathom.Web.Capture;
 using Mathom.Web.Data;
 using Mathom.Web.Domain;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -19,17 +17,17 @@ public class CaptureControllerTests
     private readonly PostgresFixture _fx;
     public CaptureControllerTests(PostgresFixture fx) => _fx = fx;
 
-    private WebApplicationFactory<Program> CreateApp() =>
-        new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
-        {
-            b.UseEnvironment("Testing");
-            b.UseSetting("ConnectionStrings:Mathom", _fx.ConnectionString);
-        });
+    private async Task<TestWebAppFactory> CreateAppAsync()
+    {
+        var app = new TestWebAppFactory(_fx.ConnectionString);
+        await app.SeedUsersAsync();
+        return app;
+    }
 
     [Fact]
     public async Task Post_Capture_CreatesPendingItem()
     {
-        using var app = CreateApp();
+        using var app = await CreateAppAsync();
         var client = app.CreateClient();
 
         var resp = await client.PostAsJsonAsync("/capture", new CaptureRequest("a fresh idea", "idem-1"));
@@ -48,7 +46,7 @@ public class CaptureControllerTests
     [Fact]
     public async Task Post_Capture_IsIdempotent()
     {
-        using var app = CreateApp();
+        using var app = await CreateAppAsync();
         var client = app.CreateClient();
 
         var first = await client.PostAsJsonAsync("/capture", new CaptureRequest("dup", "idem-dup"));
@@ -66,7 +64,7 @@ public class CaptureControllerTests
     [Fact]
     public async Task Post_Capture_RejectsEmptyText()
     {
-        using var app = CreateApp();
+        using var app = await CreateAppAsync();
         var client = app.CreateClient();
         var resp = await client.PostAsJsonAsync("/capture", new CaptureRequest("   ", "idem-empty"));
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);

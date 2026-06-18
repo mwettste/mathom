@@ -15,13 +15,16 @@ namespace Mathom.Tests;
 [Collection("postgres")]
 public class ItemProcessorTests
 {
+    private const string Uid = "processor-tests-user";
+
     private readonly PostgresFixture _fx;
     public ItemProcessorTests(PostgresFixture fx) => _fx = fx;
 
     [Fact]
     public async Task ProcessAsync_FillsFieldsAndTags_SetsReady()
     {
-        var item = Item.CreatePending(SourceType.Text, "idea: build a thing", Guid.NewGuid().ToString(), DateTimeOffset.UtcNow);
+        await _fx.EnsureUserAsync(Uid, "processor@example.com");
+        var item = Item.CreatePending(SourceType.Text, "idea: build a thing", Guid.NewGuid().ToString(), Uid, DateTimeOffset.UtcNow);
         await using (var seed = _fx.NewDbContext())
         {
             seed.Items.Add(item);
@@ -56,7 +59,8 @@ public class ItemProcessorTests
     [Fact]
     public async Task ProcessAsync_OnLlmFailure_SetsFailedAndKeepsRawText()
     {
-        var item = Item.CreatePending(SourceType.Text, "keep me", Guid.NewGuid().ToString(), DateTimeOffset.UtcNow);
+        await _fx.EnsureUserAsync(Uid, "processor@example.com");
+        var item = Item.CreatePending(SourceType.Text, "keep me", Guid.NewGuid().ToString(), Uid, DateTimeOffset.UtcNow);
         await using (var seed = _fx.NewDbContext())
         {
             seed.Items.Add(item);
@@ -81,8 +85,9 @@ public class ItemProcessorTests
     [Fact]
     public async Task ProcessAsync_ReusesExistingTag()
     {
-        var a = Item.CreatePending(SourceType.Text, "first", Guid.NewGuid().ToString(), DateTimeOffset.UtcNow);
-        var b = Item.CreatePending(SourceType.Text, "second", Guid.NewGuid().ToString(), DateTimeOffset.UtcNow);
+        await _fx.EnsureUserAsync(Uid, "processor@example.com");
+        var a = Item.CreatePending(SourceType.Text, "first", Guid.NewGuid().ToString(), Uid, DateTimeOffset.UtcNow);
+        var b = Item.CreatePending(SourceType.Text, "second", Guid.NewGuid().ToString(), Uid, DateTimeOffset.UtcNow);
         await using (var seed = _fx.NewDbContext())
         {
             seed.Items.AddRange(a, b);
@@ -107,6 +112,7 @@ public class ItemProcessorTests
     [Fact]
     public async Task ProcessAsync_Voice_TranscribesThenCleans()
     {
+        await _fx.EnsureUserAsync(Uid, "processor@example.com");
         var media = new FakeMediaStore();
         string mediaKey;
         using (var audio = new MemoryStream(new byte[] { 1, 2, 3, 4 }))
@@ -121,6 +127,7 @@ public class ItemProcessorTests
             MediaPath = mediaKey,
             IdempotencyKey = Guid.NewGuid().ToString(),
             CreatedAt = DateTimeOffset.UtcNow,
+            UserId = Uid,
         };
         await using (var seed = _fx.NewDbContext()) { seed.Items.Add(item); await seed.SaveChangesAsync(); }
 
@@ -149,6 +156,7 @@ public class ItemProcessorTests
     [Fact]
     public async Task ProcessAsync_Voice_OnTranscriptionFailure_SetsFailed()
     {
+        await _fx.EnsureUserAsync(Uid, "processor@example.com");
         var media = new FakeMediaStore();
         string mediaKey;
         using (var audio = new MemoryStream(new byte[] { 9 }))
@@ -163,6 +171,7 @@ public class ItemProcessorTests
             MediaPath = mediaKey,
             IdempotencyKey = Guid.NewGuid().ToString(),
             CreatedAt = DateTimeOffset.UtcNow,
+            UserId = Uid,
         };
         await using (var seed = _fx.NewDbContext()) { seed.Items.Add(item); await seed.SaveChangesAsync(); }
 

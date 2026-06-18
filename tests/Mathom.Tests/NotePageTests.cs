@@ -2,8 +2,6 @@ using System;
 using System.Net;
 using System.Threading.Tasks;
 using Mathom.Web.Domain;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
 
 namespace Mathom.Tests;
@@ -14,12 +12,12 @@ public class NotePageTests
     private readonly PostgresFixture _fx;
     public NotePageTests(PostgresFixture fx) => _fx = fx;
 
-    private WebApplicationFactory<Program> CreateApp() =>
-        new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
-        {
-            b.UseEnvironment("Testing");
-            b.UseSetting("ConnectionStrings:Mathom", _fx.ConnectionString);
-        });
+    private async Task<TestWebAppFactory> CreateAppAsync()
+    {
+        var app = new TestWebAppFactory(_fx.ConnectionString);
+        await app.SeedUsersAsync();
+        return app;
+    }
 
     [Fact]
     public async Task Note_RendersFullUntruncatedBody()
@@ -38,10 +36,11 @@ public class NotePageTests
             CreatedAt = DateTimeOffset.UtcNow,
             ProcessedAt = DateTimeOffset.UtcNow,
             IdempotencyKey = Guid.NewGuid().ToString(),
+            UserId = TestUsers.AliceId,
         };
+        using var app = await CreateAppAsync();
         await using (var seed = _fx.NewDbContext()) { seed.Items.Add(item); await seed.SaveChangesAsync(); }
 
-        using var app = CreateApp();
         var resp = await app.CreateClient().GetAsync($"/Note/{item.Id}");
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
         var html = await resp.Content.ReadAsStringAsync();
@@ -52,7 +51,7 @@ public class NotePageTests
     [Fact]
     public async Task Note_UnknownId_Returns404()
     {
-        using var app = CreateApp();
+        using var app = await CreateAppAsync();
         var resp = await app.CreateClient().GetAsync($"/Note/{Guid.NewGuid()}");
         Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
     }

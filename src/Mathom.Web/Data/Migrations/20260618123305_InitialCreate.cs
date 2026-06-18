@@ -53,32 +53,6 @@ namespace Mathom.Web.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Items",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Status = table.Column<int>(type: "integer", nullable: false),
-                    SourceType = table.Column<int>(type: "integer", nullable: false),
-                    RawText = table.Column<string>(type: "text", nullable: false),
-                    CleanText = table.Column<string>(type: "text", nullable: true),
-                    Title = table.Column<string>(type: "text", nullable: true),
-                    ItemType = table.Column<int>(type: "integer", nullable: true),
-                    Actionable = table.Column<bool>(type: "boolean", nullable: false),
-                    MediaPath = table.Column<string>(type: "text", nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ProcessedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    Error = table.Column<string>(type: "text", nullable: true),
-                    IdempotencyKey = table.Column<string>(type: "text", nullable: false),
-                    SearchVector = table.Column<NpgsqlTsVector>(type: "tsvector", nullable: true)
-                        .Annotation("Npgsql:TsVectorConfig", "english")
-                        .Annotation("Npgsql:TsVectorProperties", new[] { "Title", "CleanText" })
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Items", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "Tags",
                 columns: table => new
                 {
@@ -199,6 +173,39 @@ namespace Mathom.Web.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Items",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false),
+                    SourceType = table.Column<int>(type: "integer", nullable: false),
+                    RawText = table.Column<string>(type: "text", nullable: false),
+                    CleanText = table.Column<string>(type: "text", nullable: true),
+                    Title = table.Column<string>(type: "text", nullable: true),
+                    ItemType = table.Column<int>(type: "integer", nullable: true),
+                    Actionable = table.Column<bool>(type: "boolean", nullable: false),
+                    MediaPath = table.Column<string>(type: "text", nullable: true),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    ProcessedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    Error = table.Column<string>(type: "text", nullable: true),
+                    IdempotencyKey = table.Column<string>(type: "text", nullable: false),
+                    UserId = table.Column<string>(type: "text", nullable: false),
+                    SearchVector = table.Column<NpgsqlTsVector>(type: "tsvector", nullable: true)
+                        .Annotation("Npgsql:TsVectorConfig", "english")
+                        .Annotation("Npgsql:TsVectorProperties", new[] { "Title", "CleanText" })
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Items", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Items_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "ItemTags",
                 columns: table => new
                 {
@@ -260,11 +267,6 @@ namespace Mathom.Web.Data.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Items_CreatedAt",
-                table: "Items",
-                column: "CreatedAt");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_Items_IdempotencyKey",
                 table: "Items",
                 column: "IdempotencyKey",
@@ -280,6 +282,11 @@ namespace Mathom.Web.Data.Migrations
                 name: "IX_Items_Status",
                 table: "Items",
                 column: "Status");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Items_UserId_CreatedAt",
+                table: "Items",
+                columns: new[] { "UserId", "CreatedAt" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_ItemTags_TagId",
@@ -318,13 +325,13 @@ namespace Mathom.Web.Data.Migrations
                 name: "AspNetRoles");
 
             migrationBuilder.DropTable(
-                name: "AspNetUsers");
-
-            migrationBuilder.DropTable(
                 name: "Items");
 
             migrationBuilder.DropTable(
                 name: "Tags");
+
+            migrationBuilder.DropTable(
+                name: "AspNetUsers");
         }
     }
 }

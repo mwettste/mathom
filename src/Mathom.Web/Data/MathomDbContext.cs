@@ -23,7 +23,13 @@ public class MathomDbContext : IdentityDbContext<ApplicationUser>
             e.Property(x => x.IdempotencyKey).IsRequired();
             e.HasIndex(x => x.IdempotencyKey).IsUnique();
             e.HasIndex(x => x.Status);
-            e.HasIndex(x => x.CreatedAt);
+            e.Property(x => x.UserId).IsRequired();
+            e.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            // Per-user timeline ordering.
+            e.HasIndex(x => new { x.UserId, x.CreatedAt });
 
             // Generated tsvector over Title + CleanText for full-text search.
 #pragma warning disable CS8603

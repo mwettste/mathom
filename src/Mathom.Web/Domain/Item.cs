@@ -22,12 +22,13 @@ public class Item
     public DateTimeOffset? ProcessedAt { get; set; }
     public string? Error { get; set; }
     public string IdempotencyKey { get; set; } = string.Empty;
+    public string UserId { get; set; } = string.Empty;
     public List<ItemTag> ItemTags { get; set; } = new();
 
     // Postgres-generated full-text search vector (configured in MathomDbContext).
     public NpgsqlTypes.NpgsqlTsVector? SearchVector { get; set; }
 
-    public static Item CreatePending(SourceType sourceType, string rawText, string idempotencyKey, DateTimeOffset now)
+    public static Item CreatePending(SourceType sourceType, string rawText, string idempotencyKey, string userId, DateTimeOffset now)
         => new()
         {
             Id = Guid.NewGuid(),
@@ -35,6 +36,7 @@ public class Item
             SourceType = sourceType,
             RawText = rawText,
             IdempotencyKey = idempotencyKey,
+            UserId = userId,
             CreatedAt = now,
         };
 }

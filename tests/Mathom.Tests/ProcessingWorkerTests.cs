@@ -11,14 +11,17 @@ namespace Mathom.Tests;
 [Collection("postgres")]
 public class ProcessingWorkerTests
 {
+    private const string Uid = "worker-tests-user";
+
     private readonly PostgresFixture _fx;
     public ProcessingWorkerTests(PostgresFixture fx) => _fx = fx;
 
     [Fact]
     public async Task ClaimNextPending_ReturnsOldestAndMarksProcessing()
     {
-        var older = Item.CreatePending(SourceType.Text, "older", Guid.NewGuid().ToString(), DateTimeOffset.UtcNow.AddMinutes(-5));
-        var newer = Item.CreatePending(SourceType.Text, "newer", Guid.NewGuid().ToString(), DateTimeOffset.UtcNow);
+        await _fx.EnsureUserAsync(Uid, "worker@example.com");
+        var older = Item.CreatePending(SourceType.Text, "older", Guid.NewGuid().ToString(), Uid, DateTimeOffset.UtcNow.AddMinutes(-5));
+        var newer = Item.CreatePending(SourceType.Text, "newer", Guid.NewGuid().ToString(), Uid, DateTimeOffset.UtcNow);
         await using (var seed = _fx.NewDbContext())
         {
             seed.Items.AddRange(newer, older);
@@ -49,7 +52,8 @@ public class ProcessingWorkerTests
     public async Task ResetOrphanedProcessing_FlipsProcessingItemBackToPending()
     {
         // Seed an item directly in Processing status (simulating a crash-orphaned item).
-        var orphaned = Item.CreatePending(SourceType.Text, "orphaned", Guid.NewGuid().ToString(), DateTimeOffset.UtcNow);
+        await _fx.EnsureUserAsync(Uid, "worker@example.com");
+        var orphaned = Item.CreatePending(SourceType.Text, "orphaned", Guid.NewGuid().ToString(), Uid, DateTimeOffset.UtcNow);
         await using (var seed = _fx.NewDbContext())
         {
             seed.Items.Add(orphaned);

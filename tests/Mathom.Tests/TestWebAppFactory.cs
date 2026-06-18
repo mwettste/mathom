@@ -1,0 +1,63 @@
+using System;
+using System.Threading.Tasks;
+using Mathom.Web.Data;
+using Mathom.Web.Domain;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Mathom.Tests;
+
+public class TestWebAppFactory : WebApplicationFactory<Program>
+{
+    private readonly string _connectionString;
+    private readonly Action<IServiceCollection>? _configureServices;
+
+    public TestWebAppFactory(string connectionString, Action<IServiceCollection>? configureServices = null)
+    {
+        _connectionString = connectionString;
+        _configureServices = configureServices;
+    }
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.UseEnvironment("Testing");
+        builder.UseSetting("ConnectionStrings:Mathom", _connectionString);
+
+        builder.ConfigureTestServices(services =>
+        {
+            // Make the Test scheme the default so [Authorize] uses our handler.
+            services.AddAuthentication(TestUsers.Scheme)
+                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestUsers.Scheme, _ => { });
+            services.AddAuthorization(o =>
+            {
+                o.DefaultPolicy = new AuthorizationPolicyBuilder(TestUsers.Scheme)
+                    .RequireAuthenticatedUser().Build();
+            });
+
+            _configureServices?.Invoke(services);
+        });
+    }
+
+    // Seed the two fixed users (FK targets) once the host is built.
+    public async Task SeedUsersAsync()
+    {
+        using var scope = Services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        // Use emails derived from the fixed IDs so they never collide with the
+        // human-friendly emails AuthTests registers on the same shared database.
+        await EnsureAsync(users, TestUsers.AliceId, TestUsers.AliceId + "@example.com");
+        await EnsureAsync(users, TestUsers.BobId, TestUsers.BobId + "@example.com");
+    }
+
+    private static async Task EnsureAsync(UserManager<ApplicationUser> users, string id, string email)
+    {
+        if (await users.FindByIdAsync(id) is not null) return;
+        var user = new ApplicationUser { Id = id, UserName = email, Email = email };
+        await users.CreateAsync(user, "password1");
+    }
+}

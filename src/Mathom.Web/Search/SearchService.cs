@@ -42,10 +42,10 @@ public class SearchService
     public SearchService(MathomDbContext db) => _db = db;
 
     // Full single item for the detail page (includes the raw transcript and any error).
-    public async Task<ItemDetail?> GetAsync(Guid id, CancellationToken ct)
+    public async Task<ItemDetail?> GetAsync(string userId, Guid id, CancellationToken ct)
     {
         return await _db.Items
-            .Where(i => i.Id == id)
+            .Where(i => i.Id == id && i.UserId == userId)
             .Select(i => new ItemDetail(
                 i.Id, i.Title, i.CleanText, i.RawText, i.ItemType, i.SourceType,
                 i.Status, i.Actionable, i.CreatedAt, i.ProcessedAt, i.Error,
@@ -56,9 +56,10 @@ public class SearchService
     // Timeline shows ALL recent items regardless of status, so freshly-captured items
     // appear immediately with their in-flight status (captured / transcribing / failed)
     // and settle into Ready as the background worker finishes.
-    public async Task<IReadOnlyList<ItemSummary>> TimelineAsync(int take, CancellationToken ct)
+    public async Task<IReadOnlyList<ItemSummary>> TimelineAsync(string userId, int take, CancellationToken ct)
     {
         return await _db.Items
+            .Where(i => i.UserId == userId)
             .OrderByDescending(i => i.CreatedAt)
             .Take(take)
             .Select(i => new ItemSummary(
@@ -70,12 +71,13 @@ public class SearchService
 
     // Search only returns finished items — in-flight items have no clean text to match.
     public async Task<IReadOnlyList<ItemSummary>> SearchAsync(
-        string query, SearchFilters filters, int take, CancellationToken ct)
+        string userId, string query, SearchFilters filters, int take, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(query))
-            return await TimelineAsync(take, ct);
+            return await TimelineAsync(userId, take, ct);
 
         var q = _db.Items
+            .Where(i => i.UserId == userId)
             .Where(i => i.Status == ItemStatus.Ready)
             .Where(i => i.SearchVector!.Matches(EF.Functions.WebSearchToTsQuery("english", query)));
 

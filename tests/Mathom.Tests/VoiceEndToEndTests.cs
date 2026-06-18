@@ -8,8 +8,6 @@ using Mathom.Web.Domain;
 using Mathom.Web.Media;
 using Mathom.Web.Processing;
 using Mathom.Web.Search;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -36,21 +34,17 @@ public class VoiceEndToEndTests
                 new[] { new CleanupTag("garden", TagKind.Topic) })
         };
 
-        using var app = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
+        using var app = new TestWebAppFactory(_fx.ConnectionString, s =>
         {
-            b.UseSetting("ConnectionStrings:Mathom", _fx.ConnectionString);
-            b.UseEnvironment("Testing");
-            b.ConfigureServices(s =>
-            {
-                s.RemoveAll(typeof(IMediaStore));
-                s.AddSingleton<IMediaStore>(media);
-                s.RemoveAll(typeof(ITranscriber));
-                s.AddScoped<ITranscriber>(_ => transcriber);
-                s.RemoveAll(typeof(ILlmClient));
-                s.AddScoped<ILlmClient>(_ => llm);
-                s.AddHostedService<ProcessingWorker>();
-            });
+            s.RemoveAll(typeof(IMediaStore));
+            s.AddSingleton<IMediaStore>(media);
+            s.RemoveAll(typeof(ITranscriber));
+            s.AddScoped<ITranscriber>(_ => transcriber);
+            s.RemoveAll(typeof(ILlmClient));
+            s.AddScoped<ILlmClient>(_ => llm);
+            s.AddHostedService<ProcessingWorker>();
         });
+        await app.SeedUsersAsync();
 
         var client = app.CreateClient();
 
@@ -80,7 +74,7 @@ public class VoiceEndToEndTests
         await using var verify = _fx.NewDbContext();
         var stored = await verify.Items.SingleAsync(i => i.Id == id);
         Assert.Equal("remember to water the basil", stored.RawText); // transcript preserved
-        var results = await new SearchService(verify).SearchAsync("basil", new SearchFilters(null, null), 50, CancellationToken.None);
+        var results = await new SearchService(verify).SearchAsync(TestUsers.AliceId, "basil", new SearchFilters(null, null), 50, CancellationToken.None);
         Assert.Contains(results, r => r.Id == id);
     }
 }

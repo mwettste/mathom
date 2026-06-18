@@ -12,11 +12,14 @@ public class DbContextTests
     private readonly PostgresFixture _fx;
     public DbContextTests(PostgresFixture fx) => _fx = fx;
 
+    private const string Uid = "dbcontext-tests-user";
+
     [Fact]
     public async Task CanPersistAndReadItem()
     {
+        await _fx.EnsureUserAsync(Uid, "dbcontext@example.com");
         await using var db = _fx.NewDbContext();
-        var item = Item.CreatePending(SourceType.Text, "hello world", Guid.NewGuid().ToString(), DateTimeOffset.UtcNow);
+        var item = Item.CreatePending(SourceType.Text, "hello world", Guid.NewGuid().ToString(), Uid, DateTimeOffset.UtcNow);
         db.Items.Add(item);
         await db.SaveChangesAsync();
 
