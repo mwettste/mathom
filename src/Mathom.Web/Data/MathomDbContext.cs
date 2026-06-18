@@ -1,9 +1,10 @@
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Mathom.Web.Domain;
 
 namespace Mathom.Web.Data;
 
-public class MathomDbContext : DbContext
+public class MathomDbContext : IdentityDbContext<ApplicationUser>
 {
     public MathomDbContext(DbContextOptions<MathomDbContext> options) : base(options) { }
 
@@ -13,6 +14,8 @@ public class MathomDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder b)
     {
+        base.OnModelCreating(b);
+
         b.Entity<Item>(e =>
         {
             e.HasKey(x => x.Id);

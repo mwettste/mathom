@@ -1,0 +1,16 @@
+@page "/Register"
+@model Mathom.Web.Pages.Account.RegisterModel
+@{
+    ViewData["Title"] = "Register";
+    Layout = "_AccountLayout";
+}
+<h1 class="auth-title">Create your account</h1>
+<form method="post" class="auth-form">
+    <div asp-validation-summary="All" class="auth-error"></div>
+    <label asp-for="Input.Email">Email</label>
+    <input asp-for="Input.Email" autocomplete="username" autofocus />
+    <label asp-for="Input.Password">Password</label>
+    <input asp-for="Input.Password" type="password" autocomplete="new-password" />
+    <button type="submit" class="btn-primary">Create account</button>
+    <p class="auth-alt">Already have an account? <a href="/Login">Sign in →</a></p>
+</form>

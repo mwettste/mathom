@@ -52,6 +52,13 @@
         <nav class="nav">
             <a href="/Capture" class="@Active("/Capture")">Capture</a>
             <a href="/" class="@Active("/")">Timeline</a>
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <span class="nav-user">@User.Identity!.Name</span>
+                <form method="post" action="/Logout" class="nav-logout">
+                    <button type="submit" class="linklike">Log out</button>
+                </form>
+            }
             <button id="theme-toggle" class="theme-toggle" type="button" onclick="toggleTheme()" aria-label="Toggle theme">☾</button>
         </nav>
     </header>

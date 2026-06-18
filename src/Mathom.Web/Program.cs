@@ -1,7 +1,9 @@
 using Mathom.Web.Data;
+using Mathom.Web.Domain;
 using Mathom.Web.Media;
 using Mathom.Web.Processing;
 using Mathom.Web.Search;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -10,6 +12,27 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<MathomDbContext>(o =>
     o.UseNpgsql(builder.Configuration.GetConnectionString("Mathom")));
+
+builder.Services
+    .AddIdentity<ApplicationUser, IdentityRole>(o =>
+    {
+        o.User.RequireUniqueEmail = true;
+        o.Password.RequiredLength = 8;
+        o.Password.RequireUppercase = false;
+        o.Password.RequireNonAlphanumeric = false;
+        o.Password.RequireDigit = false;
+    })
+    .AddEntityFrameworkStores<MathomDbContext>()
+    .AddDefaultTokenProviders();
+
+builder.Services.ConfigureApplicationCookie(o =>
+{
+    o.LoginPath = "/Login";
+    o.LogoutPath = "/Logout";
+    o.AccessDeniedPath = "/Login";
+    o.ExpireTimeSpan = TimeSpan.FromDays(30);
+    o.SlidingExpiration = true;
+});
 
 builder.Services.AddRazorPages();
 builder.Services.AddScoped<SearchService>();
@@ -47,6 +70,9 @@ contentTypes.Mappings[".webmanifest"] = "application/manifest+json";
 app.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = contentTypes });
 
 app.MapGet("/healthz", () => Results.Ok("ok"));
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 app.MapRazorPages();

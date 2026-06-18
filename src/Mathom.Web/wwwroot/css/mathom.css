@@ -230,3 +230,16 @@ a:hover { text-decoration: underline; }
   .entry { animation: none; }
   .pill.processing .dot, .rec-dot { animation: none; }
 }
+
+/* --- auth pages --- */
+.auth-body { display: flex; min-height: 100vh; align-items: center; justify-content: center; }
+.auth-card { width: 100%; max-width: 22rem; padding: 2rem; }
+.auth-title { font-size: 1.4rem; margin: 1rem 0; }
+.auth-form { display: flex; flex-direction: column; gap: 0.5rem; }
+.auth-form label { font-size: 0.85rem; opacity: 0.8; }
+.auth-form input { padding: 0.6rem; border-radius: 8px; border: 1px solid var(--line, #ccc); background: var(--surface, #fff); color: inherit; }
+.auth-error { color: #c0392b; font-size: 0.85rem; }
+.auth-alt { font-size: 0.85rem; margin-top: 0.75rem; }
+.nav-user { font-size: 0.8rem; opacity: 0.7; }
+.nav-logout { display: inline; margin: 0; }
+.linklike { background: none; border: 0; color: inherit; cursor: pointer; font: inherit; text-decoration: underline; padding: 0; }
