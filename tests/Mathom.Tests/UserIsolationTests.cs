@@ -74,4 +74,29 @@ public class UserIsolationTests
         Assert.Equal(HttpStatusCode.Redirect, pageResp.StatusCode);
         Assert.Contains("/Login", pageResp.Headers.Location!.OriginalString);
     }
+
+    // Regression: unauthenticated GET /Capture (the PWA start_url) must redirect
+    // to /Login, not return a bare 401.  The OnRedirectToLogin guard was
+    // case-insensitive, so /Capture matched the /capture API check and got 401.
+    // Fix: gate the 401 on HttpMethods.IsPost so the page falls through to 302.
+    [Fact]
+    public async Task CapturePage_WithoutAuth_RedirectsToLogin()
+    {
+        using var app = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
+        {
+            b.UseEnvironment("Testing");
+            b.UseSetting("ConnectionStrings:Mathom", _fx.ConnectionString);
+        });
+        var client = app.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        // GET /Capture (the PWA start_url) with no auth cookie -> 302 to /Login.
+        var resp = await client.GetAsync("/Capture");
+        Assert.Equal(HttpStatusCode.Redirect, resp.StatusCode);
+        Assert.Contains("/Login", resp.Headers.Location!.OriginalString);
+
+        // POST /capture still returns 401 (not a redirect) so fetch/offline-replay works.
+        var apiResp = await client.PostAsJsonAsync("/capture",
+            new CaptureRequest("nope", Guid.NewGuid().ToString()));
+        Assert.Equal(HttpStatusCode.Unauthorized, apiResp.StatusCode);
+    }
 }

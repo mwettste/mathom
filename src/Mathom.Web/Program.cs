@@ -35,7 +35,7 @@ builder.Services.ConfigureApplicationCookie(o =>
 
     o.Events.OnRedirectToLogin = ctx =>
     {
-        if (ctx.Request.Path.StartsWithSegments("/capture"))
+        if (ctx.Request.Path.StartsWithSegments("/capture") && HttpMethods.IsPost(ctx.Request.Method))
         {
             ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
             return Task.CompletedTask;
