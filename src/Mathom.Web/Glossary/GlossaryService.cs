@@ -27,14 +27,15 @@ public class GlossaryService
         term = (term ?? string.Empty).Trim();
         if (term.Length == 0) return false;
 
-        var lower = term.ToLower();
+        var lower = term.ToLowerInvariant();
         var exists = await _db.GlossaryTerms.AnyAsync(g => g.UserId == userId && g.Term.ToLower() == lower, ct);
         if (exists) return false;
 
-        _db.GlossaryTerms.Add(new GlossaryTerm
+        var entity = new GlossaryTerm
         {
             Id = Guid.NewGuid(), UserId = userId, Term = term, CreatedAt = DateTimeOffset.UtcNow,
-        });
+        };
+        _db.GlossaryTerms.Add(entity);
         try
         {
             await _db.SaveChangesAsync(ct);
@@ -42,6 +43,7 @@ public class GlossaryService
         }
         catch (DbUpdateException)
         {
+            _db.Entry(entity).State = EntityState.Detached;
             return false; // unique (UserId, Term) race — treat as no-op
         }
     }

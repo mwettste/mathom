@@ -40,6 +40,9 @@ public class GlossaryServiceTests
         await svc.AddAsync(u, "Alpha", CancellationToken.None);
         await svc.AddAsync(u, "Beta", CancellationToken.None);
 
+        var termsBeforeRemove = await svc.GetTermsAsync(u, CancellationToken.None);
+        Assert.Equal(new[] { "Alpha", "Beta" }, termsBeforeRemove); // oldest-first ordering
+
         var beta = await db.GlossaryTerms.FirstAsync(g => g.Term == "Beta");
         Assert.True(await svc.RemoveAsync(u, beta.Id, CancellationToken.None));
 
