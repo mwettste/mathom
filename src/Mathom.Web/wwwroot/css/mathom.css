@@ -293,3 +293,16 @@ a.tag:hover { color: var(--accent); text-decoration: none; }
 .trash-actions form { display: inline; margin: 0; }
 /* the meta "·" separator doesn't belong between trash action forms */
 .trash-actions > * + *::before { content: none; margin: 0; }
+
+/* --- glossary --- */
+.glossary-add { display: flex; gap: 0.6rem; align-items: center; margin: 0.75rem 0 1.25rem; }
+.glossary-add .field { max-width: 280px; }
+.glossary-terms { list-style: none; margin: 0; padding: 0; }
+.glossary-term { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.55rem 0; border-bottom: 1px solid var(--line); }
+.glossary-term form { display: inline; margin: 0; }
+#glossary-pop { position: absolute; z-index: 50; display: none; width: 248px; padding: 0.7rem;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.45); }
+.glossary-pop__lbl { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--faint); margin-bottom: 0.35rem; }
+.glossary-pop__row { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.55rem; }
+.glossary-pop__done { color: var(--accent); font-size: 0.82rem; margin-top: 0.5rem; }

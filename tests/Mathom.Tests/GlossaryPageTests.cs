@@ -42,4 +42,28 @@ public class GlossaryPageTests
         await using var db = _fx.NewDbContext();
         Assert.True(await db.GlossaryTerms.AnyAsync(g => g.UserId == TestUsers.AliceId && g.Term == "Obersaxen"));
     }
+
+    [Fact]
+    public async Task NotePage_RendersGlossaryTokenAndScript()
+    {
+        using var app = await AppAsync();
+        // seed a Ready note for Alice
+        System.Guid id;
+        await using (var db = _fx.NewDbContext())
+        {
+            var item = new Mathom.Web.Domain.Item
+            {
+                Id = System.Guid.NewGuid(), Status = Mathom.Web.Domain.ItemStatus.Ready,
+                SourceType = Mathom.Web.Domain.SourceType.Text, RawText = "x", CleanText = "x", Title = "n",
+                ItemType = Mathom.Web.Domain.ItemType.Note, CreatedAt = System.DateTimeOffset.UtcNow,
+                ProcessedAt = System.DateTimeOffset.UtcNow, IdempotencyKey = System.Guid.NewGuid().ToString(),
+                UserId = TestUsers.AliceId,
+            };
+            id = item.Id; db.Items.Add(item); await db.SaveChangesAsync();
+        }
+
+        var html = await app.CreateClient().GetStringAsync($"/Note/{id}");
+        Assert.Contains("id=\"glossary-token\"", html);        // token the popup reads
+        Assert.Contains("/js/glossary.js", html);              // script included
+    }
 }

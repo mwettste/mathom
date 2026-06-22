@@ -1,9 +1,10 @@
-const CACHE = 'mathom-shell-v7';
+const CACHE = 'mathom-shell-v8';
 const SHELL = [
   '/Capture',
   '/css/mathom.css',
   '/js/offline.js',
   '/js/capture.js',
+  '/js/glossary.js',
   '/lib/htmx.min.js',
   '/lib/idiomorph-ext.min.js',
   '/lib/alpine.min.js',
