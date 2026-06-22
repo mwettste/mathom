@@ -23,4 +23,12 @@ public class FakeMediaStore : IMediaStore
 
     public Task<Stream> OpenReadAsync(string mediaPath, CancellationToken ct)
         => Task.FromResult<Stream>(new MemoryStream(_blobs[mediaPath]));
+
+    public Task DeleteAsync(string mediaPath, CancellationToken ct)
+    {
+        _blobs.TryRemove(mediaPath, out _);
+        return Task.CompletedTask;
+    }
+
+    public bool Has(string mediaPath) => _blobs.ContainsKey(mediaPath);
 }

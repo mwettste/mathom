@@ -34,6 +34,13 @@ public class LocalDiskMediaStore : IMediaStore
         return Task.FromResult(stream);
     }
 
+    public Task DeleteAsync(string mediaPath, CancellationToken ct)
+    {
+        var path = ResolveWithinRoot(mediaPath);
+        if (File.Exists(path)) File.Delete(path);
+        return Task.CompletedTask;
+    }
+
     private string ResolveWithinRoot(string mediaPath)
     {
         var rootFull = Path.GetFullPath(_root);

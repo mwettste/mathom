@@ -11,4 +11,7 @@ public interface IMediaStore
 
     /// <summary>Reopens previously-stored content by its key.</summary>
     Task<Stream> OpenReadAsync(string mediaPath, CancellationToken ct);
+
+    /// <summary>Deletes previously-stored content by its key. No-op if absent.</summary>
+    Task DeleteAsync(string mediaPath, CancellationToken ct);
 }
