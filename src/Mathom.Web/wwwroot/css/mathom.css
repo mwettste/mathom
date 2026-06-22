@@ -279,3 +279,17 @@ a:hover { text-decoration: underline; }
 .filters__clear { font-size: 0.8rem; color: var(--muted); }
 /* clickable tags keep the muted look but invite interaction */
 a.tag:hover { color: var(--accent); text-decoration: none; }
+
+/* --- note edit / actions --- */
+.note-actions { display: flex; gap: 1rem; align-items: center; margin: 0 0 1.25rem; }
+.note-actions__delete { display: inline; margin: 0; }
+.linklike--danger { color: var(--danger); }
+.note-edit { display: flex; flex-direction: column; gap: 0.4rem; }
+.note-edit__label { font-size: 0.8rem; color: var(--muted); margin-top: 0.5rem; }
+.note-edit__row { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; margin-top: 0.5rem; }
+.note-edit__check { font-size: 0.9rem; color: var(--muted); display: inline-flex; align-items: center; gap: 0.35rem; }
+.note-edit__actions { display: flex; gap: 0.75rem; margin-top: 1rem; }
+.trash-actions { gap: 1rem; }
+.trash-actions form { display: inline; margin: 0; }
+/* the meta "·" separator doesn't belong between trash action forms */
+.trash-actions > * + *::before { content: none; margin: 0; }
