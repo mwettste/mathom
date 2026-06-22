@@ -133,16 +133,35 @@ public class NoteServiceTests
         await _fx.EnsureUserAsync(attacker, attacker + "@example.com");
         var item = await SeedReadyAsync(owner, "Owned");
 
-        await using var db = _fx.NewDbContext();
-        var svc = new NoteService(db, new FakeMediaStore());
-        Assert.False(await svc.UpdateAsync(attacker, item.Id, "x", "y", ItemType.Note, false, Array.Empty<string>(), CancellationToken.None));
-        Assert.False(await svc.SoftDeleteAsync(attacker, item.Id, CancellationToken.None));
-        Assert.False(await svc.RestoreAsync(attacker, item.Id, CancellationToken.None));
-        Assert.False(await svc.PurgeAsync(attacker, item.Id, CancellationToken.None));
+        // Phase 1 — note is live (DeletedAt == null).
+        // Both UpdateAsync and SoftDeleteAsync would succeed for the owner in this state,
+        // but must be blocked for the attacker.
+        await using (var db = _fx.NewDbContext())
+        {
+            var svc = new NoteService(db, new FakeMediaStore());
+            Assert.False(await svc.UpdateAsync(attacker, item.Id, "x", "y", ItemType.Note, false, Array.Empty<string>(), CancellationToken.None));
+            Assert.False(await svc.SoftDeleteAsync(attacker, item.Id, CancellationToken.None));
+        }
 
+        // Owner soft-deletes the note so it is now trashed (DeletedAt != null).
+        await using (var db = _fx.NewDbContext())
+            Assert.True(await new NoteService(db, new FakeMediaStore()).SoftDeleteAsync(owner, item.Id, CancellationToken.None));
+
+        // Phase 2 — note is trashed (DeletedAt != null).
+        // Both RestoreAsync and PurgeAsync would succeed for the owner in this state,
+        // but must be blocked for the attacker.
+        await using (var db = _fx.NewDbContext())
+        {
+            var svc = new NoteService(db, new FakeMediaStore());
+            Assert.False(await svc.RestoreAsync(attacker, item.Id, CancellationToken.None));
+            Assert.False(await svc.PurgeAsync(attacker, item.Id, CancellationToken.None));
+        }
+
+        // Final state: the row still exists, title is unchanged, and it remains trashed
+        // (attacker neither updated the title nor restored/purged it).
         await using var verify = _fx.NewDbContext();
         var saved = await verify.Items.IgnoreQueryFilters().FirstAsync(i => i.Id == item.Id);
-        Assert.Equal("Owned", saved.Title);   // untouched
-        Assert.Null(saved.DeletedAt);
+        Assert.Equal("Owned", saved.Title);     // attacker never updated it
+        Assert.NotNull(saved.DeletedAt);        // attacker never restored or purged it; still in owner's trash
     }
 }
