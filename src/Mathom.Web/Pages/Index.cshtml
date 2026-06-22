@@ -3,12 +3,20 @@
 @{ ViewData["Title"] = "Timeline"; }
 
 <div class="toolbar">
-    <input class="search" type="search" name="q" placeholder="Search your brain…" autocomplete="off"
-           aria-label="Search notes"
-           hx-get="/?handler=Search" hx-trigger="input changed delay:300ms, search"
-           hx-target="#item-list" hx-swap="innerHTML" />
+    <input class="search" type="search" name="q" value="@Model.Q"
+           placeholder="Search your brain…" autocomplete="off" aria-label="Search notes"
+           hx-get="/" hx-target="#results" hx-select="#results" hx-push-url="true"
+           hx-trigger="input changed delay:300ms, search"
+           hx-include="#active-filters [name]" />
+    <span id="active-filters" hidden>
+        @if (Model.Tag is not null) { <input type="hidden" name="tag" value="@Model.Tag" /> }
+        @if (Model.Type is not null) { <input type="hidden" name="type" value="@Model.TypeParam" /> }
+        @if (Model.Actionable is not null) { <input type="hidden" name="actionable" value="@Model.ActionableParam" /> }
+    </span>
 </div>
 
-<div id="item-list">
-    <partial name="Shared/_ItemList" model="Model.Items" />
+<div id="results">
+    <div id="item-list">
+        <partial name="Shared/_ItemList" model="Model.Items" />
+    </div>
 </div>

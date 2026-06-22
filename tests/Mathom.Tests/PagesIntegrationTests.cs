@@ -27,10 +27,11 @@ public class PagesIntegrationTests
     }
 
     [Fact]
-    public async Task SearchHandler_ReturnsPartial()
+    public async Task Search_NoMatch_RendersEmptyState()
     {
-        using var app = await CreateAppAsync();
-        var resp = await app.CreateClient().GetAsync("/?handler=Search&q=nothingmatchesthis");
+        using var app = new TestWebAppFactory(_fx.ConnectionString);
+        await app.SeedUsersAsync();
+        var resp = await app.CreateClient().GetAsync("/?q=nothingmatchesthis");
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
         var body = await resp.Content.ReadAsStringAsync();
         Assert.Contains("No thoughts yet.", body);

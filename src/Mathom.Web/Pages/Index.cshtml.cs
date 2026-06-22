@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
+using Mathom.Web.Domain;
 using Mathom.Web.Search;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,22 +21,32 @@ public class IndexModel : PageModel
 
     public IReadOnlyList<ItemSummary> Items { get; private set; } = new List<ItemSummary>();
 
-    public async Task OnGetAsync(CancellationToken ct)
-        => Items = await _search.TimelineAsync(UserId, 50, ct);
+    public string? Q { get; private set; }
+    public string? Tag { get; private set; }
+    public ItemType? Type { get; private set; }
+    public bool? Actionable { get; private set; }
 
-    // Polled by HTMX while in-flight items exist, so transcribing/processing entries
-    // advance to Ready without a manual reload.
+    public bool HasFilters => Tag is not null || Type is not null || Actionable is not null;
+    public string? TypeParam => Type?.ToString().ToLowerInvariant();
+    public string? ActionableParam => Actionable is null ? null : (Actionable.Value ? "true" : "false");
+
+    public async Task OnGetAsync(string? q, string? tag, string? type, bool? actionable, CancellationToken ct)
+        => await LoadAsync(q, tag, type, actionable, ct);
+
+    // Polled by HTMX while in-flight items exist — always the full, unfiltered timeline.
     public async Task<IActionResult> OnGetTimelineAsync(CancellationToken ct)
     {
         Items = await _search.TimelineAsync(UserId, 50, ct);
         return Partial("Shared/_ItemList", Items);
     }
 
-    public async Task<IActionResult> OnGetSearchAsync(string? q, CancellationToken ct)
+    private async Task LoadAsync(string? q, string? tag, string? type, bool? actionable, CancellationToken ct)
     {
-        Items = string.IsNullOrWhiteSpace(q)
-            ? await _search.TimelineAsync(UserId, 50, ct)
-            : await _search.SearchAsync(UserId, q, new SearchFilters(null, null), 50, ct);
-        return Partial("Shared/_ItemList", Items);
+        Q = string.IsNullOrWhiteSpace(q) ? null : q.Trim();
+        Tag = string.IsNullOrWhiteSpace(tag) ? null : tag.Trim();
+        Type = Enum.TryParse<ItemType>(type, ignoreCase: true, out var t) ? t : null;
+        Actionable = actionable;
+
+        Items = await _search.QueryAsync(UserId, Q, new SearchFilters(Type, Actionable, Tag), 50, ct);
     }
 }
