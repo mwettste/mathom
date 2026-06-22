@@ -22,4 +22,13 @@ public class CleanupPromptBuilderTests
         Assert.Contains("Mathom", p);
         Assert.Contains("glossary", p, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void NonEmptyGlossary_HasStrongerCorrectionInstruction()
+    {
+        var p = CleanupPromptBuilder.BuildSystemPrompt(new System.Collections.Generic.List<string> { "FireSkills (also heard as: Fairstills)" });
+        Assert.Contains("FireSkills", p);
+        Assert.Contains("also heard as: Fairstills", p);
+        Assert.Contains("mis-transcribed", p, System.StringComparison.OrdinalIgnoreCase);
+    }
 }

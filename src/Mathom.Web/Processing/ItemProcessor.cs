@@ -47,22 +47,33 @@ public class ItemProcessor
 
         try
         {
-            var glossary = await _glossary.GetTermsAsync(item.UserId, ct);
-            if (glossary.Count > 100)
+            var entries = await _glossary.GetEntriesAsync(item.UserId, ct);
+            if (entries.Count > 100)
             {
-                _logger.LogInformation("Glossary for user {User} has {Count} terms; injecting first 100.", item.UserId, glossary.Count);
-                glossary = glossary.Take(100).ToList();
+                _logger.LogInformation("Glossary for user {User} has {Count} entries; injecting first 100.", item.UserId, entries.Count);
+                entries = entries.Take(100).ToList();
             }
+            var terms = entries.Select(e => e.Term).ToList();                       // Whisper bias
+            var cleanupGlossary = entries
+                .Select(e => e.Variants.Count > 0
+                    ? $"{e.Term} (also heard as: {string.Join(", ", e.Variants)})"
+                    : e.Term)
+                .ToList();                                                          // LLM prompt
+            var variantToTerm = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var e in entries)
+                foreach (var v in e.Variants)
+                    variantToTerm[v] = e.Term;                                       // deterministic corrector
 
             // Voice items have no text yet — transcribe the stored audio first.
             if (item.SourceType == SourceType.Voice && string.IsNullOrEmpty(item.RawText) && item.MediaPath is not null)
             {
                 await using var audio = await _media.OpenReadAsync(item.MediaPath, ct);
-                item.RawText = await _transcriber.TranscribeAsync(audio, item.MediaPath, glossary, ct);
+                item.RawText = await _transcriber.TranscribeAsync(audio, item.MediaPath, terms, ct);
                 await _db.SaveChangesAsync(ct);
             }
 
-            var result = await _llm.CleanupAsync(item.RawText, glossary, ct);
+            var result = await _llm.CleanupAsync(item.RawText, cleanupGlossary, ct);
+            result = GlossaryCorrector.Apply(result, variantToTerm);
 
             item.Title = result.Title;
             item.CleanText = result.CleanText;

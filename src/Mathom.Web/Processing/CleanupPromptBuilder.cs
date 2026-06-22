@@ -23,9 +23,9 @@ public static class CleanupPromptBuilder
             return basePrompt;
 
         return basePrompt
-            + "\n\nThe user's domain glossary (correct spellings): "
+            + "\n\nThe user's domain glossary (correct spellings, with common mis-transcriptions in parentheses): "
             + string.Join(", ", glossary)
-            + ". If the note contains a word that is a close phonetic match to one of these, use the glossary spelling in clean_text and title.";
+            + ". Domain terms are frequently mis-transcribed, sometimes as ordinary-looking words or names. Whenever a word or phrase plausibly refers to one of these — even if the spelling differs substantially — use the glossary spelling in clean_text, title, and tags.";
     }
 
     public static string BuildUserPrompt(string rawText) => rawText;

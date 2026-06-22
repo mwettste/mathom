@@ -237,6 +237,47 @@ public class ItemProcessorTests
     }
 
     [Fact]
+    public async Task Process_AppliesVariantCorrection_ToCleanOutput()
+    {
+        var u = "ip-variant-user";
+        await _fx.EnsureUserAsync(u, u + "@example.com");
+        System.Guid itemId;
+        await using (var seed = _fx.NewDbContext())
+        {
+            var term = new Mathom.Web.Domain.GlossaryTerm { Id = System.Guid.NewGuid(), UserId = u, Term = "FireSkills", CreatedAt = System.DateTimeOffset.UtcNow };
+            term.Variants.Add(new Mathom.Web.Domain.GlossaryVariant { Id = System.Guid.NewGuid(), GlossaryTermId = term.Id, Text = "Fairstills", CreatedAt = System.DateTimeOffset.UtcNow });
+            seed.GlossaryTerms.Add(term);
+            var item = Mathom.Web.Domain.Item.CreatePending(Mathom.Web.Domain.SourceType.Text, "Meeting Fairstills today", System.Guid.NewGuid().ToString(), u, System.DateTimeOffset.UtcNow);
+            itemId = item.Id;
+            seed.Items.Add(item);
+            await seed.SaveChangesAsync();
+        }
+
+        // The fake LLM echoes the transcript into title/body and emits a "Fairstills" tag.
+        var llm = new FakeLlmClient
+        {
+            Respond = raw => new Mathom.Web.Processing.CleanupResult(
+                raw, raw, Mathom.Web.Domain.ItemType.Note, false,
+                new System.Collections.Generic.List<Mathom.Web.Processing.CleanupTag> { new("Fairstills", Mathom.Web.Domain.TagKind.Topic) }),
+        };
+
+        await using var db = _fx.NewDbContext();
+        var processor = new Mathom.Web.Processing.ItemProcessor(db, llm, new FakeTranscriber(), new FakeMediaStore(),
+            new Mathom.Web.Glossary.GlossaryService(db),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<Mathom.Web.Processing.ItemProcessor>.Instance);
+
+        await processor.ProcessAsync(itemId, System.Threading.CancellationToken.None);
+
+        await using var verify = _fx.NewDbContext();
+        var saved = await verify.Items.Include(i => i.ItemTags).ThenInclude(t => t.Tag).FirstAsync(i => i.Id == itemId);
+        Assert.Contains("FireSkills", saved.CleanText);
+        Assert.DoesNotContain("Fairstills", saved.CleanText);
+        Assert.Contains("FireSkills", saved.Title);
+        Assert.Contains(saved.ItemTags, it => it.Tag.Name == "FireSkills");
+        Assert.DoesNotContain(saved.ItemTags, it => it.Tag.Name == "Fairstills");
+    }
+
+    [Fact]
     public async Task Process_PassesUsersGlossary_ToCleanup()
     {
         var u = "ip-gloss-user";
