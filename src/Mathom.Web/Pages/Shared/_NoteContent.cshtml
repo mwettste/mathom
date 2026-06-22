@@ -27,6 +27,19 @@
     </div>
 </header>
 
+@if (Model.Status == ItemStatus.Ready)
+{
+    <div class="note-actions">
+        <button class="linklike" type="button"
+                hx-get="@($"/Note/{Model.Id}?handler=Edit")" hx-target="#note-content" hx-swap="innerHTML">Edit</button>
+        <form method="post" class="note-actions__delete"
+              hx-post="@($"/Note/{Model.Id}?handler=Delete")" hx-confirm="Move this note to trash?">
+            @Html.AntiForgeryToken()
+            <button class="linklike linklike--danger" type="submit">Delete</button>
+        </form>
+    </div>
+}
+
 @if (Model.Status == ItemStatus.Failed)
 {
     <p class="note__error">Couldn't process this note. <span>@Model.Error</span></p>
