@@ -7,6 +7,11 @@
     return el ? el.value : null;
   }
 
+  function noteId() {
+    var el = document.getElementById('glossary-token');
+    return el ? el.getAttribute('data-note-id') : null;
+  }
+
   // The selectable regions.
   function inSelectable(node) {
     while (node && node !== document.body) {
@@ -32,6 +37,9 @@
     document.body.appendChild(pop);
     pop.querySelector('#glossary-pop__cancel').addEventListener('click', hide);
     pop.querySelector('#glossary-pop__add').addEventListener('click', add);
+    pop.querySelector('#glossary-pop__input').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); add(); }
+    });
     return pop;
   }
 
@@ -49,6 +57,18 @@
     input.focus(); input.select();
   }
 
+  async function reprocess(id) {
+    var t = token();
+    if (!t) { hide(); return; }
+    try {
+      var res = await fetch('/Note/' + encodeURIComponent(id) + '?handler=Reprocess', {
+        method: 'POST', headers: { 'RequestVerificationToken': t },
+      });
+      if (res.ok && window.htmx) window.htmx.ajax('GET', '/Note/' + id + '?handler=Content', '#note-content');
+    } catch (e) { /* ignore */ }
+    hide();
+  }
+
   async function add() {
     var t = token();
     var term = pop.querySelector('#glossary-pop__input').value.trim();
@@ -60,11 +80,23 @@
         body: 'term=' + encodeURIComponent(term),
       });
       var done = pop.querySelector('#glossary-pop__done');
-      done.textContent = res.ok
-        ? '✓ "' + term + '" added — future captures will be corrected.'
-        : 'Could not add the term.';
+      done.textContent = '';
+      if (!res.ok) { done.textContent = 'Could not add the term.'; setTimeout(hide, 1600); return; }
+
       window.getSelection().removeAllRanges();
-      setTimeout(hide, 1600);
+      done.textContent = '✓ "' + term + '" added.';
+      var id = noteId();
+      if (id) {
+        var rb = document.createElement('button');
+        rb.type = 'button';
+        rb.className = 'btn btn--primary glossary-pop__reprocess';
+        rb.textContent = 'Re-process this note';
+        rb.addEventListener('click', function () { reprocess(id); });
+        done.appendChild(document.createElement('br'));
+        done.appendChild(rb);
+      } else {
+        setTimeout(hide, 1600);
+      }
     } catch (e) { hide(); }
   }
 

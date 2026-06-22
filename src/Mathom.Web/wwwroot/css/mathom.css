@@ -306,3 +306,4 @@ a.tag:hover { color: var(--accent); text-decoration: none; }
 .glossary-pop__lbl { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--faint); margin-bottom: 0.35rem; }
 .glossary-pop__row { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.55rem; }
 .glossary-pop__done { color: var(--accent); font-size: 0.82rem; margin-top: 0.5rem; }
+.glossary-pop__reprocess { margin-top: 0.5rem; }

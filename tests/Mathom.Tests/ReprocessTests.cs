@@ -75,4 +75,31 @@ public class ReprocessTests
         }));
         Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
     }
+
+    [Fact]
+    public async Task ReadyNote_RendersReprocessControl_AndNoteId()
+    {
+        using var app = await AppAsync();
+        var id = await SeedReadyAsync(TestUsers.AliceId, "ready note");
+        var html = await app.CreateClient().GetStringAsync($"/Note/{id}");
+
+        Assert.Contains("handler=Reprocess", html);                 // the re-process control
+        Assert.Contains($"data-note-id=\"{id}\"", html);            // note id for the popup
+    }
+
+    [Fact]
+    public async Task FailedNote_RendersReprocessControl()
+    {
+        using var app = await AppAsync();
+        var id = await SeedReadyAsync(TestUsers.AliceId, "failed note");
+        await using (var db = _fx.NewDbContext())
+        {
+            var item = await db.Items.FirstAsync(i => i.Id == id);
+            item.Status = ItemStatus.Failed; item.Error = "boom";
+            await db.SaveChangesAsync();
+        }
+
+        var html = await app.CreateClient().GetStringAsync($"/Note/{id}");
+        Assert.Contains("handler=Reprocess", html);
+    }
 }

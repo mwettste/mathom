@@ -7,4 +7,4 @@
 <article id="note-content">
     <partial name="Shared/_NoteContent" model="Model.Item" />
 </article>
-<span id="glossary-token" hidden>@Html.AntiForgeryToken()</span>
+<span id="glossary-token" data-note-id="@Model.Item?.Id" hidden>@Html.AntiForgeryToken()</span>

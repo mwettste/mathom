@@ -27,16 +27,27 @@
     </div>
 </header>
 
-@if (Model.Status == ItemStatus.Ready)
+@if (Model.Status == ItemStatus.Ready || Model.Status == ItemStatus.Failed)
 {
     <div class="note-actions">
-        <button class="linklike" type="button"
-                hx-get="@($"/Note/{Model.Id}?handler=Edit")" hx-target="#note-content" hx-swap="innerHTML">Edit</button>
-        <form method="post" class="note-actions__delete"
-              hx-post="@($"/Note/{Model.Id}?handler=Delete")" hx-confirm="Move this note to trash?">
+        @if (Model.Status == ItemStatus.Ready)
+        {
+            <button class="linklike" type="button"
+                    hx-get="@($"/Note/{Model.Id}?handler=Edit")" hx-target="#note-content" hx-swap="innerHTML">Edit</button>
+        }
+        <form method="post" class="note-actions__reprocess"
+              hx-post="@($"/Note/{Model.Id}?handler=Reprocess")" hx-target="#note-content" hx-swap="innerHTML">
             @Html.AntiForgeryToken()
-            <button class="linklike linklike--danger" type="submit">Delete</button>
+            <button class="linklike" type="submit">Re-process</button>
         </form>
+        @if (Model.Status == ItemStatus.Ready)
+        {
+            <form method="post" class="note-actions__delete"
+                  hx-post="@($"/Note/{Model.Id}?handler=Delete")" hx-confirm="Move this note to trash?">
+                @Html.AntiForgeryToken()
+                <button class="linklike linklike--danger" type="submit">Delete</button>
+            </form>
+        }
     </div>
 }
 
