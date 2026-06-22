@@ -1,0 +1,18 @@
+@page
+@model GlossaryModel
+@{ ViewData["Title"] = "Glossary"; }
+
+<p class="back"><a href="/">← Timeline</a></p>
+<h1 class="note__title">Glossary</h1>
+<p class="hint">Correct spellings of your domain terms. New captures are corrected against this list.</p>
+
+<form class="glossary-add" method="post" hx-post="/Glossary?handler=Add"
+      hx-target="#glossary-list" hx-swap="innerHTML">
+    @Html.AntiForgeryToken()
+    <input class="field" name="term" placeholder="Add a term…" autocomplete="off" />
+    <button class="btn btn--primary" type="submit">Add</button>
+</form>
+
+<div id="glossary-list">
+    <partial name="Shared/_GlossaryList" model="Model.Terms" />
+</div>

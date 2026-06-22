@@ -22,6 +22,13 @@ public class GlossaryService
             .Select(g => g.Term)
             .ToListAsync(ct);
 
+    public async Task<IReadOnlyList<(Guid Id, string Term)>> GetTermRowsAsync(string userId, CancellationToken ct)
+        => await _db.GlossaryTerms
+            .Where(g => g.UserId == userId)
+            .OrderBy(g => g.CreatedAt)
+            .Select(g => new ValueTuple<Guid, string>(g.Id, g.Term))
+            .ToListAsync(ct);
+
     public async Task<bool> AddAsync(string userId, string term, CancellationToken ct)
     {
         term = (term ?? string.Empty).Trim();
