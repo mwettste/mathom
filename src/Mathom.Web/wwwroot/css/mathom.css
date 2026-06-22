@@ -298,7 +298,7 @@ a.tag:hover { color: var(--accent); text-decoration: none; }
 .glossary-add { display: flex; gap: 0.6rem; align-items: center; margin: 0.75rem 0 1.25rem; }
 .glossary-add .field { max-width: 280px; }
 .glossary-terms { list-style: none; margin: 0; padding: 0; }
-.glossary-term { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.55rem 0; border-bottom: 1px solid var(--line); }
+.glossary-term { display: block; padding: 0.55rem 0; border-bottom: 1px solid var(--line); }
 .glossary-term form { display: inline; margin: 0; }
 #glossary-pop { position: absolute; z-index: 50; display: none; width: 248px; padding: 0.7rem;
   background: var(--surface); border: 1px solid var(--line); border-radius: 10px;

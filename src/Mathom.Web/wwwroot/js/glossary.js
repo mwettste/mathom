@@ -44,7 +44,7 @@
     return pop;
   }
 
-  function hide() { if (pop) pop.style.display = 'none'; }
+  function hide() { if (pop) pop.style.display = 'none'; lastSelection = ''; }
 
   function showFor(text, rect) {
     lastSelection = text;

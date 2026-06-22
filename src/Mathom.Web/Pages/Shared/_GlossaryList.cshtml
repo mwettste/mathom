@@ -23,13 +23,14 @@ else
                     <div class="glossary-variants">
                         @foreach (var v in t.Variants)
                         {
-                            <span class="chip">@v.Text
+                            <div class="chip">
+                                <span>@v.Text</span>
                                 <form method="post" hx-post="@($"/Glossary?handler=RemoveVariant&id={v.Id}")"
                                       hx-target="#glossary-list" hx-swap="innerHTML" class="glossary-variant__remove">
                                     @Html.AntiForgeryToken()
                                     <button class="linklike" type="submit" aria-label="Remove variant @v.Text">✕</button>
                                 </form>
-                            </span>
+                            </div>
                         }
                     </div>
                 }
