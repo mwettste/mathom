@@ -109,4 +109,45 @@ public class EditDeleteTests
         var resp = await bob.GetAsync($"/Note/{id}?handler=Edit");
         Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
     }
+
+    [Fact]
+    public async Task Delete_OtherUsersNote_NotFound()
+    {
+        using var app = await AppAsync();
+        // Bob gets a token by GETting the index page
+        var bob = app.CreateClient();
+        bob.DefaultRequestHeaders.Add(TestUsers.Header, TestUsers.BobId);
+        var indexHtml = await bob.GetStringAsync("/");
+        var token = Token(indexHtml);
+
+        var id = await SeedReadyAsync("alice-note-for-delete");  // owned by Alice
+
+        var resp = await bob.PostAsync($"/Note/{id}?handler=Delete", new FormUrlEncodedContent(new[]
+        {
+            new KeyValuePair<string, string>("__RequestVerificationToken", token),
+        }));
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task EditForm_PrefillsWithoutSpuriousCheckedOrSelected()
+    {
+        using var app = await AppAsync();
+        var client = app.CreateClient();
+        // SeedReadyAsync creates ItemType.Note and Actionable defaults to false
+        var id = await SeedReadyAsync("prefill-test-note");
+
+        var html = await client.GetStringAsync($"/Note/{id}?handler=Edit");
+
+        // The actionable checkbox must NOT carry a checked attribute
+        var checkboxMatch = Regex.Match(html, @"<input[^>]*name=""actionable""[^>]*>");
+        Assert.True(checkboxMatch.Success, "Should find the actionable checkbox input");
+        Assert.DoesNotContain("checked", checkboxMatch.Value);
+
+        // Exactly one <option> element should carry a selected attribute,
+        // and it must be the "note" option
+        var selectedOptions = Regex.Matches(html, @"<option[^>]*selected[^>]*>[^<]*</option>");
+        Assert.Single(selectedOptions);
+        Assert.Contains("note", selectedOptions[0].Value);
+    }
 }
