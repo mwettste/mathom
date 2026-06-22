@@ -28,11 +28,15 @@ services:
       # doesn't depend on the container's working directory. Local `dotnet run` uses the
       # relative `media` default from appsettings.json instead.
       Media__Root: /app/media
+      # Persist Data Protection keys on the mounted volume below so auth cookies and
+      # anti-forgery tokens stay valid when the container is recreated/rebuilt.
+      DataProtection__KeysPath: /keys
     # LLM provider keys (and any other overrides) come from the .env file.
     env_file:
       - .env
     volumes:
       - mathom-media:/app/media
+      - mathom-dataprotection:/keys
     ports:
       - "${WEB_PORT:-8080}:8080"
     depends_on:
@@ -42,3 +46,4 @@ services:
 volumes:
   mathom-pgdata:
   mathom-media:
+  mathom-dataprotection:

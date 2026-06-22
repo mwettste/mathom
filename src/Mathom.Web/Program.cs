@@ -3,6 +3,7 @@ using Mathom.Web.Domain;
 using Mathom.Web.Media;
 using Mathom.Web.Processing;
 using Mathom.Web.Search;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +13,17 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<MathomDbContext>(o =>
     o.UseNpgsql(builder.Configuration.GetConnectionString("Mathom")));
+
+// Persist Data Protection keys to a configured directory (a mounted volume in
+// Docker) so auth cookies and anti-forgery tokens survive container recreation.
+// When unset (local `dotnet run`, tests) the framework default is used.
+var keysPath = builder.Configuration["DataProtection:KeysPath"];
+if (!string.IsNullOrWhiteSpace(keysPath))
+{
+    builder.Services.AddDataProtection()
+        .PersistKeysToFileSystem(new DirectoryInfo(keysPath))
+        .SetApplicationName("Mathom");
+}
 
 builder.Services
     .AddIdentity<ApplicationUser, IdentityRole>(o =>

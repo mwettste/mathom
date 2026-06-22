@@ -143,4 +143,31 @@ public class AuthTests
         // Location may be absolute (http://localhost/Login?ReturnUrl=%2F) or relative.
         Assert.Contains("/Login", afterLogout.Headers.Location!.OriginalString);
     }
+
+    [Fact]
+    public async Task DataProtectionKeys_PersistToConfiguredPath()
+    {
+        var keysDir = Path.Combine(Path.GetTempPath(), "mathom-keys-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(keysDir);
+        try
+        {
+            using var app = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
+            {
+                b.UseEnvironment("Testing");
+                b.UseSetting("ConnectionStrings:Mathom", _fx.ConnectionString);
+                b.UseSetting("DataProtection:KeysPath", keysDir);
+            });
+
+            // Rendering a form generates an anti-forgery token, which forces Data
+            // Protection to create and persist a key in the configured directory.
+            var resp = await app.CreateClient().GetAsync("/Register");
+            resp.EnsureSuccessStatusCode();
+
+            Assert.NotEmpty(Directory.GetFiles(keysDir, "key-*.xml"));
+        }
+        finally
+        {
+            Directory.Delete(keysDir, recursive: true);
+        }
+    }
 }
