@@ -2,15 +2,18 @@
 @model Mathom.Web.Pages.Account.LoginModel
 @{
     ViewData["Title"] = "Sign in";
-    Layout = "_AccountLayout";
 }
-<h1 class="auth-title">Sign in</h1>
-<form method="post" class="auth-form">
-    <div asp-validation-summary="All" class="auth-error"></div>
-    <label asp-for="Input.Email">Email</label>
-    <input asp-for="Input.Email" autocomplete="username" autofocus />
-    <label asp-for="Input.Password">Password</label>
-    <input asp-for="Input.Password" type="password" autocomplete="current-password" />
-    <button type="submit" class="btn-primary">Sign in</button>
-    <p class="auth-alt">No account yet? <a href="/Register">Register →</a></p>
-</form>
+<section class="auth">
+    <div class="card">
+        <h1 class="auth-title">Sign in</h1>
+        <form method="post" class="auth-form">
+            <div asp-validation-summary="All" class="auth-error"></div>
+            <label asp-for="Input.Email">Email</label>
+            <input class="field" asp-for="Input.Email" autocomplete="username" autofocus />
+            <label asp-for="Input.Password">Password</label>
+            <input class="field" asp-for="Input.Password" type="password" autocomplete="current-password" />
+            <button type="submit" class="btn btn--primary">Sign in</button>
+        </form>
+        <p class="auth-alt">No account yet? <a href="/Register">Register →</a></p>
+    </div>
+</section>

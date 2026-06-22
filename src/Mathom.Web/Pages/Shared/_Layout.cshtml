@@ -50,10 +50,10 @@
     <header class="topbar">
         <a class="brand" href="/">Mathom</a>
         <nav class="nav">
-            <a href="/Capture" class="@Active("/Capture")">Capture</a>
-            <a href="/" class="@Active("/")">Timeline</a>
             @if (User.Identity?.IsAuthenticated == true)
             {
+                <a href="/Capture" class="@Active("/Capture")">Capture</a>
+                <a href="/" class="@Active("/")">Timeline</a>
                 <span class="nav-user">@User.Identity!.Name</span>
                 <form method="post" asp-page="/Logout" class="nav-logout">
                     <button type="submit" class="linklike">Log out</button>

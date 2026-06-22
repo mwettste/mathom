@@ -1,4 +1,4 @@
-const CACHE = 'mathom-shell-v3';
+const CACHE = 'mathom-shell-v4';
 const SHELL = [
   '/Capture',
   '/css/mathom.css',
