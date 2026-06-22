@@ -20,7 +20,7 @@ public record ItemSummary(
     bool Actionable,
     IReadOnlyList<string> Tags);
 
-public record SearchFilters(ItemType? ItemType, bool? Actionable);
+public record SearchFilters(ItemType? ItemType = null, bool? Actionable = null, string? Tag = null);
 
 public record ItemDetail(
     Guid Id,
@@ -70,22 +70,40 @@ public class SearchService
     }
 
     // Search only returns finished items — in-flight items have no clean text to match.
-    public async Task<IReadOnlyList<ItemSummary>> SearchAsync(
+    public Task<IReadOnlyList<ItemSummary>> SearchAsync(
         string userId, string query, SearchFilters filters, int take, CancellationToken ct)
+        => QueryAsync(userId, query, filters, take, ct);
+
+    // Unified, user-scoped query. With no text query and no filters it is the
+    // timeline (all statuses, newest first). A text query restricts to Ready +
+    // full-text match (rank order). Type/Actionable/Tag filters narrow further.
+    public async Task<IReadOnlyList<ItemSummary>> QueryAsync(
+        string userId, string? q, SearchFilters filters, int take, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(query))
-            return await TimelineAsync(userId, take, ct);
+        var items = _db.Items.Where(i => i.UserId == userId);
 
-        var q = _db.Items
-            .Where(i => i.UserId == userId)
-            .Where(i => i.Status == ItemStatus.Ready)
-            .Where(i => i.SearchVector!.Matches(EF.Functions.WebSearchToTsQuery("english", query)));
+        var hasQuery = !string.IsNullOrWhiteSpace(q);
+        if (hasQuery)
+        {
+            var query = q!;
+            items = items
+                .Where(i => i.Status == ItemStatus.Ready)
+                .Where(i => i.SearchVector!.Matches(EF.Functions.WebSearchToTsQuery("english", query)));
+        }
 
-        if (filters.ItemType is { } t) q = q.Where(i => i.ItemType == t);
-        if (filters.Actionable is { } a) q = q.Where(i => i.Actionable == a);
+        if (filters.ItemType is { } t) items = items.Where(i => i.ItemType == t);
+        if (filters.Actionable is { } a) items = items.Where(i => i.Actionable == a);
+        if (!string.IsNullOrWhiteSpace(filters.Tag))
+        {
+            var tag = filters.Tag!.ToLower();
+            items = items.Where(i => i.ItemTags.Any(it => it.Tag.Name.ToLower() == tag));
+        }
 
-        return await q
-            .OrderByDescending(i => i.SearchVector!.Rank(EF.Functions.WebSearchToTsQuery("english", query)))
+        items = hasQuery
+            ? items.OrderByDescending(i => i.SearchVector!.Rank(EF.Functions.WebSearchToTsQuery("english", q!)))
+            : items.OrderByDescending(i => i.CreatedAt);
+
+        return await items
             .Take(take)
             .Select(i => new ItemSummary(
                 i.Id, i.Title, i.CleanText, i.ItemType, i.CreatedAt,

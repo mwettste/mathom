@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Mathom.Web.Domain;
 using Mathom.Web.Search;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace Mathom.Tests;
@@ -32,6 +33,39 @@ public class SearchServiceTests
             IdempotencyKey = Guid.NewGuid().ToString(),
             UserId = Uid,
         };
+
+    // Seeds a Ready item owned by userId with the given tags, get-or-creating
+    // shared Tag rows so the unique (Name, Kind) index isn't violated across items.
+    private async Task<Item> SeedTaggedAsync(
+        string userId, string title, ItemType type, bool actionable, params string[] tags)
+    {
+        await _fx.EnsureUserAsync(userId, userId + "@example.com");
+        await using var db = _fx.NewDbContext();
+        var item = new Item
+        {
+            Id = Guid.NewGuid(),
+            Status = ItemStatus.Ready,
+            SourceType = SourceType.Text,
+            RawText = title,
+            CleanText = title,
+            Title = title,
+            ItemType = type,
+            Actionable = actionable,
+            CreatedAt = DateTimeOffset.UtcNow,
+            ProcessedAt = DateTimeOffset.UtcNow,
+            IdempotencyKey = Guid.NewGuid().ToString(),
+            UserId = userId,
+        };
+        foreach (var name in tags)
+        {
+            var tag = await db.Tags.FirstOrDefaultAsync(t => t.Name == name && t.Kind == TagKind.Topic)
+                      ?? new Tag { Name = name, Kind = TagKind.Topic };
+            item.ItemTags.Add(new ItemTag { Item = item, Tag = tag });
+        }
+        db.Items.Add(item);
+        await db.SaveChangesAsync();
+        return item;
+    }
 
     [Fact]
     public async Task Timeline_ReturnsReadyNewestFirst()
@@ -100,5 +134,69 @@ public class SearchServiceTests
 
         Assert.Contains(result, r => r.Id == idea.Id);
         Assert.DoesNotContain(result, r => r.Id == note.Id);
+    }
+
+    [Fact]
+    public async Task Query_FiltersByTag_CaseInsensitive()
+    {
+        var u = "qtag-user";
+        var match = await SeedTaggedAsync(u, "Has work tag", ItemType.Note, false, "Work");
+        await SeedTaggedAsync(u, "Other", ItemType.Note, false, "home");
+
+        await using var db = _fx.NewDbContext();
+        var result = await new SearchService(db)
+            .QueryAsync(u, null, new SearchFilters(Tag: "work"), 50, CancellationToken.None);
+
+        Assert.Contains(result, r => r.Id == match.Id);
+        Assert.Single(result);
+    }
+
+    [Fact]
+    public async Task Query_TagFilter_IsUserScoped()
+    {
+        var a = "iso-user-a";
+        var b = "iso-user-b";
+        var aItem = await SeedTaggedAsync(a, "A work note", ItemType.Note, false, "work");
+        await SeedTaggedAsync(b, "B work note", ItemType.Note, false, "work");
+
+        await using var db = _fx.NewDbContext();
+        var result = await new SearchService(db)
+            .QueryAsync(a, null, new SearchFilters(Tag: "work"), 50, CancellationToken.None);
+
+        Assert.All(result, r => Assert.Equal(aItem.Id, r.Id)); // only A's item
+        Assert.Single(result);
+    }
+
+    [Fact]
+    public async Task Query_CombinesTagAndType()
+    {
+        var u = "qcombine-user";
+        var want = await SeedTaggedAsync(u, "work task", ItemType.Task, false, "work");
+        await SeedTaggedAsync(u, "work note", ItemType.Note, false, "work");
+
+        await using var db = _fx.NewDbContext();
+        var result = await new SearchService(db)
+            .QueryAsync(u, null, new SearchFilters(ItemType.Task, null, "work"), 50, CancellationToken.None);
+
+        Assert.Single(result);
+        Assert.Equal(want.Id, result[0].Id);
+    }
+
+    [Fact]
+    public async Task Query_NoFilters_ReturnsNewestFirst()
+    {
+        var u = "qnone-user";
+        await _fx.EnsureUserAsync(u, u + "@example.com");
+        var older = Ready("Older", "older", ItemType.Note, DateTimeOffset.UtcNow.AddHours(-2));
+        var newer = Ready("Newer", "newer", ItemType.Idea, DateTimeOffset.UtcNow);
+        older.UserId = u; newer.UserId = u;
+        await using (var seed = _fx.NewDbContext()) { seed.Items.AddRange(older, newer); await seed.SaveChangesAsync(); }
+
+        await using var db = _fx.NewDbContext();
+        var result = await new SearchService(db)
+            .QueryAsync(u, null, new SearchFilters(), 50, CancellationToken.None);
+
+        var ids = result.Select(r => r.Id).ToList();
+        Assert.True(ids.IndexOf(newer.Id) < ids.IndexOf(older.Id));
     }
 }
