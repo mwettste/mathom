@@ -25,7 +25,7 @@ public class GlossaryModel : PageModel
 
     public async Task<IActionResult> OnPostAddAsync(string? term, CancellationToken ct)
     {
-        await _glossary.AddAsync(UserId, term ?? string.Empty, ct);
+        await _glossary.AddAsync(UserId, term ?? string.Empty, null, ct);
         Terms = await _glossary.GetTermRowsAsync(UserId, ct);
         return Partial("Shared/_GlossaryList", Terms);
     }

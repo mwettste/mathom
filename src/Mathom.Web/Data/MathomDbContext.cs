@@ -12,6 +12,7 @@ public class MathomDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Tag> Tags => Set<Tag>()!;
     public DbSet<ItemTag> ItemTags => Set<ItemTag>()!;
     public DbSet<GlossaryTerm> GlossaryTerms => Set<GlossaryTerm>()!;
+    public DbSet<GlossaryVariant> GlossaryVariants => Set<GlossaryVariant>()!;
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -71,6 +72,17 @@ public class MathomDbContext : IdentityDbContext<ApplicationUser>
                 .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => new { x.UserId, x.Term }).IsUnique();
+        });
+
+        b.Entity<GlossaryVariant>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Text).IsRequired();
+            e.HasOne<GlossaryTerm>()
+                .WithMany(t => t.Variants)
+                .HasForeignKey(x => x.GlossaryTermId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.GlossaryTermId, x.Text }).IsUnique();
         });
     }
 }
