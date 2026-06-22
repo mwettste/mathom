@@ -44,6 +44,30 @@ public class GlossaryPageTests
     }
 
     [Fact]
+    public async Task Add_WithVariant_StoresBoth_AndPageShowsVariant()
+    {
+        using var app = await AppAsync();
+        var client = app.CreateClient();
+        var page = await client.GetStringAsync("/Glossary");
+
+        var resp = await client.PostAsync("/Glossary?handler=Add", new FormUrlEncodedContent(new[]
+        {
+            new KeyValuePair<string,string>("__RequestVerificationToken", Token(page)),
+            new KeyValuePair<string,string>("term", "FireSkills"),
+            new KeyValuePair<string,string>("variant", "Fairstills"),
+        }));
+        Assert.True(resp.IsSuccessStatusCode);
+        var body = await resp.Content.ReadAsStringAsync();
+        Assert.Contains("FireSkills", body);
+        Assert.Contains("Fairstills", body); // variant rendered
+
+        await using var db = _fx.NewDbContext();
+        var term = await db.GlossaryTerms.Include(t => t.Variants)
+            .FirstAsync(t => t.UserId == TestUsers.AliceId && t.Term == "FireSkills");
+        Assert.Contains(term.Variants, v => v.Text == "Fairstills");
+    }
+
+    [Fact]
     public async Task NotePage_RendersGlossaryTokenAndScript()
     {
         using var app = await AppAsync();

@@ -22,6 +22,7 @@
   }
 
   var pop = null;
+  var lastSelection = '';
   function ensurePop() {
     if (pop) return pop;
     pop = document.createElement('div');
@@ -46,6 +47,7 @@
   function hide() { if (pop) pop.style.display = 'none'; }
 
   function showFor(text, rect) {
+    lastSelection = text;
     ensurePop();
     pop.querySelector('#glossary-pop__done').textContent = '';
     var input = pop.querySelector('#glossary-pop__input');
@@ -77,7 +79,7 @@
       var res = await fetch('/Glossary?handler=Add', {
         method: 'POST',
         headers: { 'RequestVerificationToken': t, 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'term=' + encodeURIComponent(term),
+        body: 'term=' + encodeURIComponent(term) + '&variant=' + encodeURIComponent(lastSelection),
       });
       var done = pop.querySelector('#glossary-pop__done');
       done.textContent = '';
