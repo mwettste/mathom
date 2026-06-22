@@ -62,6 +62,7 @@ public class GlossaryPageTests
             id = item.Id; db.Items.Add(item); await db.SaveChangesAsync();
         }
 
+        // CreateClient() authenticates as Alice (the seeded note's owner) via the test auth scheme.
         var html = await app.CreateClient().GetStringAsync($"/Note/{id}");
         Assert.Contains("id=\"glossary-token\"", html);        // token the popup reads
         Assert.Contains("/js/glossary.js", html);              // script included

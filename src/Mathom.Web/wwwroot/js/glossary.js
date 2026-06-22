@@ -69,6 +69,7 @@
   }
 
   document.addEventListener('mouseup', function () {
+    if (pop && pop.style.display === 'block') return;
     var sel = window.getSelection();
     var text = sel && sel.toString().trim();
     if (!text || sel.rangeCount === 0) return;
