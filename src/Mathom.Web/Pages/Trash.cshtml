@@ -1,0 +1,10 @@
+@page
+@model TrashModel
+@{ ViewData["Title"] = "Trash"; }
+
+<p class="back"><a href="/">← Timeline</a></p>
+<h1 class="note__title">Trash</h1>
+
+<div id="trash-list">
+    <partial name="Shared/_TrashList" model="Model.Items" />
+</div>

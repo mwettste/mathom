@@ -150,4 +150,33 @@ public class EditDeleteTests
         Assert.Single(selectedOptions);
         Assert.Contains("note", selectedOptions[0].Value);
     }
+
+    [Fact]
+    public async Task Trash_ListsRestoresAndPurges()
+    {
+        using var app = await AppAsync();
+        var client = app.CreateClient();
+        var id = await SeedReadyAsync("trashed-note");
+
+        // Soft-delete it via the note handler.
+        var noteHtml = await client.GetStringAsync($"/Note/{id}");
+        await client.PostAsync($"/Note/{id}?handler=Delete", new FormUrlEncodedContent(new[]
+        {
+            new KeyValuePair<string,string>("__RequestVerificationToken", Token(noteHtml)),
+        }));
+
+        // It appears in Trash.
+        var trashHtml = await client.GetStringAsync("/Trash");
+        Assert.Contains("trashed-note", trashHtml);
+
+        // Restore it.
+        var restoreResp = await client.PostAsync($"/Trash?handler=Restore&id={id}", new FormUrlEncodedContent(new[]
+        {
+            new KeyValuePair<string,string>("__RequestVerificationToken", Token(trashHtml)),
+        }));
+        Assert.Equal(HttpStatusCode.OK, restoreResp.StatusCode);
+
+        await using var db = _fx.NewDbContext();
+        Assert.Null((await db.Items.IgnoreQueryFilters().FirstAsync(i => i.Id == id)).DeletedAt);  // live again
+    }
 }
