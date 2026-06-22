@@ -16,7 +16,42 @@
 </div>
 
 <div id="results">
-    <div id="item-list">
-        <partial name="Shared/_ItemList" model="Model.Items" />
+    @if (Model.HasFilters)
+    {
+        <div class="filters">
+            <span class="filters__label">Filters:</span>
+            @if (Model.Tag is not null)
+            {
+                <a class="chip" href="@Model.WithoutTag()">#@Model.Tag <span aria-hidden="true">✕</span></a>
+            }
+            @if (Model.Type is not null)
+            {
+                <a class="chip" href="@Model.WithoutType()">type:@Model.TypeParam <span aria-hidden="true">✕</span></a>
+            }
+            @if (Model.Actionable == true)
+            {
+                <a class="chip" href="@Model.WithoutActionable()">actionable <span aria-hidden="true">✕</span></a>
+            }
+            <a class="filters__clear" href="/">Clear</a>
+        </div>
+    }
+    <div class="quickfilters">
+        @foreach (var tt in IndexModel.AllTypes)
+        {
+            var active = Model.Type == tt;
+            <a class="quickfilter @(active ? "is-active" : "")" href="@Model.ToggleType(tt)">@tt.ToString().ToLowerInvariant()</a>
+        }
+        <a class="quickfilter @(Model.Actionable == true ? "is-active" : "")" href="@Model.ToggleActionable()">actionable</a>
     </div>
+
+    @if (Model.Items.Count == 0 && (Model.HasFilters || Model.Q is not null))
+    {
+        <p class="empty">No notes match these filters. <a href="/">Clear</a></p>
+    }
+    else
+    {
+        <div id="item-list">
+            <partial name="Shared/_ItemList" model="Model.Items" />
+        </div>
+    }
 </div>

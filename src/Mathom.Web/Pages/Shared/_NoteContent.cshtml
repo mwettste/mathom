@@ -54,7 +54,7 @@ else if (inflight)
     <div class="note__tags">
         @foreach (var t in Model.Tags)
         {
-            <span class="tag">#@t</span>
+            <a class="tag" href="/?tag=@Uri.EscapeDataString(t)">#@t</a>
         }
     </div>
 }

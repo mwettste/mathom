@@ -259,3 +259,23 @@ a:hover { text-decoration: underline; }
      overflow — drop it; the Log out control stays. */
   .nav-user { display: none; }
 }
+
+/* --- filters --- */
+.quickfilters { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.25rem 0 0.75rem; }
+.quickfilter {
+  font-size: 0.8rem; padding: 0.2rem 0.6rem; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--muted); background: var(--surface);
+  text-transform: lowercase;
+}
+.quickfilter:hover { border-color: var(--accent); text-decoration: none; }
+.quickfilter.is-active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.filters { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+.filters__label { font-size: 0.8rem; color: var(--faint); }
+.chip {
+  font-size: 0.8rem; padding: 0.15rem 0.55rem; border-radius: 999px;
+  background: var(--accent-soft); color: var(--accent);
+}
+.chip:hover { text-decoration: none; background: color-mix(in srgb, var(--accent-soft) 80%, var(--accent)); }
+.filters__clear { font-size: 0.8rem; color: var(--muted); }
+/* clickable tags keep the muted look but invite interaction */
+a.tag:hover { color: var(--accent); text-decoration: none; }

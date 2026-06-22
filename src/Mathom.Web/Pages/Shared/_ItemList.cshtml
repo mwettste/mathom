@@ -40,7 +40,7 @@ else
                         }
                         @foreach (var tag in item.Tags)
                         {
-                            <span class="tag">#@tag</span>
+                            <a class="tag" href="/?tag=@Uri.EscapeDataString(tag)">#@tag</a>
                         }
                     }
                 </div>

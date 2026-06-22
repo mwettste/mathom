@@ -1,6 +1,7 @@
 using System.Net;
 using System.Threading.Tasks;
 using Mathom.Web.Capture;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace Mathom.Tests;
@@ -34,7 +35,8 @@ public class TagFilterTests
             IdempotencyKey = System.Guid.NewGuid().ToString(),
             UserId = TestUsers.AliceId,
         };
-        var t = new Mathom.Web.Domain.Tag { Name = tag, Kind = Mathom.Web.Domain.TagKind.Topic };
+        var t = await db.Tags.FirstOrDefaultAsync(x => x.Name == tag && x.Kind == Mathom.Web.Domain.TagKind.Topic)
+                 ?? new Mathom.Web.Domain.Tag { Name = tag, Kind = Mathom.Web.Domain.TagKind.Topic };
         item.ItemTags.Add(new Mathom.Web.Domain.ItemTag { Item = item, Tag = t });
         db.Items.Add(item);
         await db.SaveChangesAsync();
@@ -59,5 +61,40 @@ public class TagFilterTests
         using var app = await AppAsync();
         var resp = await app.CreateClient().GetAsync("/?type=task");
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task EntryTags_AreClickableLinks()
+    {
+        using var app = await AppAsync();
+        await SeedReadyAsync("tagged-note", "alpha");
+
+        var html = await app.CreateClient().GetStringAsync("/");
+
+        // The tag renders as a link to its filtered view, not a plain span.
+        Assert.Contains("href=\"/?tag=alpha\"", html);
+    }
+
+    [Fact]
+    public async Task ActiveFilter_RendersRemovableChip()
+    {
+        using var app = await AppAsync();
+        await SeedReadyAsync("tagged-note", "alpha");
+
+        var html = await app.CreateClient().GetStringAsync("/?tag=alpha");
+
+        Assert.Contains("class=\"chip\"", html);   // active-filter chip present
+        Assert.Contains("href=\"/\"", html);        // chip removal / clear returns to /
+    }
+
+    [Fact]
+    public async Task FilteredNoMatch_ShowsFilteredEmptyState()
+    {
+        using var app = await AppAsync();
+        await SeedReadyAsync("tagged-note", "alpha");
+
+        var html = await app.CreateClient().GetStringAsync("/?tag=doesnotexist");
+
+        Assert.Contains("No notes match", html);
     }
 }

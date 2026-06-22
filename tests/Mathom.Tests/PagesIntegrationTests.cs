@@ -34,6 +34,6 @@ public class PagesIntegrationTests
         var resp = await app.CreateClient().GetAsync("/?q=nothingmatchesthis");
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
         var body = await resp.Content.ReadAsStringAsync();
-        Assert.Contains("No thoughts yet.", body);
+        Assert.Contains("No notes match", body);
     }
 }

@@ -30,6 +30,25 @@ public class IndexModel : PageModel
     public string? TypeParam => Type?.ToString().ToLowerInvariant();
     public string? ActionableParam => Actionable is null ? null : (Actionable.Value ? "true" : "false");
 
+    public static IReadOnlyList<ItemType> AllTypes { get; } =
+        new[] { ItemType.Idea, ItemType.Task, ItemType.Note, ItemType.Reference, ItemType.Journal };
+
+    public string ToggleType(ItemType t) => Build(Q, Tag, Type == t ? null : t, Actionable);
+    public string ToggleActionable() => Build(Q, Tag, Type, Actionable == true ? null : true);
+    public string WithoutTag() => Build(Q, null, Type, Actionable);
+    public string WithoutType() => Build(Q, Tag, null, Actionable);
+    public string WithoutActionable() => Build(Q, Tag, Type, null);
+
+    private static string Build(string? q, string? tag, ItemType? type, bool? actionable)
+    {
+        var qs = new List<string>();
+        if (!string.IsNullOrWhiteSpace(q)) qs.Add("q=" + Uri.EscapeDataString(q));
+        if (!string.IsNullOrWhiteSpace(tag)) qs.Add("tag=" + Uri.EscapeDataString(tag));
+        if (type is not null) qs.Add("type=" + type.Value.ToString().ToLowerInvariant());
+        if (actionable is not null) qs.Add("actionable=" + (actionable.Value ? "true" : "false"));
+        return qs.Count == 0 ? "/" : "/?" + string.Join("&", qs);
+    }
+
     public async Task OnGetAsync(string? q, string? tag, string? type, bool? actionable, CancellationToken ct)
         => await LoadAsync(q, tag, type, actionable, ct);
 
