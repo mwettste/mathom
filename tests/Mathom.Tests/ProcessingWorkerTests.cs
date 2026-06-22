@@ -72,4 +72,23 @@ public class ProcessingWorkerTests
         var item = await verify.Items.SingleAsync(i => i.Id == orphaned.Id);
         Assert.Equal(ItemStatus.Pending, item.Status);
     }
+
+    [Fact]
+    public async Task ClaimNext_SkipsSoftDeletedPending()
+    {
+        var u = "worker-softdelete-user";
+        await _fx.EnsureUserAsync(u, u + "@example.com");
+        var trashed = new Item
+        {
+            Id = Guid.NewGuid(), Status = ItemStatus.Pending, SourceType = SourceType.Text,
+            RawText = "x", IdempotencyKey = Guid.NewGuid().ToString(),
+            CreatedAt = DateTimeOffset.UtcNow, UserId = u, DeletedAt = DateTimeOffset.UtcNow,
+        };
+        await using (var seed = _fx.NewDbContext()) { seed.Items.Add(trashed); await seed.SaveChangesAsync(); }
+
+        await using var db = _fx.NewDbContext();
+        var claimed = await ProcessingWorker.ClaimNextPendingIdAsync(db, CancellationToken.None);
+
+        Assert.NotEqual(trashed.Id, claimed); // never claims a trashed pending item
+    }
 }

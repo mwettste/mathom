@@ -199,4 +199,23 @@ public class SearchServiceTests
         var ids = result.Select(r => r.Id).ToList();
         Assert.True(ids.IndexOf(newer.Id) < ids.IndexOf(older.Id));
     }
+
+    [Fact]
+    public async Task Timeline_ExcludesSoftDeletedItems()
+    {
+        var u = "softdelete-user";
+        await _fx.EnsureUserAsync(u, u + "@example.com");
+        var live = Ready("Live note", "live", ItemType.Note, DateTimeOffset.UtcNow);
+        var trashed = Ready("Trashed note", "trashed", ItemType.Note, DateTimeOffset.UtcNow);
+        live.UserId = u;
+        trashed.UserId = u;
+        trashed.DeletedAt = DateTimeOffset.UtcNow;
+        await using (var seed = _fx.NewDbContext()) { seed.Items.AddRange(live, trashed); await seed.SaveChangesAsync(); }
+
+        await using var db = _fx.NewDbContext();
+        var result = await new SearchService(db).TimelineAsync(u, 50, CancellationToken.None);
+
+        Assert.Contains(result, r => r.Id == live.Id);
+        Assert.DoesNotContain(result, r => r.Id == trashed.Id);
+    }
 }

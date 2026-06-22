@@ -75,8 +75,9 @@ public class ProcessingWorker : BackgroundService
 
         var pending = await db.Items
             .FromSqlRaw(
-                @"SELECT * FROM ""Items"" WHERE ""Status"" = {0} ORDER BY ""CreatedAt"" ASC LIMIT 1 FOR UPDATE SKIP LOCKED",
+                @"SELECT * FROM ""Items"" WHERE ""Status"" = {0} AND ""DeletedAt"" IS NULL ORDER BY ""CreatedAt"" ASC LIMIT 1 FOR UPDATE SKIP LOCKED",
                 (int)ItemStatus.Pending)
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(ct);
 
         if (pending is null)

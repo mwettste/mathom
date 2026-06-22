@@ -19,6 +19,10 @@ public class MathomDbContext : IdentityDbContext<ApplicationUser>
         b.Entity<Item>(e =>
         {
             e.HasKey(x => x.Id);
+
+            // Soft delete: trashed notes are hidden from every normal query.
+            e.HasQueryFilter(x => x.DeletedAt == null);
+
             e.Property(x => x.RawText).IsRequired();
             e.Property(x => x.IdempotencyKey).IsRequired();
             e.HasIndex(x => x.IdempotencyKey).IsUnique();

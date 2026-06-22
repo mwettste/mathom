@@ -21,6 +21,11 @@ public class Item
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? ProcessedAt { get; set; }
     public string? Error { get; set; }
+
+    // Null = live; set = soft-deleted (in trash). Excluded from all normal queries
+    // by a global query filter in MathomDbContext.
+    public DateTimeOffset? DeletedAt { get; set; }
+
     public string IdempotencyKey { get; set; } = string.Empty;
     public string UserId { get; set; } = string.Empty;
     public List<ItemTag> ItemTags { get; set; } = new();
