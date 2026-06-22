@@ -108,34 +108,39 @@ public class AuthTests
             ("Input.Email", "dave@example.com"), ("Input.Password", "password1"));
         Assert.Equal(HttpStatusCode.Redirect, regResp.StatusCode);
 
-        // GET the home page while authenticated to scrape the anti-forgery token
-        // that is embedded in the logout form by the asp-page tag helper.
+        // GET the home page while authenticated and scrape the logout form exactly
+        // as a browser would submit it: both its `action` URL and its anti-forgery
+        // token. Posting to a hardcoded "/Logout" hides bugs where the form renders
+        // a wrong/empty action (an empty action posts to the current page, so the
+        // user is never signed out).
         var homeHtml = await client.GetStringAsync("/");
+        var formTag = Regex.Match(homeHtml, @"<form[^>]*class=""nav-logout""[^>]*>").Value;
+        Assert.False(string.IsNullOrEmpty(formTag), "logout form not found");
+
+        var action = Regex.Match(formTag, @"action=""([^""]*)""").Groups[1].Value;
+        // Regression guard: the form must target /Logout, not an empty/wrong action.
+        Assert.Equal("/Logout", action);
+
         var token = Regex.Match(homeHtml,
             @"<form[^>]*class=""nav-logout""[^>]*>.*?name=""__RequestVerificationToken""[^>]*value=""([^""]+)""",
             RegexOptions.Singleline).Groups[1].Value;
         Assert.False(string.IsNullOrEmpty(token), "No anti-forgery token found in logout form");
 
-        // POST to /Logout with the scraped token.
+        // Submit the form to the action the browser would actually use.
         var form = new FormUrlEncodedContent(new[]
         {
             new KeyValuePair<string, string>("__RequestVerificationToken", token),
         });
-        var logoutResp = await client.PostAsync("/Logout", form);
+        var logoutResp = await client.PostAsync(action, form);
 
-        // Must redirect to /Login.
         Assert.Equal(HttpStatusCode.Redirect, logoutResp.StatusCode);
         Assert.Equal("/Login", logoutResp.Headers.Location!.OriginalString);
 
-        // The Identity auth cookie must be cleared/expired in the response.
-        var setCookieHeaders = logoutResp.Headers.GetValues("Set-Cookie");
-        var identityCookieCleared = setCookieHeaders.Any(h =>
-            h.Contains(".AspNetCore.Identity.Application") &&
-            (h.Contains("expires=Thu, 01 Jan 1970") ||
-             h.Contains("expires=Mon, 01 Jan 0001") ||
-             h.Contains("max-age=0") ||
-             // Empty value means the cookie is being cleared
-             Regex.IsMatch(h, @"\.AspNetCore\.Identity\.Application=;")));
-        Assert.True(identityCookieCleared, $"Identity cookie was not cleared. Set-Cookie headers: {string.Join("; ", setCookieHeaders)}");
+        // End-to-end proof of sign-out: a follow-up authenticated request now
+        // bounces to /Login. This fails if the cookie wasn't actually cleared.
+        var afterLogout = await client.GetAsync("/");
+        Assert.Equal(HttpStatusCode.Redirect, afterLogout.StatusCode);
+        // Location may be absolute (http://localhost/Login?ReturnUrl=%2F) or relative.
+        Assert.Contains("/Login", afterLogout.Headers.Location!.OriginalString);
     }
 }
