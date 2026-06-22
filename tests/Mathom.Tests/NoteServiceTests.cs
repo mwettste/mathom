@@ -126,6 +126,54 @@ public class NoteServiceTests
     }
 
     [Fact]
+    public async Task Reprocess_SetsReadyOrFailed_ToPending()
+    {
+        var u = "reprocess-user";
+        var ready = await SeedReadyAsync(u, "ready note");
+
+        await using (var db = _fx.NewDbContext())
+            Assert.True(await new NoteService(db, new FakeMediaStore()).ReprocessAsync(u, ready.Id, CancellationToken.None));
+
+        await using var v1 = _fx.NewDbContext();
+        Assert.Equal(ItemStatus.Pending, (await v1.Items.FirstAsync(i => i.Id == ready.Id)).Status);
+
+        // A Failed note re-processes too, clearing the error.
+        await using (var db = _fx.NewDbContext())
+        {
+            var failed = await db.Items.FirstAsync(i => i.Id == ready.Id);
+            failed.Status = ItemStatus.Failed; failed.Error = "boom";
+            await db.SaveChangesAsync();
+        }
+        await using (var db = _fx.NewDbContext())
+            Assert.True(await new NoteService(db, new FakeMediaStore()).ReprocessAsync(u, ready.Id, CancellationToken.None));
+        await using var v2 = _fx.NewDbContext();
+        var after = await v2.Items.FirstAsync(i => i.Id == ready.Id);
+        Assert.Equal(ItemStatus.Pending, after.Status);
+        Assert.Null(after.Error);
+    }
+
+    [Fact]
+    public async Task Reprocess_NoOp_OnInFlight_And_CrossUser()
+    {
+        var owner = "reprocess-owner";
+        var attacker = "reprocess-attacker";
+        await _fx.EnsureUserAsync(attacker, attacker + "@example.com");
+        var ready = await SeedReadyAsync(owner, "owned note");
+
+        await using var db = _fx.NewDbContext();
+        var svc = new NoteService(db, new FakeMediaStore());
+
+        // Cross-user: attacker cannot re-process the owner's note.
+        Assert.False(await svc.ReprocessAsync(attacker, ready.Id, CancellationToken.None));
+
+        // In-flight: set Processing, then re-process is a no-op.
+        var item = await db.Items.FirstAsync(i => i.Id == ready.Id);
+        item.Status = ItemStatus.Processing; await db.SaveChangesAsync();
+        await using var db2 = _fx.NewDbContext();
+        Assert.False(await new NoteService(db2, new FakeMediaStore()).ReprocessAsync(owner, ready.Id, CancellationToken.None));
+    }
+
+    [Fact]
     public async Task Mutations_AreUserScoped()
     {
         var owner = "ns-owner";

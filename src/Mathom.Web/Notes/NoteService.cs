@@ -23,6 +23,18 @@ public class NoteService
         _media = media;
     }
 
+    public async Task<bool> ReprocessAsync(string userId, Guid id, CancellationToken ct)
+    {
+        var item = await _db.Items.FirstOrDefaultAsync(
+            i => i.Id == id && i.UserId == userId
+              && (i.Status == ItemStatus.Ready || i.Status == ItemStatus.Failed), ct);
+        if (item is null) return false;
+        item.Status = ItemStatus.Pending;
+        item.Error = null;
+        await _db.SaveChangesAsync(ct);
+        return true;
+    }
+
     public async Task<bool> UpdateAsync(string userId, Guid id, string? title, string? body,
         ItemType? type, bool actionable, IReadOnlyList<string> tagNames, CancellationToken ct)
     {

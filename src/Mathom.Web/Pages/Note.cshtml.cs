@@ -61,6 +61,14 @@ public class NoteModel : PageModel
         return Partial("Shared/_NoteContent", Item!);
     }
 
+    public async Task<IActionResult> OnPostReprocessAsync(Guid id, CancellationToken ct)
+    {
+        var ok = await _notes.ReprocessAsync(UserId, id, ct);
+        if (!ok) return NotFound();
+        Item = await _search.GetAsync(UserId, id, ct);
+        return Partial("Shared/_NoteContent", Item!);
+    }
+
     public async Task<IActionResult> OnPostDeleteAsync(Guid id, CancellationToken ct)
     {
         var ok = await _notes.SoftDeleteAsync(UserId, id, ct);
