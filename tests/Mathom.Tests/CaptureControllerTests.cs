@@ -69,4 +69,33 @@ public class CaptureControllerTests
         var resp = await client.PostAsJsonAsync("/capture", new CaptureRequest("   ", "idem-empty"));
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
     }
+
+    [Fact]
+    public async Task Post_Capture_IdempotencyKey_ReusedAfterSoftDelete_ReturnsOriginalId()
+    {
+        const string key = "reuse-key-after-delete";
+        using var app = await CreateAppAsync();
+        var client = app.CreateClient();
+
+        // 1. First capture — creates the item.
+        var first = await client.PostAsJsonAsync("/capture", new CaptureRequest("original text", key));
+        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
+        var firstBody = await first.Content.ReadFromJsonAsync<IdResponse>();
+
+        // 2. Soft-delete the item directly via DbContext (bypasses the global query filter).
+        await using var db = _fx.NewDbContext();
+        var item = await db.Items.SingleAsync(i => i.IdempotencyKey == key);
+        item.DeletedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync();
+
+        // 3. POST again with the same idempotency key.
+        var second = await client.PostAsJsonAsync("/capture", new CaptureRequest("any text", key));
+
+        // 4. Must NOT be a 500; must return the original item's id.
+        Assert.True(
+            second.StatusCode == HttpStatusCode.OK || second.StatusCode == HttpStatusCode.Created,
+            $"Expected 200 or 201 but got {(int)second.StatusCode}");
+        var secondBody = await second.Content.ReadFromJsonAsync<IdResponse>();
+        Assert.Equal(firstBody!.Id, secondBody!.Id);
+    }
 }

@@ -37,7 +37,7 @@ public class CaptureController : ControllerBase
             ? Guid.NewGuid().ToString()
             : req.IdempotencyKey;
 
-        var existing = await _db.Items.FirstOrDefaultAsync(i => i.IdempotencyKey == key, ct);
+        var existing = await _db.Items.IgnoreQueryFilters().FirstOrDefaultAsync(i => i.IdempotencyKey == key, ct);
         if (existing is not null)
             return Ok(new { id = existing.Id });
 
@@ -51,7 +51,7 @@ public class CaptureController : ControllerBase
         catch (DbUpdateException ex)
             when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
         {
-            var race = await _db.Items.FirstOrDefaultAsync(i => i.IdempotencyKey == key, ct);
+            var race = await _db.Items.IgnoreQueryFilters().FirstOrDefaultAsync(i => i.IdempotencyKey == key, ct);
             return Ok(new { id = race!.Id });
         }
 
@@ -71,7 +71,7 @@ public class CaptureController : ControllerBase
             ? Guid.NewGuid().ToString()
             : idempotencyKey;
 
-        var existing = await _db.Items.FirstOrDefaultAsync(i => i.IdempotencyKey == key, ct);
+        var existing = await _db.Items.IgnoreQueryFilters().FirstOrDefaultAsync(i => i.IdempotencyKey == key, ct);
         if (existing is not null)
             return Ok(new { id = existing.Id });
 
@@ -94,7 +94,7 @@ public class CaptureController : ControllerBase
         catch (DbUpdateException ex)
             when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
         {
-            var race = await _db.Items.FirstOrDefaultAsync(i => i.IdempotencyKey == key, ct);
+            var race = await _db.Items.IgnoreQueryFilters().FirstOrDefaultAsync(i => i.IdempotencyKey == key, ct);
             return Ok(new { id = race!.Id });
         }
 
