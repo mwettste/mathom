@@ -39,7 +39,8 @@ public class ItemProcessorTests
 
         await using (var db = _fx.NewDbContext())
         {
-            var processor = new ItemProcessor(db, fake, new FakeTranscriber(), new FakeMediaStore(), NullLogger<ItemProcessor>.Instance);
+            var processor = new ItemProcessor(db, fake, new FakeTranscriber(), new FakeMediaStore(),
+                new Mathom.Web.Glossary.GlossaryService(db), NullLogger<ItemProcessor>.Instance);
             await processor.ProcessAsync(item.Id, CancellationToken.None);
         }
 
@@ -69,7 +70,8 @@ public class ItemProcessorTests
 
         await using (var db = _fx.NewDbContext())
         {
-            var processor = new ItemProcessor(db, new FakeLlmClient { Throw = true }, new FakeTranscriber(), new FakeMediaStore(), NullLogger<ItemProcessor>.Instance);
+            var processor = new ItemProcessor(db, new FakeLlmClient { Throw = true }, new FakeTranscriber(), new FakeMediaStore(),
+                new Mathom.Web.Glossary.GlossaryService(db), NullLogger<ItemProcessor>.Instance);
             await processor.ProcessAsync(item.Id, CancellationToken.None);
         }
 
@@ -101,9 +103,11 @@ public class ItemProcessorTests
         };
 
         await using (var db = _fx.NewDbContext())
-            await new ItemProcessor(db, fake, new FakeTranscriber(), new FakeMediaStore(), NullLogger<ItemProcessor>.Instance).ProcessAsync(a.Id, CancellationToken.None);
+            await new ItemProcessor(db, fake, new FakeTranscriber(), new FakeMediaStore(),
+                new Mathom.Web.Glossary.GlossaryService(db), NullLogger<ItemProcessor>.Instance).ProcessAsync(a.Id, CancellationToken.None);
         await using (var db = _fx.NewDbContext())
-            await new ItemProcessor(db, fake, new FakeTranscriber(), new FakeMediaStore(), NullLogger<ItemProcessor>.Instance).ProcessAsync(b.Id, CancellationToken.None);
+            await new ItemProcessor(db, fake, new FakeTranscriber(), new FakeMediaStore(),
+                new Mathom.Web.Glossary.GlossaryService(db), NullLogger<ItemProcessor>.Instance).ProcessAsync(b.Id, CancellationToken.None);
 
         await using (var verify = _fx.NewDbContext())
             Assert.Equal(1, await verify.Tags.CountAsync(t => t.Name == "shared"));
@@ -139,7 +143,8 @@ public class ItemProcessorTests
         };
 
         await using (var db = _fx.NewDbContext())
-            await new ItemProcessor(db, llm, transcriber, media, NullLogger<ItemProcessor>.Instance)
+            await new ItemProcessor(db, llm, transcriber, media,
+                new Mathom.Web.Glossary.GlossaryService(db), NullLogger<ItemProcessor>.Instance)
                 .ProcessAsync(item.Id, CancellationToken.None);
 
         await using (var verify = _fx.NewDbContext())
@@ -177,7 +182,7 @@ public class ItemProcessorTests
 
         await using (var db = _fx.NewDbContext())
             await new ItemProcessor(db, new FakeLlmClient(), new FakeTranscriber { Throw = true }, media,
-                NullLogger<ItemProcessor>.Instance).ProcessAsync(item.Id, CancellationToken.None);
+                new Mathom.Web.Glossary.GlossaryService(db), NullLogger<ItemProcessor>.Instance).ProcessAsync(item.Id, CancellationToken.None);
 
         await using (var verify = _fx.NewDbContext())
         {
@@ -185,5 +190,34 @@ public class ItemProcessorTests
             Assert.Equal(ItemStatus.Failed, loaded.Status);
             Assert.False(string.IsNullOrEmpty(loaded.Error));
         }
+    }
+
+    [Fact]
+    public async Task Process_PassesUsersGlossary_ToCleanup()
+    {
+        var u = "ip-gloss-user";
+        await _fx.EnsureUserAsync(u, u + "@example.com");
+        // seed a glossary term + a pending text item for this user
+        Guid itemId;
+        await using (var seed = _fx.NewDbContext())
+        {
+            seed.GlossaryTerms.Add(new Mathom.Web.Domain.GlossaryTerm
+            { Id = Guid.NewGuid(), UserId = u, Term = "Obersaxen", CreatedAt = DateTimeOffset.UtcNow });
+            var item = Mathom.Web.Domain.Item.CreatePending(Mathom.Web.Domain.SourceType.Text, "raw text", Guid.NewGuid().ToString(), u, DateTimeOffset.UtcNow);
+            itemId = item.Id;
+            seed.Items.Add(item);
+            await seed.SaveChangesAsync();
+        }
+
+        var llm = new FakeLlmClient();
+        await using var db = _fx.NewDbContext();
+        var processor = new Mathom.Web.Processing.ItemProcessor(
+            db, llm, new FakeTranscriber(), new FakeMediaStore(),
+            new Mathom.Web.Glossary.GlossaryService(db),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<Mathom.Web.Processing.ItemProcessor>.Instance);
+
+        await processor.ProcessAsync(itemId, CancellationToken.None);
+
+        Assert.Contains("Obersaxen", llm.LastGlossary);
     }
 }

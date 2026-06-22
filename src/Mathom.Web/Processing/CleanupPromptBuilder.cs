@@ -1,19 +1,32 @@
+using System.Collections.Generic;
+
 namespace Mathom.Web.Processing;
 
 public static class CleanupPromptBuilder
 {
-    public static string BuildSystemPrompt() =>
-        """
-        You clean up and classify a user's quickly-captured note.
-        Respond ONLY with a JSON object, no prose, with exactly these fields:
-        {
-          "title": string (max ~8 words),
-          "clean_text": string (the note, cleaned up, fixing transcription errors, preserving meaning),
-          "item_type": one of "idea","task","note","reference","journal",
-          "actionable": boolean (true if it describes something to act on),
-          "tags": array of { "name": string, "kind": one of "topic","person","project","entity" }
-        }
-        """;
+    public static string BuildSystemPrompt(IReadOnlyList<string> glossary)
+    {
+        const string basePrompt =
+            """
+            You clean up and classify a user's quickly-captured note.
+            Respond ONLY with a JSON object, no prose, with exactly these fields:
+            {
+              "title": string (max ~8 words),
+              "clean_text": string (the note, cleaned up, fixing transcription errors, preserving meaning),
+              "item_type": one of "idea","task","note","reference","journal",
+              "actionable": boolean (true if it describes something to act on),
+              "tags": array of { "name": string, "kind": one of "topic","person","project","entity" }
+            }
+            """;
+
+        if (glossary is null || glossary.Count == 0)
+            return basePrompt;
+
+        return basePrompt
+            + "\n\nThe user's domain glossary (correct spellings): "
+            + string.Join(", ", glossary)
+            + ". If the note contains a word that is a close phonetic match to one of these, use the glossary spelling in clean_text and title.";
+    }
 
     public static string BuildUserPrompt(string rawText) => rawText;
 

@@ -19,9 +19,12 @@ public class FakeLlmClient : ILlmClient
             Actionable: false,
             Tags: new List<CleanupTag> { new("general", TagKind.Topic) });
 
-    public Task<CleanupResult> CleanupAsync(string rawText, CancellationToken ct)
+    public IReadOnlyList<string> LastGlossary { get; private set; } = System.Array.Empty<string>();
+
+    public Task<CleanupResult> CleanupAsync(string rawText, IReadOnlyList<string> glossary, CancellationToken ct)
     {
         Calls++;
+        LastGlossary = glossary;
         if (Throw) throw new InvalidOperationException("fake failure");
         return Task.FromResult(Respond(rawText));
     }

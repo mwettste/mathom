@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -31,7 +32,7 @@ public abstract class OpenAiCompatibleLlmClient : ILlmClient
             _http.DefaultRequestHeaders.Authorization = new("Bearer", key);
     }
 
-    public async Task<CleanupResult> CleanupAsync(string rawText, CancellationToken ct)
+    public async Task<CleanupResult> CleanupAsync(string rawText, IReadOnlyList<string> glossary, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(_model))
             throw new InvalidOperationException(
@@ -44,7 +45,7 @@ public abstract class OpenAiCompatibleLlmClient : ILlmClient
             response_format = BuildResponseFormat(),
             messages = new object[]
             {
-                new { role = "system", content = CleanupPromptBuilder.BuildSystemPrompt() },
+                new { role = "system", content = CleanupPromptBuilder.BuildSystemPrompt(glossary) },
                 new { role = "user", content = CleanupPromptBuilder.BuildUserPrompt(rawText) }
             }
         };

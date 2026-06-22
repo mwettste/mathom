@@ -21,7 +21,7 @@ public class FallbackLlmClient : ILlmClient
         _retryDelay = retryDelay ?? TimeSpan.FromMilliseconds(200);
     }
 
-    public async Task<CleanupResult> CleanupAsync(string rawText, CancellationToken ct)
+    public async Task<CleanupResult> CleanupAsync(string rawText, IReadOnlyList<string> glossary, CancellationToken ct)
     {
         Exception? last = null;
         for (var providerIndex = 0; providerIndex < _providers.Count; providerIndex++)
@@ -31,7 +31,7 @@ public class FallbackLlmClient : ILlmClient
             {
                 try
                 {
-                    return await provider.CleanupAsync(rawText, ct);
+                    return await provider.CleanupAsync(rawText, glossary, ct);
                 }
                 catch (Exception ex)
                 {

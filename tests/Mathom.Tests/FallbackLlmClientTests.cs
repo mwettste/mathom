@@ -21,7 +21,7 @@ public class FallbackLlmClientTests
         };
 
         var fallback = new FallbackLlmClient(new ILlmClient[] { primary, secondary }, NullLogger<FallbackLlmClient>.Instance, retryDelay: TimeSpan.Zero);
-        var result = await fallback.CleanupAsync("hi", CancellationToken.None);
+        var result = await fallback.CleanupAsync("hi", System.Array.Empty<string>(), CancellationToken.None);
 
         Assert.Equal("ok", result.CleanText);
         Assert.Equal(2, primary.Calls);
@@ -36,6 +36,6 @@ public class FallbackLlmClientTests
             NullLogger<FallbackLlmClient>.Instance,
             retryDelay: TimeSpan.Zero);
 
-        await Assert.ThrowsAnyAsync<Exception>(() => fallback.CleanupAsync("hi", CancellationToken.None));
+        await Assert.ThrowsAnyAsync<Exception>(() => fallback.CleanupAsync("hi", System.Array.Empty<string>(), CancellationToken.None));
     }
 }

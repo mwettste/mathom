@@ -16,5 +16,5 @@ public record CleanupResult(
 
 public interface ILlmClient
 {
-    Task<CleanupResult> CleanupAsync(string rawText, CancellationToken ct);
+    Task<CleanupResult> CleanupAsync(string rawText, IReadOnlyList<string> glossary, CancellationToken ct);
 }

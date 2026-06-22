@@ -16,6 +16,7 @@ public class ItemProcessor
     private readonly ILlmClient _llm;
     private readonly ITranscriber _transcriber;
     private readonly IMediaStore _media;
+    private readonly Mathom.Web.Glossary.GlossaryService _glossary;
     private readonly ILogger<ItemProcessor> _logger;
 
     public ItemProcessor(
@@ -23,12 +24,14 @@ public class ItemProcessor
         ILlmClient llm,
         ITranscriber transcriber,
         IMediaStore media,
+        Mathom.Web.Glossary.GlossaryService glossary,
         ILogger<ItemProcessor> logger)
     {
         _db = db;
         _llm = llm;
         _transcriber = transcriber;
         _media = media;
+        _glossary = glossary;
         _logger = logger;
     }
 
@@ -43,6 +46,13 @@ public class ItemProcessor
 
         try
         {
+            var glossary = await _glossary.GetTermsAsync(item.UserId, ct);
+            if (glossary.Count > 100)
+            {
+                _logger.LogInformation("Glossary for user {User} has {Count} terms; injecting first 100.", item.UserId, glossary.Count);
+                glossary = glossary.Take(100).ToList();
+            }
+
             // Voice items have no text yet — transcribe the stored audio first.
             if (item.SourceType == SourceType.Voice && string.IsNullOrEmpty(item.RawText) && item.MediaPath is not null)
             {
@@ -51,7 +61,7 @@ public class ItemProcessor
                 await _db.SaveChangesAsync(ct);
             }
 
-            var result = await _llm.CleanupAsync(item.RawText, ct);
+            var result = await _llm.CleanupAsync(item.RawText, glossary, ct);
 
             item.Title = result.Title;
             item.CleanText = result.CleanText;
