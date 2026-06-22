@@ -193,6 +193,50 @@ public class ItemProcessorTests
     }
 
     [Fact]
+    public async Task Reprocess_ReconcilesTags_NoDuplicateNoStale()
+    {
+        var u = "reprocess-tags-user";
+        await _fx.EnsureUserAsync(u, u + "@example.com");
+
+        System.Guid itemId;
+        await using (var seed = _fx.NewDbContext())
+        {
+            var item = new Item
+            {
+                Id = System.Guid.NewGuid(), Status = ItemStatus.Pending, SourceType = SourceType.Text,
+                RawText = "raw", CleanText = "raw", Title = "t", ItemType = ItemType.Note,
+                CreatedAt = System.DateTimeOffset.UtcNow, ProcessedAt = System.DateTimeOffset.UtcNow,
+                IdempotencyKey = System.Guid.NewGuid().ToString(), UserId = u,
+            };
+            item.ItemTags.Add(new ItemTag { Item = item, Tag = new Tag { Name = "old1", Kind = TagKind.Topic } });
+            item.ItemTags.Add(new ItemTag { Item = item, Tag = new Tag { Name = "old2", Kind = TagKind.Topic } });
+            itemId = item.Id;
+            seed.Items.Add(item);
+            await seed.SaveChangesAsync();
+        }
+
+        // The LLM now returns old2 (kept) + new1 (added); old1 must be removed; no duplicate-key crash on old2.
+        var llm = new FakeLlmClient
+        {
+            Respond = raw => new CleanupResult("T", "clean", ItemType.Note, false,
+                new System.Collections.Generic.List<CleanupTag> { new("old2", TagKind.Topic), new("new1", TagKind.Topic) }),
+        };
+
+        await using var db = _fx.NewDbContext();
+        var processor = new ItemProcessor(db, llm, new FakeTranscriber(), new FakeMediaStore(),
+            new Mathom.Web.Glossary.GlossaryService(db),
+            NullLogger<ItemProcessor>.Instance);
+
+        await processor.ProcessAsync(itemId, System.Threading.CancellationToken.None);
+
+        await using var verify = _fx.NewDbContext();
+        var item2 = await verify.Items.Include(i => i.ItemTags).ThenInclude(t => t.Tag)
+            .FirstAsync(i => i.Id == itemId);
+        Assert.Equal(ItemStatus.Ready, item2.Status); // did not crash/fail
+        Assert.Equal(new[] { "new1", "old2" }, item2.ItemTags.Select(it => it.Tag.Name).OrderBy(n => n).ToArray());
+    }
+
+    [Fact]
     public async Task Process_PassesUsersGlossary_ToCleanup()
     {
         var u = "ip-gloss-user";

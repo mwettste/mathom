@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -37,7 +38,7 @@ public class ItemProcessor
 
     public async Task ProcessAsync(Guid itemId, CancellationToken ct)
     {
-        var item = await _db.Items.FirstOrDefaultAsync(i => i.Id == itemId, ct);
+        var item = await _db.Items.Include(i => i.ItemTags).FirstOrDefaultAsync(i => i.Id == itemId, ct);
         if (item is null) return;
         if (item.Status is not (ItemStatus.Pending or ItemStatus.Failed or ItemStatus.Processing)) return;
 
@@ -69,6 +70,7 @@ public class ItemProcessor
             item.Actionable = result.Actionable;
             item.Error = null;
 
+            var desiredTagIds = new List<int>();
             foreach (var t in result.Tags)
             {
                 var tag = await _db.Tags.FirstOrDefaultAsync(x => x.Name == t.Name && x.Kind == t.Kind, ct);
@@ -78,9 +80,12 @@ public class ItemProcessor
                     _db.Tags.Add(tag);
                     await _db.SaveChangesAsync(ct);
                 }
+                desiredTagIds.Add(tag.Id);
                 if (!item.ItemTags.Any(it => it.TagId == tag.Id))
                     item.ItemTags.Add(new ItemTag { ItemId = item.Id, TagId = tag.Id });
             }
+            // Reconcile: drop tags no longer in the cleanup result (keeps re-processing clean).
+            item.ItemTags.RemoveAll(it => !desiredTagIds.Contains(it.TagId));
 
             item.ProcessedAt = DateTimeOffset.UtcNow;
             item.Status = ItemStatus.Ready;
