@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -36,7 +37,7 @@ public class InfomaniakTranscriber : ITranscriber
             _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", key);
     }
 
-    public async Task<string> TranscribeAsync(Stream audio, string fileName, CancellationToken ct)
+    public async Task<string> TranscribeAsync(Stream audio, string fileName, IReadOnlyList<string> glossary, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(_model))
             throw new InvalidOperationException(
@@ -52,6 +53,8 @@ public class InfomaniakTranscriber : ITranscriber
             audioContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
             form.Add(audioContent, "file", fileName);
             form.Add(new StringContent(_model), "model");
+            if (glossary is { Count: > 0 })
+                form.Add(new StringContent(string.Join(", ", glossary)), "prompt");
 
             using var submit = await _http.PostAsync("audio/transcriptions", form, ct);
             submit.EnsureSuccessStatusCode();

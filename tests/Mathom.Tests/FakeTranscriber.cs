@@ -12,9 +12,13 @@ public class FakeTranscriber : ITranscriber
     public int Calls { get; private set; }
     public Func<string, string> Respond { get; set; } = fileName => "transcript of " + fileName;
 
-    public Task<string> TranscribeAsync(Stream audio, string fileName, CancellationToken ct)
+    public System.Collections.Generic.IReadOnlyList<string> LastGlossary { get; private set; }
+        = System.Array.Empty<string>();
+
+    public Task<string> TranscribeAsync(Stream audio, string fileName, System.Collections.Generic.IReadOnlyList<string> glossary, CancellationToken ct)
     {
         Calls++;
+        LastGlossary = glossary;
         if (Throw) throw new InvalidOperationException("fake transcription failure");
         return Task.FromResult(Respond(fileName));
     }

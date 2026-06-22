@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,7 +14,7 @@ public class FakeTranscriberTests
     {
         var fake = new FakeTranscriber { Respond = _ => "hello world" };
         using var ms = new MemoryStream(new byte[] { 1, 2, 3 });
-        var text = await fake.TranscribeAsync(ms, "note.webm", CancellationToken.None);
+        var text = await fake.TranscribeAsync(ms, "note.webm", Array.Empty<string>(), CancellationToken.None);
         Assert.Equal("hello world", text);
         Assert.Equal(1, fake.Calls);
     }
@@ -23,7 +25,7 @@ public class FakeTranscriberTests
         var fake = new FakeTranscriber { Throw = true };
         using var ms = new MemoryStream();
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => fake.TranscribeAsync(ms, "note.webm", CancellationToken.None));
+            () => fake.TranscribeAsync(ms, "note.webm", Array.Empty<string>(), CancellationToken.None));
         Assert.Equal(1, fake.Calls);
     }
 }

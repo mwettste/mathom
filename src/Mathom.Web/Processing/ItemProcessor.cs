@@ -57,7 +57,7 @@ public class ItemProcessor
             if (item.SourceType == SourceType.Voice && string.IsNullOrEmpty(item.RawText) && item.MediaPath is not null)
             {
                 await using var audio = await _media.OpenReadAsync(item.MediaPath, ct);
-                item.RawText = await _transcriber.TranscribeAsync(audio, item.MediaPath, ct);
+                item.RawText = await _transcriber.TranscribeAsync(audio, item.MediaPath, glossary, ct);
                 await _db.SaveChangesAsync(ct);
             }
 
