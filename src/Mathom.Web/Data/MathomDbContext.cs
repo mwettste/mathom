@@ -72,6 +72,7 @@ public class MathomDbContext : IdentityDbContext<ApplicationUser>
                 .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => new { x.UserId, x.Term }).IsUnique();
+            e.Property(x => x.Description).HasMaxLength(500);
         });
 
         b.Entity<GlossaryVariant>(e =>

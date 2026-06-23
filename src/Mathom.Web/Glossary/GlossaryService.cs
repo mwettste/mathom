@@ -9,9 +9,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Mathom.Web.Glossary;
 
-public record GlossaryEntry(string Term, IReadOnlyList<string> Variants);
+public record GlossaryEntry(string Term, IReadOnlyList<string> Variants, string? Description);
 public record GlossaryVariantView(Guid Id, string Text);
-public record GlossaryTermView(Guid Id, string Term, IReadOnlyList<GlossaryVariantView> Variants);
+public record GlossaryTermView(Guid Id, string Term, IReadOnlyList<GlossaryVariantView> Variants, string? Description);
 
 // User-scoped per-user glossary of correct domain terms.
 public class GlossaryService
@@ -83,7 +83,8 @@ public class GlossaryService
             .OrderBy(g => g.CreatedAt)
             .Select(g => new GlossaryEntry(
                 g.Term,
-                g.Variants.OrderBy(v => v.CreatedAt).Select(v => v.Text).ToList()))
+                g.Variants.OrderBy(v => v.CreatedAt).Select(v => v.Text).ToList(),
+                g.Description))
             .ToListAsync(ct);
 
     public async Task<IReadOnlyList<GlossaryTermView>> GetTermViewsAsync(string userId, CancellationToken ct)
@@ -92,8 +93,20 @@ public class GlossaryService
             .OrderBy(g => g.CreatedAt)
             .Select(g => new GlossaryTermView(
                 g.Id, g.Term,
-                g.Variants.OrderBy(v => v.CreatedAt).Select(v => new GlossaryVariantView(v.Id, v.Text)).ToList()))
+                g.Variants.OrderBy(v => v.CreatedAt).Select(v => new GlossaryVariantView(v.Id, v.Text)).ToList(),
+                g.Description))
             .ToListAsync(ct);
+
+    public async Task<bool> SetDescriptionAsync(string userId, Guid termId, string? description, CancellationToken ct)
+    {
+        var term = await _db.GlossaryTerms.FirstOrDefaultAsync(g => g.Id == termId && g.UserId == userId, ct);
+        if (term is null) return false;
+        var d = (description ?? string.Empty).Trim();
+        if (d.Length > 500) d = d.Substring(0, 500);
+        term.Description = d.Length == 0 ? null : d;
+        await _db.SaveChangesAsync(ct);
+        return true;
+    }
 
     public async Task<bool> RemoveVariantAsync(string userId, Guid variantId, CancellationToken ct)
     {

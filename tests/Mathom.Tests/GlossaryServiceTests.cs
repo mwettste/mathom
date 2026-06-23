@@ -86,6 +86,36 @@ public class GlossaryServiceTests
     }
 
     [Fact]
+    public async Task SetDescription_Set_Clear_Truncate_AndUserScoped()
+    {
+        var owner = "desc-owner";
+        var attacker = "desc-attacker";
+        await _fx.EnsureUserAsync(owner, owner + "@example.com");
+        await _fx.EnsureUserAsync(attacker, attacker + "@example.com");
+        await using var db = _fx.NewDbContext();
+        var svc = new GlossaryService(db);
+        await svc.AddAsync(owner, "FireSkills", null, CancellationToken.None);
+        var termId = (await svc.GetTermViewsAsync(owner, CancellationToken.None)).Single().Id;
+
+        // Set
+        Assert.True(await svc.SetDescriptionAsync(owner, termId, "  our internal time-tracking product  ", CancellationToken.None));
+        Assert.Equal("our internal time-tracking product",
+            (await svc.GetEntriesAsync(owner, CancellationToken.None)).Single().Description);
+
+        // Truncate to 500
+        Assert.True(await svc.SetDescriptionAsync(owner, termId, new string('x', 700), CancellationToken.None));
+        Assert.Equal(500, (await svc.GetEntriesAsync(owner, CancellationToken.None)).Single().Description!.Length);
+
+        // Clear (whitespace -> null)
+        Assert.True(await svc.SetDescriptionAsync(owner, termId, "   ", CancellationToken.None));
+        Assert.Null((await svc.GetTermViewsAsync(owner, CancellationToken.None)).Single().Description);
+
+        // Cross-user: attacker cannot set the owner's term
+        Assert.False(await svc.SetDescriptionAsync(attacker, termId, "hacked", CancellationToken.None));
+        Assert.Null((await svc.GetTermViewsAsync(owner, CancellationToken.None)).Single().Description);
+    }
+
+    [Fact]
     public async Task RemoveVariant_IsUserScoped_AndCascadesOnTermRemove()
     {
         var owner = "gv-owner";

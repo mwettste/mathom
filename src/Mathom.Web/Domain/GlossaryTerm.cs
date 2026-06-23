@@ -10,4 +10,5 @@ public class GlossaryTerm
     public string Term { get; set; } = string.Empty;
     public DateTimeOffset CreatedAt { get; set; }
     public List<GlossaryVariant> Variants { get; set; } = new();
+    public string? Description { get; set; }
 }
