@@ -41,8 +41,7 @@ admin approval** — a new account can sign in but is held on a pending page unt
 
 ### The glossary (the interesting bit)
 
-Speech-to-text and LLMs mangle domain-specific words ("Obersaxen" → "Obersachsen", "FireSkills" →
-"Fairstills"). Mathom lets each user build a personal **glossary** that feeds the pipeline:
+Speech-to-text and LLMs mangle domain-specific words. Mathom lets each user build a personal **glossary** that feeds the pipeline:
 
 - **Terms** — correct spellings, injected into both the Whisper prompt and the LLM cleanup prompt.
 - **Variants** — known mis-hearings. Captured with a **select-to-add** gesture: highlight the wrong
