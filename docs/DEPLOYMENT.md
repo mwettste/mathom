@@ -76,12 +76,14 @@ settings → Change visibility → Public**. (Alternatively, keep it private and
 ### 4. Place the server-side `.env` (secrets)
 
 The deploy workflow ships **only** the compose file, never secrets. Create the
-environment file once on the server, in the deploy directory:
+deploy directory and environment file once on the server. The deploy runs over
+Tailscale SSH as `marco`, so the directory must be **owned by `marco`** (not root)
+or `scp` fails with `Permission denied`:
 
 ```bash
 ssh marco@wettsti-edge
-sudo mkdir -p /opt/apps/mathom
-sudo $EDITOR /opt/apps/mathom/.env      # see keys below; chmod 600
+sudo install -d -o marco -g marco /opt/apps/mathom   # marco-owned dir
+$EDITOR /opt/apps/mathom/.env                         # see keys below; then: chmod 600 .env
 ```
 
 `/opt/apps/mathom/.env` must contain (mirror [`.env.example`](../.env.example)):
