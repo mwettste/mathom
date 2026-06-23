@@ -31,8 +31,16 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
 
         builder.ConfigureTestServices(services =>
         {
-            // Make the Test scheme the default so [Authorize] uses our handler.
-            services.AddAuthentication(TestUsers.Scheme)
+            // Make the Test scheme the default for all auth operations so [Authorize(Roles=...)]
+            // challenges/forbids via TestAuthHandler (returns 403) instead of the Identity
+            // cookie scheme (which would redirect to /Login).
+            services.AddAuthentication(o =>
+                {
+                    o.DefaultScheme = TestUsers.Scheme;
+                    o.DefaultAuthenticateScheme = TestUsers.Scheme;
+                    o.DefaultChallengeScheme = TestUsers.Scheme;
+                    o.DefaultForbidScheme = TestUsers.Scheme;
+                })
                 .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestUsers.Scheme, _ => { });
             services.AddAuthorization(o =>
             {

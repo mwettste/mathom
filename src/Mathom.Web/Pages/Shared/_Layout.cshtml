@@ -59,6 +59,10 @@
                     <a href="/" class="@Active("/")">Timeline</a>
                     <a href="/Trash" class="@Active("/Trash")">Trash</a>
                     <a href="/Glossary" class="@Active("/Glossary")">Glossary</a>
+                    @if (User.IsInRole("Admin"))
+                    {
+                        <a href="/Admin/Users" class="@Active("/Admin")">Admin</a>
+                    }
                 }
                 <span class="nav-user">@User.Identity!.Name</span>
                 <form method="post" action="/Logout" class="nav-logout">
