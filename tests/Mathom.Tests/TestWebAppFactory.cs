@@ -63,7 +63,16 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
 
     private static async Task EnsureAsync(UserManager<ApplicationUser> users, string id, string email, bool isApproved)
     {
-        if (await users.FindByIdAsync(id) is not null) return;
+        var existing = await users.FindByIdAsync(id);
+        if (existing is not null)
+        {
+            if (existing.IsApproved != isApproved)
+            {
+                existing.IsApproved = isApproved;
+                await users.UpdateAsync(existing);
+            }
+            return;
+        }
         var user = new ApplicationUser { Id = id, UserName = email, Email = email, IsApproved = isApproved };
         await users.CreateAsync(user, "password1");
     }
