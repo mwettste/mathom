@@ -135,3 +135,9 @@ re-run the deploy (or `docker compose up -d` on the server) to apply changes.
 - **HTTPS:** Caddy terminates TLS with the platform's Cloudflare Origin CA cert
   (the mandatory `caddy.tls` label). Mathom is a PWA and needs HTTPS to install /
   go offline — `mathom.wettsti.ch` satisfies that.
+- **Container hardening:** the deploy compose sets `no-new-privileges` on both
+  services and drops all Linux capabilities on `web`. The container still runs as
+  **root** internally; switching to a non-root UID is a worthwhile follow-up but
+  requires a one-time `chown` of the existing `mathom-dataprotection` and
+  `mathom-media` volumes to that UID (otherwise the app can't write keys/media on
+  the next deploy), so it's deliberately not done here.
