@@ -199,7 +199,7 @@ docs/superpowers/     design specs & implementation plans
 
 This repo is being prepared for open source. Still to do before flipping it public:
 
-- [ ] **Choose a license** and add a `LICENSE` file (no license = all rights reserved).
+- [x] **Choose a license** — MIT (see [`LICENSE`](LICENSE)).
 - [ ] **Scan the git history for secrets** — API keys live in `.env` (gitignored) today, but confirm
       none were ever committed; rotate anything that was.
 - [ ] Add `CONTRIBUTING.md`, a code of conduct, and issue/PR templates.
@@ -207,4 +207,4 @@ This repo is being prepared for open source. Still to do before flipping it publ
 
 ## License
 
-Not yet chosen — see above. Until a `LICENSE` file is added, all rights are reserved.
+[MIT](LICENSE) © 2026 Marco Wettstein.
