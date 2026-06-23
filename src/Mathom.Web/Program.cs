@@ -89,7 +89,12 @@ var app = builder.Build();
 if (!app.Environment.IsEnvironment("Testing"))
 {
     using var scope = app.Services.CreateScope();
-    scope.ServiceProvider.GetRequiredService<MathomDbContext>().Database.Migrate();
+    var sp = scope.ServiceProvider;
+    sp.GetRequiredService<MathomDbContext>().Database.Migrate();
+    await Mathom.Web.Admin.AdminBootstrap.EnsureRoleAndPromoteAsync(
+        sp.GetRequiredService<RoleManager<IdentityRole>>(),
+        sp.GetRequiredService<UserManager<ApplicationUser>>(),
+        app.Configuration["AdminEmail"]);
 }
 
 var contentTypes = new FileExtensionContentTypeProvider();

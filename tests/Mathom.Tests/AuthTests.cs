@@ -2,8 +2,11 @@ using System.Net;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Mathom.Web.Domain;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Mathom.Tests;
@@ -143,6 +146,54 @@ public class AuthTests
         Assert.Equal(HttpStatusCode.Redirect, afterLogout.StatusCode);
         // Location may be absolute (http://localhost/Login?ReturnUrl=%2F) or relative.
         Assert.Contains("/Login", afterLogout.Headers.Location!.OriginalString);
+    }
+
+    private WebApplicationFactory<Program> CreateAppWithAdminEmail(string adminEmail) =>
+        new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
+        {
+            b.UseEnvironment("Testing");
+            b.UseSetting("ConnectionStrings:Mathom", _fx.ConnectionString);
+            b.UseSetting("AdminEmail", adminEmail);
+        });
+
+    [Fact]
+    public async Task Register_WithAdminEmail_IsApprovedAndInAdminRole()
+    {
+        var adminEmail = "reg-admin-" + System.Guid.NewGuid().ToString("N") + "@example.com";
+        using var app = CreateAppWithAdminEmail(adminEmail);
+        var client = CookieClient(app);
+
+        var resp = await PostFormAsync(client, "/Register",
+            ("Input.Email", adminEmail), ("Input.Password", "password1"));
+
+        Assert.Equal(HttpStatusCode.Redirect, resp.StatusCode);
+
+        using var scope = app.Services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var u = await users.FindByEmailAsync(adminEmail);
+        Assert.NotNull(u);
+        Assert.True(u!.IsApproved);
+        Assert.True(await users.IsInRoleAsync(u, "Admin"));
+    }
+
+    [Fact]
+    public async Task Register_WithNormalEmail_IsUnapprovedAndNotInAdminRole()
+    {
+        var normalEmail = "reg-normal-" + System.Guid.NewGuid().ToString("N") + "@example.com";
+        using var app = CreateAppWithAdminEmail("some-other-admin@example.com");
+        var client = CookieClient(app);
+
+        var resp = await PostFormAsync(client, "/Register",
+            ("Input.Email", normalEmail), ("Input.Password", "password1"));
+
+        Assert.Equal(HttpStatusCode.Redirect, resp.StatusCode);
+
+        using var scope = app.Services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var u = await users.FindByEmailAsync(normalEmail);
+        Assert.NotNull(u);
+        Assert.False(u!.IsApproved);
+        Assert.False(await users.IsInRoleAsync(u, "Admin"));
     }
 
     [Fact]
