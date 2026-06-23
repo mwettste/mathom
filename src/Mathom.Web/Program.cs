@@ -4,6 +4,7 @@ using Mathom.Web.Media;
 using Mathom.Web.Processing;
 using Mathom.Web.Search;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
@@ -57,8 +58,33 @@ builder.Services.ConfigureApplicationCookie(o =>
     };
 });
 
+// Behind the platform's reverse proxy (Caddy terminates TLS), honor X-Forwarded-Proto
+// so the app sees requests as HTTPS — needed so the auth + anti-forgery cookies are
+// flagged Secure. Gated by config: the standalone compose is directly exposed and must
+// NOT trust these headers (they'd be spoofable). The deploy compose sets it to true.
+if (builder.Configuration.GetValue<bool>("ForwardedHeaders:Enabled"))
+{
+    builder.Services.Configure<ForwardedHeadersOptions>(o =>
+    {
+        o.ForwardedHeaders = ForwardedHeaders.XForwardedProto;
+        // The proxy is a separate container on an unpredictable IP, so the default
+        // loopback-only trust won't match. Clearing both makes the middleware honor
+        // the headers regardless of source — safe because nothing but the edge proxy
+        // can reach this container (no published host port).
+        o.KnownIPNetworks.Clear();
+        o.KnownProxies.Clear();
+    });
+}
+
 builder.Services.AddRazorPages();
-builder.Services.AddAntiforgery(o => o.HeaderName = "RequestVerificationToken");
+builder.Services.AddAntiforgery(o =>
+{
+    o.HeaderName = "RequestVerificationToken";
+    // Flag the anti-forgery cookie Secure when the request is HTTPS (the default is None,
+    // i.e. never Secure). Combined with forwarded-headers handling above, this makes it
+    // Secure behind the proxy while staying usable over plain HTTP in local dev.
+    o.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+});
 builder.Services.AddScoped<SearchService>();
 builder.Services.AddScoped<Mathom.Web.Notes.NoteService>();
 builder.Services.AddScoped<Mathom.Web.Glossary.GlossaryService>();
@@ -96,6 +122,10 @@ if (!app.Environment.IsEnvironment("Testing"))
         sp.GetRequiredService<UserManager<ApplicationUser>>(),
         app.Configuration["AdminEmail"]);
 }
+
+// Must run before anything that reads the request scheme (cookie/anti-forgery setup).
+if (app.Configuration.GetValue<bool>("ForwardedHeaders:Enabled"))
+    app.UseForwardedHeaders();
 
 var contentTypes = new FileExtensionContentTypeProvider();
 contentTypes.Mappings[".webmanifest"] = "application/manifest+json";
