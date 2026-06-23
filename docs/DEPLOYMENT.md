@@ -135,9 +135,25 @@ re-run the deploy (or `docker compose up -d` on the server) to apply changes.
 - **HTTPS:** Caddy terminates TLS with the platform's Cloudflare Origin CA cert
   (the mandatory `caddy.tls` label). Mathom is a PWA and needs HTTPS to install /
   go offline — `mathom.wettsti.ch` satisfies that.
-- **Container hardening:** the deploy compose sets `no-new-privileges` on both
-  services and drops all Linux capabilities on `web`. The container still runs as
-  **root** internally; switching to a non-root UID is a worthwhile follow-up but
-  requires a one-time `chown` of the existing `mathom-dataprotection` and
-  `mathom-media` volumes to that UID (otherwise the app can't write keys/media on
-  the next deploy), so it's deliberately not done here.
+- **Container hardening:** the `web` image runs as the non-root user **uid 1654**,
+  with `no-new-privileges` on both services and all Linux capabilities dropped on
+  `web`. A fresh deployment works out of the box (a new volume inherits 1654
+  ownership). An **existing** deployment whose `mathom-dataprotection` / `mathom-media`
+  volumes were created while the app ran as root needs a **one-time `chown`** before
+  the first non-root deploy — otherwise the app can neither read existing Data
+  Protection keys (all sessions drop) nor write new ones (it crashes):
+
+  ```bash
+  ssh marco@wettsti-edge
+  cd /opt/apps/mathom
+  docker compose down                       # stop the old root container
+  docker run --rm \
+    -v mathom_mathom-dataprotection:/keys \
+    -v mathom_mathom-media:/media \
+    alpine chown -R 1654:1654 /keys /media  # re-own the persisted data
+  ```
+
+  Then trigger the **Deploy** workflow (pulls the non-root image and starts `web` as
+  1654 on the now-1654-owned volumes). Verify the volume names first with
+  `docker volume ls` — they are `<project>_<name>`, and the project is the deploy dir
+  (`mathom`). The `mathom-pgdata` volume is unaffected (Postgres is unchanged).
