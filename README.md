@@ -7,8 +7,7 @@ it automatically transcribed, cleaned up, classified, and tagged by an LLM — t
 refine it. Designed to run for you (and a few invited people) on your own server.
 
 > **Status:** actively developed and self-hostable. Single- or small-multi-user, with admin-gated
-> sign-up. Not yet hardened for public/untrusted users. See [Roadmap](#roadmap) and
-> [Towards open source](#towards-open-source).
+> sign-up. Not yet hardened for public/untrusted users. See the [Roadmap](#roadmap).
 
 ---
 
@@ -76,7 +75,9 @@ Speech-to-text and LLMs mangle domain-specific words ("Obersaxen" → "Obersachs
 - **Accounts & access** — ASP.NET Core Identity (cookie auth), strict per-user data isolation, and
   **admin approval**: new users are gated until an admin approves them at `/Admin/Users`.
 
-**Roadmap**
+---
+
+## Roadmap
 
 - **Photo capture + OCR** — capture an image, extract text.
 - **Semantic search** — embeddings / vector search and "related notes" (today's search is keyword/FTS
