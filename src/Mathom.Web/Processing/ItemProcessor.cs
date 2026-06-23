@@ -55,9 +55,15 @@ public class ItemProcessor
             }
             var terms = entries.Select(e => e.Term).ToList();                       // Whisper bias
             var cleanupGlossary = entries
-                .Select(e => e.Variants.Count > 0
-                    ? $"{e.Term} (also heard as: {string.Join(", ", e.Variants)})"
-                    : e.Term)
+                .Select(e =>
+                {
+                    var s = e.Variants.Count > 0
+                        ? $"{e.Term} (also heard as: {string.Join(", ", e.Variants)})"
+                        : e.Term;
+                    if (!string.IsNullOrWhiteSpace(e.Description))
+                        s += $" — {e.Description}";
+                    return s;
+                })
                 .ToList();                                                          // LLM prompt
             var variantToTerm = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var e in entries)

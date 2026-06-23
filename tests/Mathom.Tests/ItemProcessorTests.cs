@@ -305,4 +305,36 @@ public class ItemProcessorTests
 
         Assert.Contains("Obersaxen", llm.LastGlossary);
     }
+
+    [Fact]
+    public async Task Process_IncludesTermDescription_InCleanupGlossary()
+    {
+        var u = "ip-desc-user";
+        await _fx.EnsureUserAsync(u, u + "@example.com");
+        System.Guid itemId;
+        await using (var seed = _fx.NewDbContext())
+        {
+            var term = new Mathom.Web.Domain.GlossaryTerm
+            {
+                Id = System.Guid.NewGuid(), UserId = u, Term = "FireSkills",
+                CreatedAt = System.DateTimeOffset.UtcNow, Description = "our internal time-tracking product",
+            };
+            term.Variants.Add(new Mathom.Web.Domain.GlossaryVariant { Id = System.Guid.NewGuid(), GlossaryTermId = term.Id, Text = "Fairstills", CreatedAt = System.DateTimeOffset.UtcNow });
+            seed.GlossaryTerms.Add(term);
+            var item = Mathom.Web.Domain.Item.CreatePending(Mathom.Web.Domain.SourceType.Text, "note about FireSkills", System.Guid.NewGuid().ToString(), u, System.DateTimeOffset.UtcNow);
+            itemId = item.Id;
+            seed.Items.Add(item);
+            await seed.SaveChangesAsync();
+        }
+
+        var llm = new FakeLlmClient { Respond = raw => new Mathom.Web.Processing.CleanupResult(raw, raw, Mathom.Web.Domain.ItemType.Note, false, new System.Collections.Generic.List<Mathom.Web.Processing.CleanupTag>()) };
+        await using var db = _fx.NewDbContext();
+        var processor = new Mathom.Web.Processing.ItemProcessor(db, llm, new FakeTranscriber(), new FakeMediaStore(),
+            new Mathom.Web.Glossary.GlossaryService(db),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<Mathom.Web.Processing.ItemProcessor>.Instance);
+
+        await processor.ProcessAsync(itemId, System.Threading.CancellationToken.None);
+
+        Assert.Contains("FireSkills (also heard as: Fairstills) — our internal time-tracking product", llm.LastGlossary);
+    }
 }

@@ -31,4 +31,12 @@ public class CleanupPromptBuilderTests
         Assert.Contains("also heard as: Fairstills", p);
         Assert.Contains("mis-transcribed", p, System.StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void Glossary_WithDescription_PassesItThrough_AndHasComprehensionInstruction()
+    {
+        var p = CleanupPromptBuilder.BuildSystemPrompt(new System.Collections.Generic.List<string> { "FireSkills — our internal time-tracking product" });
+        Assert.Contains("FireSkills — our internal time-tracking product", p);
+        Assert.Contains("em dash", p, System.StringComparison.OrdinalIgnoreCase);
+    }
 }
