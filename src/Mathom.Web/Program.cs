@@ -62,6 +62,7 @@ builder.Services.AddAntiforgery(o => o.HeaderName = "RequestVerificationToken");
 builder.Services.AddScoped<SearchService>();
 builder.Services.AddScoped<Mathom.Web.Notes.NoteService>();
 builder.Services.AddScoped<Mathom.Web.Glossary.GlossaryService>();
+builder.Services.AddScoped<Mathom.Web.Admin.UserAdminService>();
 builder.Services.AddControllers();
 
 builder.Services.AddScoped<ItemProcessor>();

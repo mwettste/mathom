@@ -5,4 +5,5 @@ namespace Mathom.Web.Domain;
 // Standard Identity user. Login identifier is the email; UserName mirrors it.
 public class ApplicationUser : IdentityUser
 {
+    public bool IsApproved { get; set; }
 }
