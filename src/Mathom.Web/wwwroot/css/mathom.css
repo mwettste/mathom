@@ -310,3 +310,8 @@ a.tag:hover { color: var(--accent); text-decoration: none; }
 .glossary-term__head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
 .glossary-variants { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.4rem; }
 .glossary-variant__remove { display: inline; margin: 0; }
+.glossary-desc { margin-top: 0.3rem; }
+.glossary-desc__text { margin: 0 0 0.2rem; color: var(--muted); font-size: 0.85rem; }
+.glossary-desc__edit { font-size: 0.8rem; }
+.glossary-desc__input { width: 100%; margin: 0.2rem 0; }
+.glossary-desc__actions { display: flex; gap: 0.5rem; align-items: center; }

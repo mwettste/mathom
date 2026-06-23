@@ -43,4 +43,25 @@ public class GlossaryModel : PageModel
         Terms = await _glossary.GetTermViewsAsync(UserId, ct);
         return Partial("Shared/_GlossaryList", Terms);
     }
+
+    public async Task<IActionResult> OnGetEditDescriptionAsync(Guid id, CancellationToken ct)
+    {
+        var d = await _glossary.GetDescriptionAsync(UserId, id, ct);
+        if (d is null) return NotFound();
+        return Partial("Shared/_GlossaryDescriptionEdit", d);
+    }
+
+    public async Task<IActionResult> OnGetShowDescriptionAsync(Guid id, CancellationToken ct)
+    {
+        var d = await _glossary.GetDescriptionAsync(UserId, id, ct);
+        if (d is null) return NotFound();
+        return Partial("Shared/_GlossaryDescription", d);
+    }
+
+    public async Task<IActionResult> OnPostSetDescriptionAsync(Guid id, string? description, CancellationToken ct)
+    {
+        if (!await _glossary.SetDescriptionAsync(UserId, id, description, ct)) return NotFound();
+        var d = await _glossary.GetDescriptionAsync(UserId, id, ct);
+        return Partial("Shared/_GlossaryDescription", d!);
+    }
 }

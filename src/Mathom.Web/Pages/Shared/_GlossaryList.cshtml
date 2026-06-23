@@ -18,6 +18,9 @@ else
                         <button class="linklike linklike--danger" type="submit" aria-label="Remove @t.Term">✕</button>
                     </form>
                 </div>
+                <div id="glossary-desc-@t.Id" class="glossary-desc">
+                    <partial name="Shared/_GlossaryDescription" model="@(new Mathom.Web.Glossary.GlossaryDescription(t.Id, t.Description))" />
+                </div>
                 @if (t.Variants.Count > 0)
                 {
                     <div class="glossary-variants">

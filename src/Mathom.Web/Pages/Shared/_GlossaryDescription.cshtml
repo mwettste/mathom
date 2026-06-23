@@ -1,0 +1,15 @@
+@model Mathom.Web.Glossary.GlossaryDescription
+
+@if (string.IsNullOrEmpty(Model.Description))
+{
+    <button class="linklike glossary-desc__edit" type="button"
+            hx-get="@($"/Glossary?handler=EditDescription&id={Model.Id}")"
+            hx-target="#glossary-desc-@Model.Id" hx-swap="innerHTML">+ Add context</button>
+}
+else
+{
+    <p class="glossary-desc__text">@Model.Description</p>
+    <button class="linklike glossary-desc__edit" type="button"
+            hx-get="@($"/Glossary?handler=EditDescription&id={Model.Id}")"
+            hx-target="#glossary-desc-@Model.Id" hx-swap="innerHTML">Edit context</button>
+}

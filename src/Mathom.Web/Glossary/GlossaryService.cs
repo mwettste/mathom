@@ -12,6 +12,7 @@ namespace Mathom.Web.Glossary;
 public record GlossaryEntry(string Term, IReadOnlyList<string> Variants, string? Description);
 public record GlossaryVariantView(Guid Id, string Text);
 public record GlossaryTermView(Guid Id, string Term, IReadOnlyList<GlossaryVariantView> Variants, string? Description);
+public record GlossaryDescription(Guid Id, string? Description);
 
 // User-scoped per-user glossary of correct domain terms.
 public class GlossaryService
@@ -96,6 +97,12 @@ public class GlossaryService
                 g.Variants.OrderBy(v => v.CreatedAt).Select(v => new GlossaryVariantView(v.Id, v.Text)).ToList(),
                 g.Description))
             .ToListAsync(ct);
+
+    public async Task<GlossaryDescription?> GetDescriptionAsync(string userId, Guid termId, CancellationToken ct)
+        => await _db.GlossaryTerms
+            .Where(g => g.Id == termId && g.UserId == userId)
+            .Select(g => new GlossaryDescription(g.Id, g.Description))
+            .FirstOrDefaultAsync(ct);
 
     public async Task<bool> SetDescriptionAsync(string userId, Guid termId, string? description, CancellationToken ct)
     {
