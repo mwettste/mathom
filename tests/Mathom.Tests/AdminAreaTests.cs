@@ -49,21 +49,24 @@ public class AdminAreaTests
         using var app = await AppAsync();
         var admin = As(app, TestUsers.AdminId);
         var page = await admin.GetStringAsync("/Admin/Users");
+        var token = Token(page);
+        Assert.NotEmpty(token);
 
         // Approve the pending user.
         var approve = await admin.PostAsync($"/Admin/Users?handler=Approve&id={TestUsers.PendingId}", new FormUrlEncodedContent(new[]
         {
-            new KeyValuePair<string,string>("__RequestVerificationToken", Token(page)),
+            new KeyValuePair<string,string>("__RequestVerificationToken", token),
         }));
         Assert.True(approve.IsSuccessStatusCode);
         await using (var db = _fx.NewDbContext())
             Assert.True(await db.Users.Where(u => u.Id == TestUsers.PendingId).Select(u => u.IsApproved).FirstAsync());
 
         // Admin cannot revoke their own account.
-        await admin.PostAsync($"/Admin/Users?handler=Revoke&id={TestUsers.AdminId}", new FormUrlEncodedContent(new[]
+        var revoke = await admin.PostAsync($"/Admin/Users?handler=Revoke&id={TestUsers.AdminId}", new FormUrlEncodedContent(new[]
         {
-            new KeyValuePair<string,string>("__RequestVerificationToken", Token(page)),
+            new KeyValuePair<string,string>("__RequestVerificationToken", token),
         }));
+        Assert.True(revoke.IsSuccessStatusCode);
         await using (var db = _fx.NewDbContext())
             Assert.True(await db.Users.Where(u => u.Id == TestUsers.AdminId).Select(u => u.IsApproved).FirstAsync());
     }
