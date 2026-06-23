@@ -195,15 +195,10 @@ docs/superpowers/     design specs & implementation plans
 
 ---
 
-## Towards open source
+## Contributing
 
-This repo is being prepared for open source. Still to do before flipping it public:
-
-- [x] **Choose a license** — MIT (see [`LICENSE`](LICENSE)).
-- [ ] **Scan the git history for secrets** — API keys live in `.env` (gitignored) today, but confirm
-      none were ever committed; rotate anything that was.
-- [ ] Add `CONTRIBUTING.md`, a code of conduct, and issue/PR templates.
-- [ ] A short architecture/design doc beyond this README (the `docs/` specs are a good seed).
+See [CONTRIBUTING.md](CONTRIBUTING.md). For new features, please open an issue or discussion before
+building.
 
 ## License
 
