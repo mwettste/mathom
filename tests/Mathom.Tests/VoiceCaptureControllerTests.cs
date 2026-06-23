@@ -73,6 +73,22 @@ public class VoiceCaptureControllerTests
     }
 
     [Fact]
+    public async Task Post_Voice_RejectsOversizedUpload()
+    {
+        var media = new FakeMediaStore();
+        using var app = await CreateAppAsync(media);
+        var client = app.CreateClient();
+
+        // 26 MB — over the 25 MB RequestSizeLimit on the voice endpoint.
+        var resp = await client.PostAsync("/capture/voice",
+            VoicePayload(new byte[26 * 1024 * 1024], "voice-big"));
+        Assert.Equal(HttpStatusCode.RequestEntityTooLarge, resp.StatusCode);
+
+        await using var db = _fx.NewDbContext();
+        Assert.False(await db.Items.IgnoreQueryFilters().AnyAsync(i => i.IdempotencyKey == "voice-big"));
+    }
+
+    [Fact]
     public async Task Post_Voice_RejectsMissingAudio()
     {
         var media = new FakeMediaStore();

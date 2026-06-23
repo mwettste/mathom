@@ -26,8 +26,16 @@ public class LoginModel : PageModel
     {
         if (!ModelState.IsValid) return Page();
 
+        // lockoutOnFailure: true counts failed attempts and locks the account per the
+        // Identity lockout options, throttling password brute-force.
         var result = await _signIn.PasswordSignInAsync(
-            Input.Email, Input.Password, isPersistent: true, lockoutOnFailure: false);
+            Input.Email, Input.Password, isPersistent: true, lockoutOnFailure: true);
+        if (result.IsLockedOut)
+        {
+            ModelState.AddModelError(string.Empty,
+                "This account is temporarily locked due to repeated failed sign-ins. Try again later.");
+            return Page();
+        }
         if (!result.Succeeded)
         {
             ModelState.AddModelError(string.Empty, "Invalid email or password.");
