@@ -27,6 +27,7 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("Testing");
         builder.UseSetting("ConnectionStrings:Mathom", _connectionString);
+        builder.UseSetting("AdminEmail", TestUsers.AdminEmail);
 
         builder.ConfigureTestServices(services =>
         {
@@ -43,21 +44,27 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
         });
     }
 
-    // Seed the two fixed users (FK targets) once the host is built.
+    // Seed the fixed users (FK targets) once the host is built.
     public async Task SeedUsersAsync()
     {
         using var scope = Services.CreateScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-        // Use emails derived from the fixed IDs so they never collide with the
-        // human-friendly emails AuthTests registers on the same shared database.
-        await EnsureAsync(users, TestUsers.AliceId, TestUsers.AliceId + "@example.com");
-        await EnsureAsync(users, TestUsers.BobId, TestUsers.BobId + "@example.com");
+        var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+
+        await EnsureAsync(users, TestUsers.AliceId, TestUsers.AliceId + "@example.com", true);
+        await EnsureAsync(users, TestUsers.BobId, TestUsers.BobId + "@example.com", true);
+        await EnsureAsync(users, TestUsers.AdminId, TestUsers.AdminId + "@example.com", true);
+        await EnsureAsync(users, TestUsers.PendingId, TestUsers.PendingId + "@example.com", false);
+
+        if (!await roles.RoleExistsAsync("Admin")) await roles.CreateAsync(new IdentityRole("Admin"));
+        var admin = await users.FindByIdAsync(TestUsers.AdminId);
+        if (admin is not null && !await users.IsInRoleAsync(admin, "Admin")) await users.AddToRoleAsync(admin, "Admin");
     }
 
-    private static async Task EnsureAsync(UserManager<ApplicationUser> users, string id, string email)
+    private static async Task EnsureAsync(UserManager<ApplicationUser> users, string id, string email, bool isApproved)
     {
         if (await users.FindByIdAsync(id) is not null) return;
-        var user = new ApplicationUser { Id = id, UserName = email, Email = email };
+        var user = new ApplicationUser { Id = id, UserName = email, Email = email, IsApproved = isApproved };
         await users.CreateAsync(user, "password1");
     }
 }

@@ -100,6 +100,7 @@ app.MapGet("/healthz", () => Results.Ok("ok"));
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<Mathom.Web.Auth.ApprovalGateMiddleware>();
 
 app.MapControllers();
 app.MapRazorPages();

@@ -79,21 +79,25 @@ public class AuthTests
         await PostFormAsync(client, "/Register",
             ("Input.Email", "carol@example.com"), ("Input.Password", "password1"));
 
-        var html = await client.GetStringAsync("/");
+        // A freshly registered user is unapproved (Task 3 will auto-approve or admin-approve).
+        // The gate redirects them to /Pending; verify the redirect and that /Pending renders
+        // with a logout form containing exactly one anti-forgery token.
+        var gatedResp = await client.GetAsync("/");
+        Assert.Equal(HttpStatusCode.Redirect, gatedResp.StatusCode);
+        Assert.Equal("/Pending", gatedResp.Headers.Location!.OriginalString);
 
-        // The logout form must exist.
-        Assert.Contains("nav-logout", html);
+        var pendingHtml = await client.GetStringAsync("/Pending");
 
-        // Count __RequestVerificationToken hidden inputs inside the logout form block.
-        // We extract the form element from nav-logout to isolate it from any other forms on the page.
-        var logoutFormMatch = Regex.Match(html,
-            @"<form[^>]*class=""nav-logout""[^>]*>(.*?)</form>",
+        // The Pending page must include a logout form.
+        Assert.Contains("action=\"/Logout\"", pendingHtml);
+
+        // Extract the Pending page's own logout form and verify it has exactly one
+        // anti-forgery token (the layout nav-logout form may add another on the page).
+        var logoutFormMatch = Regex.Match(pendingHtml,
+            @"<form[^>]*action=""/Logout""[^>]*>(.*?)</form>",
             RegexOptions.Singleline);
-        Assert.True(logoutFormMatch.Success, "nav-logout form not found in HTML");
-
-        var formBody = logoutFormMatch.Groups[1].Value;
-        var tokenCount = Regex.Matches(formBody, "__RequestVerificationToken").Count;
-
+        Assert.True(logoutFormMatch.Success, "logout form not found on /Pending");
+        var tokenCount = Regex.Matches(logoutFormMatch.Groups[1].Value, "__RequestVerificationToken").Count;
         Assert.Equal(1, tokenCount);
     }
 
@@ -108,21 +112,18 @@ public class AuthTests
             ("Input.Email", "dave@example.com"), ("Input.Password", "password1"));
         Assert.Equal(HttpStatusCode.Redirect, regResp.StatusCode);
 
-        // GET the home page while authenticated and scrape the logout form exactly
-        // as a browser would submit it: both its `action` URL and its anti-forgery
-        // token. Posting to a hardcoded "/Logout" hides bugs where the form renders
-        // a wrong/empty action (an empty action posts to the current page, so the
-        // user is never signed out).
-        var homeHtml = await client.GetStringAsync("/");
-        var formTag = Regex.Match(homeHtml, @"<form[^>]*class=""nav-logout""[^>]*>").Value;
-        Assert.False(string.IsNullOrEmpty(formTag), "logout form not found");
+        // A freshly registered user is unapproved, so GET / redirects to /Pending.
+        // Scrape the logout form from /Pending instead of from the home page.
+        var pendingHtml = await client.GetStringAsync("/Pending");
+        var formTag = Regex.Match(pendingHtml, @"<form[^>]*action=""/Logout""[^>]*>").Value;
+        Assert.False(string.IsNullOrEmpty(formTag), "logout form not found on /Pending");
 
         var action = Regex.Match(formTag, @"action=""([^""]*)""").Groups[1].Value;
-        // Regression guard: the form must target /Logout, not an empty/wrong action.
+        // Regression guard: the form must target /Logout.
         Assert.Equal("/Logout", action);
 
-        var token = Regex.Match(homeHtml,
-            @"<form[^>]*class=""nav-logout""[^>]*>.*?name=""__RequestVerificationToken""[^>]*value=""([^""]+)""",
+        var token = Regex.Match(pendingHtml,
+            @"<form[^>]*action=""/Logout""[^>]*>.*?name=""__RequestVerificationToken""[^>]*value=""([^""]+)""",
             RegexOptions.Singleline).Groups[1].Value;
         Assert.False(string.IsNullOrEmpty(token), "No anti-forgery token found in logout form");
 
