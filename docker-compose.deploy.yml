@@ -66,6 +66,14 @@ services:
       caddy.reverse_proxy: "{{upstreams 8080}}"
       # Mandatory: serve via the platform's Cloudflare Origin CA cert (no ACME on this origin).
       caddy.tls: "/certs/origin.pem /certs/origin.key"
+      # Authenticated Origin Pulls: require that traffic came through our Cloudflare zone
+      # (mTLS), closing the shared-Cloudflare-IP origin bypass. Staged: `verify_if_given`
+      # first (verifies the client cert if presented, still serves if not), then flip to
+      # `require_and_verify` to enforce. See hetzner-vps docs/authenticated-origin-pull.md.
+      # DO NOT deploy until /opt/edge/certs/cf-aop-ca.pem exists on the edge (tofu apply +
+      # the cert-placement step) — Caddy fails to load this block if the CA file is missing.
+      caddy.tls.client_auth.mode: verify_if_given
+      caddy.tls.client_auth.trusted_ca_cert_file: /certs/cf-aop-ca.pem
     depends_on:
       db:
         condition: service_healthy
