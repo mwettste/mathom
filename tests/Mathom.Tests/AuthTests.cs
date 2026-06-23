@@ -197,6 +197,35 @@ public class AuthTests
     }
 
     [Fact]
+    public async Task Login_LocksAccount_AfterRepeatedFailures()
+    {
+        using var app = CreateApp();
+        var email = "lockout-" + System.Guid.NewGuid().ToString("N") + "@example.com";
+
+        // Register (auto signs in on a throwaway client).
+        await PostFormAsync(CookieClient(app), "/Register",
+            ("Input.Email", email), ("Input.Password", "password1"));
+
+        // 10 failed sign-ins (MaxFailedAccessAttempts) on an unauthenticated client.
+        var attacker = CookieClient(app);
+        for (var i = 0; i < 10; i++)
+            await PostFormAsync(attacker, "/Login", ("Input.Email", email), ("Input.Password", "wrong"));
+
+        // The account is now locked per Identity's lockout options.
+        using (var scope = app.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            Assert.True(await users.IsLockedOutAsync((await users.FindByEmailAsync(email))!));
+        }
+
+        // Even the correct password is now rejected, with the lockout message.
+        var resp = await PostFormAsync(CookieClient(app), "/Login",
+            ("Input.Email", email), ("Input.Password", "password1"));
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        Assert.Contains("temporarily locked", await resp.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
     public async Task DataProtectionKeys_PersistToConfiguredPath()
     {
         var keysDir = Path.Combine(Path.GetTempPath(), "mathom-keys-" + Guid.NewGuid().ToString("N"));

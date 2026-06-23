@@ -34,6 +34,11 @@ builder.Services
         o.Password.RequireUppercase = false;
         o.Password.RequireNonAlphanumeric = false;
         o.Password.RequireDigit = false;
+        // Throttle password brute-force: lock an account for 15 min after 10 failed
+        // attempts. Per-account (not IP-based), so it works regardless of the proxy.
+        o.Lockout.MaxFailedAccessAttempts = 10;
+        o.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+        o.Lockout.AllowedForNewUsers = true;
     })
     .AddEntityFrameworkStores<MathomDbContext>()
     .AddDefaultTokenProviders();

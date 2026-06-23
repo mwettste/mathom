@@ -12,6 +12,10 @@ services:
   db:
     image: postgres:17
     restart: unless-stopped
+    # Block privilege escalation. Capabilities are left intact: the postgres
+    # entrypoint needs CHOWN/SETUID/SETGID to drop to the postgres user.
+    security_opt:
+      - no-new-privileges:true
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -29,6 +33,13 @@ services:
   web:
     image: ghcr.io/mwettste/mathom:latest
     restart: unless-stopped
+    # Reduce blast radius of an app compromise: the image runs as non-root (uid 1654),
+    # no privilege escalation, and all Linux capabilities dropped (the app only binds
+    # 8080 and writes its volumes — it needs none).
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_HTTP_PORTS: "8080"

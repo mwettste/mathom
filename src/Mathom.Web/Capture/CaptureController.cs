@@ -19,6 +19,10 @@ namespace Mathom.Web.Capture;
 [Authorize]
 public class CaptureController : ControllerBase
 {
+    // Upper bounds to keep a single capture from being unbounded (DoS / disk fill).
+    private const int MaxTextLength = 100_000;          // ~100 KB of text
+    private const long MaxVoiceBytes = 25 * 1024 * 1024; // 25 MB audio
+
     private readonly MathomDbContext _db;
     private readonly IMediaStore _media;
     public CaptureController(MathomDbContext db, IMediaStore media)
@@ -32,6 +36,8 @@ public class CaptureController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(req.Text))
             return BadRequest(new { error = "Text is required." });
+        if (req.Text.Length > MaxTextLength)
+            return BadRequest(new { error = "Text is too long." });
 
         var key = string.IsNullOrWhiteSpace(req.IdempotencyKey)
             ? Guid.NewGuid().ToString()
@@ -59,6 +65,7 @@ public class CaptureController : ControllerBase
     }
 
     [HttpPost("voice")]
+    [RequestSizeLimit(MaxVoiceBytes)]
     public async Task<IActionResult> PostVoice(
         [FromForm] IFormFile? audio,
         [FromForm] string? idempotencyKey,
@@ -66,6 +73,11 @@ public class CaptureController : ControllerBase
     {
         if (audio is null || audio.Length == 0)
             return BadRequest(new { error = "Audio is required." });
+        // Explicit guard in addition to [RequestSizeLimit]: the attribute rejects oversized
+        // bodies at the Kestrel layer before buffering; this returns a clean 413 and is
+        // enforced regardless of host (e.g. in tests, where the pipe limit isn't applied).
+        if (audio.Length > MaxVoiceBytes)
+            return StatusCode(StatusCodes.Status413PayloadTooLarge, new { error = "Audio is too large." });
 
         var key = string.IsNullOrWhiteSpace(idempotencyKey)
             ? Guid.NewGuid().ToString()

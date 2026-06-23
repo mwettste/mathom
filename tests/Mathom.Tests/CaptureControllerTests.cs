@@ -71,6 +71,19 @@ public class CaptureControllerTests
     }
 
     [Fact]
+    public async Task Post_Capture_RejectsOverlongText()
+    {
+        using var app = await CreateAppAsync();
+        var client = app.CreateClient();
+        var huge = new string('a', 100_001); // just over the 100k cap
+        var resp = await client.PostAsJsonAsync("/capture", new CaptureRequest(huge, "idem-huge"));
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+
+        await using var db = _fx.NewDbContext();
+        Assert.False(await db.Items.IgnoreQueryFilters().AnyAsync(i => i.IdempotencyKey == "idem-huge"));
+    }
+
+    [Fact]
     public async Task Post_Capture_IdempotencyKey_ReusedAfterSoftDelete_ReturnsOriginalId()
     {
         const string key = "reuse-key-after-delete";
