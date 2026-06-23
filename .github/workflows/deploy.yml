@@ -1,0 +1,68 @@
+name: Deploy
+
+# Build & publish the image to GHCR, then self-deploy to the wettsti.ch platform
+# (hetzner-vps) via its reusable workflow. See docs/DEPLOYMENT.md for the one-time
+# setup (repo secrets/variables, server .env, GHCR package visibility).
+#
+# Manual only: deploying is a deliberate, owner-gated action — never automatic on
+# push. Only users with write access can start a run, and the `gate` job below
+# pauses for approval from a required reviewer on the `production` environment.
+on:
+  workflow_dispatch:
+
+jobs:
+  # Approval gate: binds to the `production` environment so its protection rules
+  # (required reviewer = you) must pass before anything builds or deploys.
+  gate:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - run: echo "Deploy approved by ${{ github.actor }}."
+
+  build-and-push:
+    needs: gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=latest
+            type=sha
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build-and-push
+    uses: mwettste/hetzner-vps/.github/workflows/deploy-app.yml@main
+    with:
+      subdomain: mathom
+      compose_file: docker-compose.deploy.yml
+    secrets:
+      TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+      TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}

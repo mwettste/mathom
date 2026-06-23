@@ -99,9 +99,11 @@ Speech-to-text and LLMs mangle domain-specific words ("Obersaxen" → "Obersachs
 - **PWA** — service worker + IndexedDB for offline-capable capture.
 - **AI** — Infomaniak (primary) with OpenRouter (fallback) for LLM cleanup; Infomaniak Whisper for
   speech-to-text. Providers are pluggable behind `ILlmClient` / `ITranscriber`.
-- **Deploy** — Docker Compose (web + Postgres). Intended to run on a small server, reachable over
-  Tailscale; Data Protection keys are persisted to a volume so auth cookies survive container
-  rebuilds.
+- **Deploy** — Docker Compose (web + Postgres). The standalone `docker-compose.yml` runs anywhere;
+  Data Protection keys are persisted to a volume so auth cookies survive container rebuilds. The
+  reference deployment is a manual, owner-gated GitHub Action that publishes the image to GHCR and
+  self-deploys to a shared Hetzner edge (Caddy + Cloudflare, over Tailscale) — see
+  [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 ---
 

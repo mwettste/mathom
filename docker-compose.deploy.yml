@@ -1,0 +1,72 @@
+# Production compose for the wettsti.ch platform (hetzner-vps).
+#
+# Differs from the standalone ./docker-compose.yml:
+#   - pulls the prebuilt image from GHCR instead of building locally
+#   - joins the shared external `edge` network and routes via Caddy labels
+#   - no host port binding (Caddy is the only ingress) and the db stays internal
+#
+# The deploy workflow copies THIS file to /opt/apps/mathom/docker-compose.yml on
+# the server and runs `docker compose pull && up -d`. Secrets are NOT shipped by
+# the workflow: a `.env` must already exist in that directory (see docs/DEPLOYMENT.md).
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - mathom-pgdata:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    image: ghcr.io/mwettste/mathom:latest
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      # Behind Caddy: trust X-Forwarded-Proto so the app sees HTTPS and flags
+      # auth/anti-forgery cookies Secure. Only safe here because nothing but the
+      # edge proxy can reach this container (no published host port).
+      ForwardedHeaders__Enabled: "true"
+      # Connection string is composed from the Postgres credentials so they stay in one place.
+      ConnectionStrings__Mathom: "Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+      # Durable storage lives on the named volumes mounted below.
+      Media__Root: /app/media
+      DataProtection__KeysPath: /keys
+    # LLM/STT provider keys, POSTGRES_*, and AdminEmail come from the on-server .env file.
+    env_file:
+      - .env
+    volumes:
+      - mathom-media:/app/media
+      - mathom-dataprotection:/keys
+    networks:
+      - edge       # reachable by the shared Caddy edge proxy
+      - internal   # reach the db
+    labels:
+      caddy: mathom.wettsti.ch
+      caddy.reverse_proxy: "{{upstreams 8080}}"
+      # Mandatory: serve via the platform's Cloudflare Origin CA cert (no ACME on this origin).
+      caddy.tls: "/certs/origin.pem /certs/origin.key"
+    depends_on:
+      db:
+        condition: service_healthy
+
+networks:
+  # Shared proxy network created by the edge stack; apps attach to it.
+  edge:
+    external: true
+  # Private network for web <-> db; not exposed to the edge.
+  internal:
+
+volumes:
+  mathom-pgdata:
+  mathom-media:
+  mathom-dataprotection:
