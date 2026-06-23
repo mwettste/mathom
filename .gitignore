@@ -18,3 +18,6 @@ media/
 
 # Superpowers SDD scratch (briefs, reports, ledgers)
 .superpowers/
+
+# AI-assisted design docs (specs & plans) — kept local, not published
+docs/superpowers/
