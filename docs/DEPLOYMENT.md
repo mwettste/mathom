@@ -18,7 +18,7 @@ platform deploy.
 manual run (Actions → Deploy → Run workflow)
   → gate job:  waits for approval on the `production` environment (required reviewer = you)
   → build-and-push job:  docker build → push ghcr.io/mwettste/mathom:{latest,sha-…}
-  → deploy job (reusable mwettste/hetzner-vps workflow):
+  → deploy job (steps inlined from the hetzner-vps deploy-app workflow):
        join tailnet → scp docker-compose.deploy.yml to /opt/apps/mathom/docker-compose.yml
        → docker compose pull && up -d   (over Tailscale SSH)
        → upsert proxied Cloudflare A record  mathom.wettsti.ch → ORIGIN_IP
@@ -27,7 +27,7 @@ manual run (Actions → Deploy → Run workflow)
 
 The two relevant files in this repo:
 
-- [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) — build/push + call the platform workflow.
+- [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) — build/push + the inlined platform deploy steps (Tailscale SSH + Cloudflare DNS).
 - [`docker-compose.deploy.yml`](../docker-compose.deploy.yml) — the production stack (image from GHCR, joins the `edge` network, Caddy labels, internal-only db).
 
 The app at `https://mathom.wettsti.ch` is published on subdomain **`mathom`**.
@@ -60,20 +60,12 @@ And one **variable**:
 | --- | --- |
 | `ORIGIN_IP` | the platform's `server_ipv4` (from `tofu output` in hetzner-vps) |
 
-These can be plain repository secrets. (You can instead scope them to the
-`production` environment for tighter isolation; if you do, note the `deploy` job
-calls a reusable workflow and can't itself declare `environment:`, so the gate job
-is what enforces approval — environment-scoped secrets would need to be passed
-through differently. Repository secrets + the gate is the simplest setup.)
+These can be plain repository secrets. (For tighter isolation you could scope them
+to the `production` environment and add `environment: production` to the `deploy`
+job so only the gated job can read them — repository secrets + the gate job is the
+simplest setup and what the workflow assumes.)
 
-### 3. Allow this repo to call the reusable workflow
-
-`mwettste/hetzner-vps` must allow this repo to call its reusable workflow
-(`deploy-app.yml`). If hetzner-vps is private, set **Settings → Actions → General →
-Access** to allow access from repositories owned by `mwettste` (or share it
-explicitly). Without this the `deploy` job fails to resolve the workflow.
-
-### 4. Make the GHCR image pullable from the server
+### 3. Make the GHCR image pullable from the server
 
 The server runs `docker compose pull` with no registry login, so the image must be
 **public**. After the first successful `build-and-push`, open the
@@ -81,7 +73,7 @@ The server runs `docker compose pull` with no registry login, so the image must 
 settings → Change visibility → Public**. (Alternatively, keep it private and add a
 `docker login ghcr.io` step on the server — not covered here.)
 
-### 5. Place the server-side `.env` (secrets)
+### 4. Place the server-side `.env` (secrets)
 
 The deploy workflow ships **only** the compose file, never secrets. Create the
 environment file once on the server, in the deploy directory:

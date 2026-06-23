@@ -1,14 +1,24 @@
 name: Deploy
 
 # Build & publish the image to GHCR, then self-deploy to the wettsti.ch platform
-# (hetzner-vps) via its reusable workflow. See docs/DEPLOYMENT.md for the one-time
-# setup (repo secrets/variables, server .env, GHCR package visibility).
+# (hetzner-vps). The deploy steps are inlined (rather than calling the platform's
+# reusable workflow) because that workflow lives in a private repo, and GitHub only
+# lets *private* repos call it — this app repo is public. See docs/DEPLOYMENT.md for
+# the one-time setup (repo secrets/variables, server .env, GHCR package visibility).
 #
 # Manual only: deploying is a deliberate, owner-gated action — never automatic on
 # push. Only users with write access can start a run, and the `gate` job below
 # pauses for approval from a required reviewer on the `production` environment.
 on:
   workflow_dispatch:
+
+# Platform deploy targets (mirrors the hetzner-vps deploy-app workflow).
+env:
+  SERVER_HOST: wettsti-edge       # Tailscale SSH host of the edge server
+  DOMAIN: wettsti.ch
+  SUBDOMAIN: mathom               # serves at mathom.wettsti.ch
+  DEPLOY_USER: marco
+  COMPOSE_FILE: docker-compose.deploy.yml
 
 jobs:
   # Approval gate: binds to the `production` environment so its protection rules
@@ -57,12 +67,44 @@ jobs:
 
   deploy:
     needs: build-and-push
-    uses: mwettste/hetzner-vps/.github/workflows/deploy-app.yml@main
-    with:
-      subdomain: mathom
-      compose_file: docker-compose.deploy.yml
-    secrets:
-      TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-      TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - name: Copy compose file and deploy
+        env:
+          SSH_TARGET: ${{ env.DEPLOY_USER }}@${{ env.SERVER_HOST }}
+          DIR: /opt/apps/${{ env.SUBDOMAIN }}
+        run: |
+          ssh -o StrictHostKeyChecking=accept-new "$SSH_TARGET" "mkdir -p '$DIR'"
+          scp -o StrictHostKeyChecking=accept-new "$COMPOSE_FILE" "$SSH_TARGET:$DIR/docker-compose.yml"
+          ssh -o StrictHostKeyChecking=accept-new "$SSH_TARGET" "cd '$DIR' && docker compose pull && docker compose up -d"
+
+      - name: Upsert proxied Cloudflare DNS record
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ZONE: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          ORIGIN_IP: ${{ vars.ORIGIN_IP }}
+        run: |
+          set -euo pipefail
+          [ -n "$ORIGIN_IP" ] || { echo "::error::ORIGIN_IP repository variable is not set"; exit 1; }
+          FQDN="${SUBDOMAIN}.${DOMAIN}"
+          REC_ID=$(curl -sf -H "Authorization: Bearer $CF_TOKEN" \
+            "https://api.cloudflare.com/client/v4/zones/$CF_ZONE/dns_records?type=A&name=$FQDN" \
+            | jq -r '.result[0].id // empty')
+          PAYLOAD=$(jq -n --arg name "$FQDN" --arg content "$ORIGIN_IP" \
+            '{type:"A",name:$name,content:$content,proxied:true,ttl:1}')
+          if [ -n "$REC_ID" ]; then
+            curl -sf -X PUT -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" \
+              "https://api.cloudflare.com/client/v4/zones/$CF_ZONE/dns_records/$REC_ID" --data "$PAYLOAD" | jq -e '.success'
+          else
+            curl -sf -X POST -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" \
+              "https://api.cloudflare.com/client/v4/zones/$CF_ZONE/dns_records" --data "$PAYLOAD" | jq -e '.success'
+          fi
