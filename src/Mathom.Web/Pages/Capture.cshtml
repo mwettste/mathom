@@ -3,18 +3,18 @@
 @{ ViewData["Title"] = "Capture"; }
 
 <section class="capture">
-    <div class="card" x-data="textCapture()">
+    <div class="card card-body" x-data="textCapture()">
         <h2 class="card__title">Type</h2>
-        <textarea class="field" x-model="text" rows="4" placeholder="Dump an idea…"
+        <textarea class="field" x-model="text" rows="6" placeholder="Dump an idea…"
                   @@keydown.cmd.enter="submit()" @@keydown.ctrl.enter="submit()"></textarea>
         <div class="card__actions">
-            <button class="btn btn--primary" type="button" @@click="submit()"
+            <button class="btn--primary" type="button" @@click="submit()"
                     x-bind:disabled="busy" x-text="busy ? 'Saving…' : 'Capture'"></button>
             <span class="hint" x-text="status"></span>
         </div>
     </div>
 
-    <div class="card" x-data="voiceCapture()">
+    <div class="card card-body" x-data="voiceCapture()">
         <h2 class="card__title">Speak</h2>
         <button class="btn btn--record" type="button" @@click="toggle()"
                 x-bind:class="{ 'is-recording': recording }" x-bind:disabled="uploading">

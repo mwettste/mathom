@@ -198,4 +198,78 @@
   .empty a {
     @apply text-primary underline underline-offset-2 hover:text-primary/80 transition-colors;
   }
+
+  /* capture */
+  .capture {
+    @apply flex flex-col gap-6 max-w-2xl mx-auto py-8 px-4;
+  }
+
+  /* text composer hero card */
+  .capture > .card:first-child {
+    @apply card bg-base-200 shadow-sm;
+  }
+  .capture > .card:first-child .card__title {
+    @apply font-display font-medium text-lg text-base-content/70 mb-3;
+  }
+  .capture > .card:first-child .field {
+    @apply textarea w-full resize-none font-sans text-base leading-relaxed
+           bg-base-100 text-base-content placeholder:text-base-content/35
+           min-h-[8rem] p-3;
+  }
+  .capture > .card:first-child .card__actions {
+    @apply flex items-center gap-3 mt-3;
+  }
+  .capture > .card:first-child .btn--primary {
+    @apply btn btn-primary font-sans text-sm font-medium px-5;
+  }
+
+  /* voice card — secondary */
+  .capture > .card:last-child {
+    @apply card bg-base-200 shadow-sm;
+  }
+  .capture > .card:last-child .card__title {
+    @apply font-display font-medium text-base text-base-content/60 mb-3;
+  }
+
+  /* shared hint */
+  .hint {
+    @apply text-xs text-base-content/50 font-sans;
+  }
+
+  /* record button */
+  .btn--record {
+    @apply btn btn-outline border-base-300 font-sans text-sm font-medium gap-2
+           hover:border-error/60 hover:bg-error/8 hover:text-error transition-colors;
+  }
+  .btn--record.is-recording {
+    @apply border-error/70 bg-error/10 text-error;
+  }
+
+  /* recording indicator dot */
+  .rec-dot {
+    @apply inline-block size-2 rounded-full bg-error animate-pulse;
+  }
+
+  /* processing done block */
+  .capture__done {
+    @apply flex flex-col gap-2 mt-3;
+  }
+  .capture__done a {
+    @apply text-xs text-primary underline underline-offset-2
+           hover:text-primary/80 transition-colors;
+  }
+
+  /* processing pill — matches stamp--processing inked look */
+  .pill.processing {
+    @apply inline-flex items-center gap-1.5 font-mono text-[0.7rem] uppercase tracking-widest
+           px-1.5 py-0.5 border
+           text-info border-info/40 bg-info/5;
+  }
+  .pill.processing::before {
+    content: "";
+    @apply inline-block size-1.5 rounded-full bg-current;
+  }
+  .pill .dot {
+    display: none; /* ::before pseudo-element provides the dot */
+  }
 }
