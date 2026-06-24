@@ -2,9 +2,13 @@
 @model PendingModel
 @{ ViewData["Title"] = "Pending approval"; ViewData["HideAppNav"] = true; }
 
-<h1 class="note__title">Awaiting approval</h1>
-<p class="hint">Your account has been created and is waiting for an administrator to approve access. Please check back later.</p>
-<form method="post" action="/Logout">
-    @Html.AntiForgeryToken()
-    <button class="btn" type="submit">Log out</button>
-</form>
+<section class="auth">
+    <div class="card">
+        <h1 class="note__title">Awaiting approval</h1>
+        <p class="hint">Your account is ready — an administrator just needs to grant access. Check back soon.</p>
+        <form method="post" action="/Logout">
+            @Html.AntiForgeryToken()
+            <button class="btn" type="submit">Sign out</button>
+        </form>
+    </div>
+</section>

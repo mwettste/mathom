@@ -481,6 +481,46 @@
     @apply shrink-0;
   }
 
+  /* auth */
+  .auth {
+    @apply min-h-screen flex items-center justify-center px-4 py-12 bg-base-100;
+  }
+  .auth > .card {
+    @apply card bg-base-200 shadow-sm w-full max-w-sm p-8 flex flex-col gap-0;
+  }
+  .auth-title {
+    @apply font-display font-medium text-2xl text-base-content mb-6 leading-snug;
+  }
+  .auth-form {
+    @apply flex flex-col gap-3;
+  }
+  .auth-form label {
+    @apply block font-mono text-xs uppercase tracking-wider text-base-content/50 mt-2 first:mt-0;
+  }
+  .auth-form .field {
+    @apply input w-full font-sans text-sm text-base-content bg-base-100
+           placeholder:text-base-content/35;
+  }
+  .auth-form .btn--primary {
+    @apply mt-3;
+  }
+  .auth-error {
+    @apply text-sm text-error mb-3 p-3 rounded border border-error/30 bg-error/5 empty:hidden;
+  }
+  .auth-alt {
+    @apply mt-6 text-xs text-base-content/50 font-sans;
+  }
+  .auth-alt a {
+    @apply text-primary underline underline-offset-2 hover:text-primary/80 transition-colors;
+  }
+  /* pending card uses the auth wrapper — add vertical spacing for its children */
+  .auth > .card > .note__title {
+    @apply mb-3;
+  }
+  .auth > .card > .hint {
+    @apply mb-6;
+  }
+
   /* trash */
   .trash-actions {
     @apply flex flex-wrap items-center gap-4 mt-2;
