@@ -1,7 +1,14 @@
-const CACHE = 'mathom-shell-v11';
+const CACHE = 'mathom-shell-v12';
 const SHELL = [
   '/Capture',
-  '/css/mathom.css',
+  '/css/app.css',
+  '/fonts/newsreader-500.woff2',
+  '/fonts/newsreader-600.woff2',
+  '/fonts/public-sans-400.woff2',
+  '/fonts/public-sans-500.woff2',
+  '/fonts/public-sans-600.woff2',
+  '/fonts/ibm-plex-mono-400.woff2',
+  '/fonts/ibm-plex-mono-500.woff2',
   '/js/offline.js',
   '/js/capture.js',
   '/js/glossary.js',
@@ -37,6 +44,7 @@ function isStaticAsset(pathname) {
   return pathname.startsWith('/css/')
     || pathname.startsWith('/js/')
     || pathname.startsWith('/lib/')
+    || pathname.startsWith('/fonts/')
     || pathname.startsWith('/icon-')
     || pathname === '/apple-touch-icon-180.png'
     || pathname === '/manifest.webmanifest';

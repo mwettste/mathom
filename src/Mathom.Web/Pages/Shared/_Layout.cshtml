@@ -1,6 +1,6 @@
 @{
     var path = ViewContext.HttpContext.Request.Path.Value ?? "/";
-    string Active(string p) => string.Equals(path, p, StringComparison.OrdinalIgnoreCase) ? "active" : "";
+    string Active(string p) => string.Equals(path, p, StringComparison.OrdinalIgnoreCase) ? "font-semibold text-primary underline underline-offset-4" : "";
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -33,9 +33,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>@(ViewData["Title"] ?? "Mathom") · Mathom</title>
     <link rel="stylesheet" href="~/css/mathom.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/app.css" asp-append-version="true" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#FBFBFA" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#16161A" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#FCFCFA" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#141519" media="(prefers-color-scheme: dark)" />
     <link rel="apple-touch-icon" href="/apple-touch-icon-180.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Mathom" />
@@ -47,33 +48,37 @@
     <script defer src="~/js/glossary.js" asp-append-version="true"></script>
     <script defer src="~/lib/alpine.min.js"></script>
 </head>
-<body>
-    <header class="topbar">
-        <a class="brand" href="/">Mathom</a>
-        <nav class="nav">
-            @if (User.Identity?.IsAuthenticated == true)
-            {
-                @if (ViewData["HideAppNav"] as bool? != true)
+<body class="bg-base-100 text-base-content min-h-screen">
+    <header class="navbar bg-base-100 border-b border-base-300 px-4 sticky top-0 z-50">
+        <div class="navbar-start">
+            <a class="font-display font-semibold text-lg tracking-tight text-base-content hover:text-primary transition-colors" href="/">Mathom</a>
+        </div>
+        <div class="navbar-end">
+            <nav class="flex items-center gap-1 flex-wrap">
+                @if (User.Identity?.IsAuthenticated == true)
                 {
-                    <a href="/Capture" class="@Active("/Capture")">Capture</a>
-                    <a href="/" class="@Active("/")">Timeline</a>
-                    <a href="/Trash" class="@Active("/Trash")">Trash</a>
-                    <a href="/Glossary" class="@Active("/Glossary")">Glossary</a>
-                    @if (User.IsInRole("Admin"))
+                    @if (ViewData["HideAppNav"] as bool? != true)
                     {
-                        <a href="/Admin/Users" class="@Active("/Admin")">Admin</a>
+                        <a href="/Capture" class="btn btn-ghost btn-sm font-normal @Active("/Capture")">Capture</a>
+                        <a href="/" class="btn btn-ghost btn-sm font-normal @Active("/")">Timeline</a>
+                        <a href="/Trash" class="btn btn-ghost btn-sm font-normal @Active("/Trash")">Trash</a>
+                        <a href="/Glossary" class="btn btn-ghost btn-sm font-normal @Active("/Glossary")">Glossary</a>
+                        @if (User.IsInRole("Admin"))
+                        {
+                            <a href="/Admin/Users" class="btn btn-ghost btn-sm font-normal @Active("/Admin")">Admin</a>
+                        }
                     }
+                    <span class="nav-user text-xs text-base-content/50 px-2 hidden sm:inline">@User.Identity!.Name</span>
+                    <form method="post" action="/Logout" class="nav-logout inline">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-ghost btn-sm font-normal text-base-content/60 hover:text-base-content">Log out</button>
+                    </form>
                 }
-                <span class="nav-user">@User.Identity!.Name</span>
-                <form method="post" action="/Logout" class="nav-logout">
-                    @Html.AntiForgeryToken()
-                    <button type="submit" class="linklike">Log out</button>
-                </form>
-            }
-            <button id="theme-toggle" class="theme-toggle" type="button" onclick="toggleTheme()" aria-label="Toggle theme">☾</button>
-        </nav>
+                <button id="theme-toggle" class="btn btn-ghost btn-sm font-mono text-base" type="button" onclick="toggleTheme()" aria-label="Toggle theme">☾</button>
+            </nav>
+        </div>
     </header>
-    <main class="container">
+    <main class="mx-auto max-w-2xl px-4 py-6 pb-16">
         @RenderBody()
     </main>
     <script>
