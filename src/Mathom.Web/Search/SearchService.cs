@@ -34,7 +34,8 @@ public record ItemDetail(
     DateTimeOffset CreatedAt,
     DateTimeOffset? ProcessedAt,
     string? Error,
-    IReadOnlyList<string> Tags);
+    IReadOnlyList<string> Tags,
+    IReadOnlyList<Guid> PhotoIds);
 
 public class SearchService
 {
@@ -49,7 +50,8 @@ public class SearchService
             .Select(i => new ItemDetail(
                 i.Id, i.Title, i.CleanText, i.RawText, i.ItemType, i.SourceType,
                 i.Status, i.Actionable, i.CreatedAt, i.ProcessedAt, i.Error,
-                i.ItemTags.Select(it => it.Tag.Name).ToList()))
+                i.ItemTags.Select(it => it.Tag.Name).ToList(),
+                i.Photos.OrderBy(p => p.Order).Select(p => p.Id).ToList()))
             .FirstOrDefaultAsync(ct);
     }
 

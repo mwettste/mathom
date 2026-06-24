@@ -23,4 +23,15 @@ public class CapturePageTests
         Assert.Contains("capture.js", html);        // Alpine components (voice posts to /capture/voice)
         Assert.Contains("alpine.min.js", html);     // Alpine runtime (from layout)
     }
+
+    [Fact]
+    public async Task CapturePage_RendersPhotoMode()
+    {
+        using var app = new TestWebAppFactory(_fx.ConnectionString);
+        await app.SeedUsersAsync();
+        var html = await app.CreateClient().GetStringAsync("/Capture");
+        Assert.Contains("Photo", html);                 // photo card heading
+        Assert.Contains("photoCapture()", html);        // Alpine component wired up
+        Assert.Contains("/capture/photo", html);        // upload target referenced in markup
+    }
 }
