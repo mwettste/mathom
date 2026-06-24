@@ -383,4 +383,84 @@
   .btn--primary {
     @apply btn btn-primary font-sans text-sm font-medium px-5;
   }
+
+  /* glossary */
+  .glossary-add {
+    @apply flex items-center gap-2 mb-6;
+  }
+  .glossary-add .field {
+    @apply input flex-1 font-sans text-sm text-base-content bg-base-100
+           placeholder:text-base-content/35;
+  }
+
+  .glossary-terms {
+    @apply list-none p-0 m-0 divide-y divide-base-300;
+  }
+
+  .glossary-term {
+    @apply py-4 first:pt-0 last:pb-0;
+  }
+
+  .glossary-term__head {
+    @apply flex items-center justify-between gap-3;
+  }
+  .glossary-term__head > span {
+    @apply font-mono font-medium text-sm text-base-content;
+  }
+
+  .glossary-desc {
+    @apply mt-1.5;
+  }
+  .glossary-desc__text {
+    @apply text-sm text-base-content/60 leading-relaxed mt-0.5 mb-1;
+  }
+  .glossary-desc__edit {
+    @apply text-xs mt-0.5;
+  }
+
+  .glossary-desc__form {
+    @apply flex flex-col gap-2 mt-1;
+  }
+  .glossary-desc__input {
+    @apply textarea w-full font-sans text-sm text-base-content bg-base-100
+           placeholder:text-base-content/35 resize-none;
+  }
+  .glossary-desc__actions {
+    @apply flex items-center gap-3;
+  }
+
+  .glossary-variants {
+    @apply flex flex-wrap gap-1.5 mt-2;
+  }
+  .glossary-variant__remove {
+    @apply inline-flex m-0 p-0;
+  }
+  .glossary-variant__remove button {
+    @apply text-base-content/40 hover:text-error text-[0.65rem] leading-none;
+  }
+
+  /* glossary selection popup (from note pages) */
+  #glossary-pop {
+    @apply fixed z-50 bg-base-100 border border-base-300 rounded-lg shadow-lg
+           p-4 w-60 flex flex-col gap-2;
+    display: none;
+  }
+  .glossary-pop__lbl {
+    @apply font-mono text-xs uppercase tracking-wider text-base-content/50 mb-1;
+  }
+  #glossary-pop .field {
+    @apply input w-full font-sans text-sm;
+  }
+  .glossary-pop__row {
+    @apply flex items-center gap-2 justify-end;
+  }
+  .btn--ghost {
+    @apply btn btn-ghost font-sans text-sm font-medium;
+  }
+  .glossary-pop__done {
+    @apply text-xs text-base-content/60 mt-1;
+  }
+  .glossary-pop__reprocess {
+    @apply mt-1;
+  }
 }
