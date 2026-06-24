@@ -2,12 +2,18 @@
 @model IReadOnlyList<Mathom.Web.Admin.UserRow>
 @{ var me = User.FindFirstValue(ClaimTypes.NameIdentifier); }
 
-<ul class="glossary-terms">
+<ul class="users">
     @foreach (var u in Model)
     {
-        <li class="glossary-term">
-            <div class="glossary-term__head">
-                <span>@u.Email @(u.IsApproved ? "" : "· pending")</span>
+        <li class="user-row">
+            <div class="user-row__info">
+                <span class="user-row__email">@u.Email</span>
+                @if (!u.IsApproved)
+                {
+                    <span class="stamp stamp--pending">pending</span>
+                }
+            </div>
+            <div class="user-row__actions">
                 @if (!u.IsApproved)
                 {
                     <form method="post" hx-post="@($"/Admin/Users?handler=Approve&id={u.Id}")"

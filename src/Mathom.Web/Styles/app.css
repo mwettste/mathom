@@ -464,6 +464,23 @@
     @apply mt-1;
   }
 
+  /* admin users */
+  .users {
+    @apply list-none p-0 m-0 divide-y divide-base-300;
+  }
+  .user-row {
+    @apply flex items-center justify-between gap-3 py-4 first:pt-0 last:pb-0;
+  }
+  .user-row__info {
+    @apply flex items-center gap-2 flex-wrap;
+  }
+  .user-row__email {
+    @apply font-sans text-sm text-base-content;
+  }
+  .user-row__actions {
+    @apply shrink-0;
+  }
+
   /* trash */
   .trash-actions {
     @apply flex flex-wrap items-center gap-4 mt-2;
