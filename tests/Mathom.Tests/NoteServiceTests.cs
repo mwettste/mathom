@@ -126,6 +126,34 @@ public class NoteServiceTests
     }
 
     [Fact]
+    public async Task Purge_DeletesAllPhotoMedia()
+    {
+        var u = "purge-photos-user";
+        await _fx.EnsureUserAsync(u, u + "@example.com");
+        var media = new FakeMediaStore();
+        string k1, k2;
+        using (var a = new System.IO.MemoryStream(new byte[] { 1 })) k1 = await media.SaveAsync(a, ".jpg", CancellationToken.None);
+        using (var b = new System.IO.MemoryStream(new byte[] { 2 })) k2 = await media.SaveAsync(b, ".png", CancellationToken.None);
+
+        var item = Item.CreatePending(SourceType.Photo, "", Guid.NewGuid().ToString(), u, DateTimeOffset.UtcNow);
+        item.DeletedAt = DateTimeOffset.UtcNow;   // already in trash, so PurgeAsync accepts it
+        item.Photos.Add(new ItemPhoto { Id = Guid.NewGuid(), MediaPath = k1, Order = 0, CreatedAt = DateTimeOffset.UtcNow });
+        item.Photos.Add(new ItemPhoto { Id = Guid.NewGuid(), MediaPath = k2, Order = 1, CreatedAt = DateTimeOffset.UtcNow });
+        await using (var seed = _fx.NewDbContext()) { seed.Items.Add(item); await seed.SaveChangesAsync(); }
+
+        await using (var db = _fx.NewDbContext())
+            Assert.True(await new NoteService(db, media).PurgeAsync(u, item.Id, CancellationToken.None));
+
+        Assert.False(media.Has(k1));
+        Assert.False(media.Has(k2));
+        await using (var verify = _fx.NewDbContext())
+        {
+            Assert.False(await verify.Items.IgnoreQueryFilters().AnyAsync(i => i.Id == item.Id));
+            Assert.False(await verify.Set<ItemPhoto>().AnyAsync(p => p.ItemId == item.Id));
+        }
+    }
+
+    [Fact]
     public async Task Reprocess_SetsReadyOrFailed_ToPending()
     {
         var u = "reprocess-user";

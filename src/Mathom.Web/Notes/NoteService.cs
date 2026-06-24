@@ -74,15 +74,23 @@ public class NoteService
 
     public async Task<bool> PurgeAsync(string userId, Guid id, CancellationToken ct)
     {
-        var item = await _db.Items.IgnoreQueryFilters()
+        var item = await _db.Items.IgnoreQueryFilters().Include(i => i.Photos)
             .FirstOrDefaultAsync(i => i.Id == id && i.UserId == userId && i.DeletedAt != null, ct);
         if (item is null) return false;
 
-        var mediaPath = item.MediaPath;
-        _db.Items.Remove(item);                 // cascades ItemTags
+        // Collect every disk key before removing the row; the DB cascade drops ItemTags and
+        // ItemPhoto rows, but media files must be deleted explicitly.
+        var mediaKeys = new List<string>();
+        if (!string.IsNullOrEmpty(item.MediaPath)) mediaKeys.Add(item.MediaPath);
+        mediaKeys.AddRange(item.Photos.Where(p => !string.IsNullOrEmpty(p.MediaPath)).Select(p => p.MediaPath));
+
+        _db.Items.Remove(item);                 // cascades ItemTags + ItemPhoto rows
         await _db.SaveChangesAsync(ct);
-        if (!string.IsNullOrEmpty(mediaPath))
-            await _media.DeleteAsync(mediaPath, ct);
+
+        // Best-effort per file: one failed delete must not abort the rest or fail the purge.
+        foreach (var key in mediaKeys)
+            await _media.DeleteAsync(key, ct);
+
         return true;
     }
 
