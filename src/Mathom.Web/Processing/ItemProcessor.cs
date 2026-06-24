@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,6 +17,7 @@ public class ItemProcessor
     private readonly MathomDbContext _db;
     private readonly ILlmClient _llm;
     private readonly ITranscriber _transcriber;
+    private readonly IImageReader _imageReader;
     private readonly IMediaStore _media;
     private readonly Mathom.Web.Glossary.GlossaryService _glossary;
     private readonly ILogger<ItemProcessor> _logger;
@@ -24,6 +26,7 @@ public class ItemProcessor
         MathomDbContext db,
         ILlmClient llm,
         ITranscriber transcriber,
+        IImageReader imageReader,
         IMediaStore media,
         Mathom.Web.Glossary.GlossaryService glossary,
         ILogger<ItemProcessor> logger)
@@ -31,6 +34,7 @@ public class ItemProcessor
         _db = db;
         _llm = llm;
         _transcriber = transcriber;
+        _imageReader = imageReader;
         _media = media;
         _glossary = glossary;
         _logger = logger;
@@ -38,7 +42,10 @@ public class ItemProcessor
 
     public async Task ProcessAsync(Guid itemId, CancellationToken ct)
     {
-        var item = await _db.Items.Include(i => i.ItemTags).FirstOrDefaultAsync(i => i.Id == itemId, ct);
+        var item = await _db.Items
+            .Include(i => i.ItemTags)
+            .Include(i => i.Photos)
+            .FirstOrDefaultAsync(i => i.Id == itemId, ct);
         if (item is null) return;
         if (item.Status is not (ItemStatus.Pending or ItemStatus.Failed or ItemStatus.Processing)) return;
 
@@ -76,6 +83,31 @@ public class ItemProcessor
                 await using var audio = await _media.OpenReadAsync(item.MediaPath, ct);
                 item.RawText = await _transcriber.TranscribeAsync(audio, item.MediaPath, terms, ct);
                 await _db.SaveChangesAsync(ct);
+            }
+
+            // Photo items have no text yet — read the stored image(s) with the vision model.
+            if (item.SourceType == SourceType.Photo && string.IsNullOrEmpty(item.RawText) && item.Photos.Count > 0)
+            {
+                var streams = new List<Stream>();
+                try
+                {
+                    var images = new List<ImageData>();
+                    foreach (var p in item.Photos.OrderBy(p => p.Order))
+                    {
+                        var s = await _media.OpenReadAsync(p.MediaPath, ct);
+                        streams.Add(s);
+                        images.Add(new ImageData(s, p.MediaPath));
+                    }
+                    var read = await _imageReader.ExtractAsync(images, terms, ct);
+                    if (string.IsNullOrWhiteSpace(read))
+                        throw new InvalidOperationException("No readable content found in the photo(s).");
+                    item.RawText = read;
+                    await _db.SaveChangesAsync(ct);
+                }
+                finally
+                {
+                    foreach (var s in streams) await s.DisposeAsync();
+                }
             }
 
             var result = await _llm.CleanupAsync(item.RawText, cleanupGlossary, ct);

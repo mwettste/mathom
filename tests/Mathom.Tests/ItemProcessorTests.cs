@@ -39,7 +39,7 @@ public class ItemProcessorTests
 
         await using (var db = _fx.NewDbContext())
         {
-            var processor = new ItemProcessor(db, fake, new FakeTranscriber(), new FakeMediaStore(),
+            var processor = new ItemProcessor(db, fake, new FakeTranscriber(), new FakeImageReader(), new FakeMediaStore(),
                 new Mathom.Web.Glossary.GlossaryService(db), NullLogger<ItemProcessor>.Instance);
             await processor.ProcessAsync(item.Id, CancellationToken.None);
         }
@@ -70,7 +70,7 @@ public class ItemProcessorTests
 
         await using (var db = _fx.NewDbContext())
         {
-            var processor = new ItemProcessor(db, new FakeLlmClient { Throw = true }, new FakeTranscriber(), new FakeMediaStore(),
+            var processor = new ItemProcessor(db, new FakeLlmClient { Throw = true }, new FakeTranscriber(), new FakeImageReader(), new FakeMediaStore(),
                 new Mathom.Web.Glossary.GlossaryService(db), NullLogger<ItemProcessor>.Instance);
             await processor.ProcessAsync(item.Id, CancellationToken.None);
         }
@@ -103,10 +103,10 @@ public class ItemProcessorTests
         };
 
         await using (var db = _fx.NewDbContext())
-            await new ItemProcessor(db, fake, new FakeTranscriber(), new FakeMediaStore(),
+            await new ItemProcessor(db, fake, new FakeTranscriber(), new FakeImageReader(), new FakeMediaStore(),
                 new Mathom.Web.Glossary.GlossaryService(db), NullLogger<ItemProcessor>.Instance).ProcessAsync(a.Id, CancellationToken.None);
         await using (var db = _fx.NewDbContext())
-            await new ItemProcessor(db, fake, new FakeTranscriber(), new FakeMediaStore(),
+            await new ItemProcessor(db, fake, new FakeTranscriber(), new FakeImageReader(), new FakeMediaStore(),
                 new Mathom.Web.Glossary.GlossaryService(db), NullLogger<ItemProcessor>.Instance).ProcessAsync(b.Id, CancellationToken.None);
 
         await using (var verify = _fx.NewDbContext())
@@ -143,7 +143,7 @@ public class ItemProcessorTests
         };
 
         await using (var db = _fx.NewDbContext())
-            await new ItemProcessor(db, llm, transcriber, media,
+            await new ItemProcessor(db, llm, transcriber, new FakeImageReader(), media,
                 new Mathom.Web.Glossary.GlossaryService(db), NullLogger<ItemProcessor>.Instance)
                 .ProcessAsync(item.Id, CancellationToken.None);
 
@@ -181,7 +181,7 @@ public class ItemProcessorTests
         await using (var seed = _fx.NewDbContext()) { seed.Items.Add(item); await seed.SaveChangesAsync(); }
 
         await using (var db = _fx.NewDbContext())
-            await new ItemProcessor(db, new FakeLlmClient(), new FakeTranscriber { Throw = true }, media,
+            await new ItemProcessor(db, new FakeLlmClient(), new FakeTranscriber { Throw = true }, new FakeImageReader(), media,
                 new Mathom.Web.Glossary.GlossaryService(db), NullLogger<ItemProcessor>.Instance).ProcessAsync(item.Id, CancellationToken.None);
 
         await using (var verify = _fx.NewDbContext())
@@ -223,7 +223,7 @@ public class ItemProcessorTests
         };
 
         await using var db = _fx.NewDbContext();
-        var processor = new ItemProcessor(db, llm, new FakeTranscriber(), new FakeMediaStore(),
+        var processor = new ItemProcessor(db, llm, new FakeTranscriber(), new FakeImageReader(), new FakeMediaStore(),
             new Mathom.Web.Glossary.GlossaryService(db),
             NullLogger<ItemProcessor>.Instance);
 
@@ -262,7 +262,7 @@ public class ItemProcessorTests
         };
 
         await using var db = _fx.NewDbContext();
-        var processor = new Mathom.Web.Processing.ItemProcessor(db, llm, new FakeTranscriber(), new FakeMediaStore(),
+        var processor = new Mathom.Web.Processing.ItemProcessor(db, llm, new FakeTranscriber(), new FakeImageReader(), new FakeMediaStore(),
             new Mathom.Web.Glossary.GlossaryService(db),
             Microsoft.Extensions.Logging.Abstractions.NullLogger<Mathom.Web.Processing.ItemProcessor>.Instance);
 
@@ -297,7 +297,7 @@ public class ItemProcessorTests
         var llm = new FakeLlmClient();
         await using var db = _fx.NewDbContext();
         var processor = new Mathom.Web.Processing.ItemProcessor(
-            db, llm, new FakeTranscriber(), new FakeMediaStore(),
+            db, llm, new FakeTranscriber(), new FakeImageReader(), new FakeMediaStore(),
             new Mathom.Web.Glossary.GlossaryService(db),
             Microsoft.Extensions.Logging.Abstractions.NullLogger<Mathom.Web.Processing.ItemProcessor>.Instance);
 
@@ -329,12 +329,101 @@ public class ItemProcessorTests
 
         var llm = new FakeLlmClient { Respond = raw => new Mathom.Web.Processing.CleanupResult(raw, raw, Mathom.Web.Domain.ItemType.Note, false, new System.Collections.Generic.List<Mathom.Web.Processing.CleanupTag>()) };
         await using var db = _fx.NewDbContext();
-        var processor = new Mathom.Web.Processing.ItemProcessor(db, llm, new FakeTranscriber(), new FakeMediaStore(),
+        var processor = new Mathom.Web.Processing.ItemProcessor(db, llm, new FakeTranscriber(), new FakeImageReader(), new FakeMediaStore(),
             new Mathom.Web.Glossary.GlossaryService(db),
             Microsoft.Extensions.Logging.Abstractions.NullLogger<Mathom.Web.Processing.ItemProcessor>.Instance);
 
         await processor.ProcessAsync(itemId, System.Threading.CancellationToken.None);
 
         Assert.Contains("FireSkills (also heard as: Fairstills) — our internal time-tracking product", llm.LastGlossary);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_Photo_ReadsThenCleans()
+    {
+        await _fx.EnsureUserAsync(Uid, "processor@example.com");
+        var media = new FakeMediaStore();
+        string k1, k2;
+        using (var a = new MemoryStream(new byte[] { 1 })) k1 = await media.SaveAsync(a, ".jpg", CancellationToken.None);
+        using (var b = new MemoryStream(new byte[] { 2 })) k2 = await media.SaveAsync(b, ".png", CancellationToken.None);
+
+        var item = Item.CreatePending(SourceType.Photo, "", Guid.NewGuid().ToString(), Uid, DateTimeOffset.UtcNow);
+        item.Photos.Add(new ItemPhoto { Id = Guid.NewGuid(), MediaPath = k1, Order = 0, CreatedAt = DateTimeOffset.UtcNow });
+        item.Photos.Add(new ItemPhoto { Id = Guid.NewGuid(), MediaPath = k2, Order = 1, CreatedAt = DateTimeOffset.UtcNow });
+        await using (var seed = _fx.NewDbContext()) { seed.Items.Add(item); await seed.SaveChangesAsync(); }
+
+        var reader = new FakeImageReader { Respond = _ => "whiteboard: ship the thing" };
+        var llm = new FakeLlmClient { Respond = raw => new CleanupResult("Ship it", raw.Trim(), ItemType.Task, true,
+            new[] { new CleanupTag("work", TagKind.Topic) }) };
+
+        await using (var db = _fx.NewDbContext())
+            await new ItemProcessor(db, llm, new FakeTranscriber(), reader, media,
+                new Mathom.Web.Glossary.GlossaryService(db), NullLogger<ItemProcessor>.Instance)
+                .ProcessAsync(item.Id, CancellationToken.None);
+
+        await using (var verify = _fx.NewDbContext())
+        {
+            var loaded = await verify.Items.SingleAsync(i => i.Id == item.Id);
+            Assert.Equal(ItemStatus.Ready, loaded.Status);
+            Assert.Equal("whiteboard: ship the thing", loaded.RawText);
+            Assert.Equal("whiteboard: ship the thing", loaded.CleanText);
+            Assert.Equal(ItemType.Task, loaded.ItemType);
+        }
+        Assert.Equal(1, reader.Calls);
+        Assert.Equal(2, reader.LastImageCount);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_Photo_PassesGlossaryToReader()
+    {
+        var u = "photo-glossary-user";
+        await _fx.EnsureUserAsync(u, u + "@example.com");
+        var media = new FakeMediaStore();
+        string k; using (var a = new MemoryStream(new byte[] { 1 })) k = await media.SaveAsync(a, ".jpg", CancellationToken.None);
+
+        var item = Item.CreatePending(SourceType.Photo, "", Guid.NewGuid().ToString(), u, DateTimeOffset.UtcNow);
+        item.Photos.Add(new ItemPhoto { Id = Guid.NewGuid(), MediaPath = k, Order = 0, CreatedAt = DateTimeOffset.UtcNow });
+        await using (var seed = _fx.NewDbContext())
+        {
+            seed.Items.Add(item);
+            seed.GlossaryTerms.Add(new GlossaryTerm { Id = Guid.NewGuid(), UserId = u, Term = "Obersaxen", CreatedAt = DateTimeOffset.UtcNow });
+            await seed.SaveChangesAsync();
+        }
+
+        var reader = new FakeImageReader();
+        await using (var db = _fx.NewDbContext())
+            await new ItemProcessor(db, new FakeLlmClient(), new FakeTranscriber(), reader, media,
+                new Mathom.Web.Glossary.GlossaryService(db), NullLogger<ItemProcessor>.Instance)
+                .ProcessAsync(item.Id, CancellationToken.None);
+
+        Assert.Contains("Obersaxen", reader.LastGlossary);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_Photo_EmptyRead_SetsFailed()
+    {
+        var u = "photo-empty-user";
+        await _fx.EnsureUserAsync(u, u + "@example.com");
+        var media = new FakeMediaStore();
+        string k; using (var a = new MemoryStream(new byte[] { 1 })) k = await media.SaveAsync(a, ".jpg", CancellationToken.None);
+
+        var item = Item.CreatePending(SourceType.Photo, "", Guid.NewGuid().ToString(), u, DateTimeOffset.UtcNow);
+        item.Photos.Add(new ItemPhoto { Id = Guid.NewGuid(), MediaPath = k, Order = 0, CreatedAt = DateTimeOffset.UtcNow });
+        await using (var seed = _fx.NewDbContext()) { seed.Items.Add(item); await seed.SaveChangesAsync(); }
+
+        var reader = new FakeImageReader { Respond = _ => "   " };  // whitespace == nothing readable
+        var llm = new FakeLlmClient();
+        await using (var db = _fx.NewDbContext())
+            await new ItemProcessor(db, llm, new FakeTranscriber(), reader, media,
+                new Mathom.Web.Glossary.GlossaryService(db), NullLogger<ItemProcessor>.Instance)
+                .ProcessAsync(item.Id, CancellationToken.None);
+
+        await using (var verify = _fx.NewDbContext())
+        {
+            var loaded = await verify.Items.SingleAsync(i => i.Id == item.Id);
+            Assert.Equal(ItemStatus.Failed, loaded.Status);
+            Assert.Contains("No readable content", loaded.Error);
+        }
+        Assert.Equal(0, llm.Calls);  // cleanup never ran on empty input
     }
 }
