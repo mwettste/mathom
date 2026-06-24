@@ -3,7 +3,7 @@
 
 @if (Model.Count == 0)
 {
-    <p class="empty">No thoughts yet. <a href="/Capture">Capture one →</a></p>
+    <p class="empty">Nothing here yet. <a href="/Capture">Capture your first thought →</a></p>
 }
 else
 {
@@ -15,6 +15,17 @@ else
             var title = item.Title
                 ?? (item.SourceType == SourceType.Voice ? "Voice note" : "Quick note");
             <li class="entry @(inflight ? "entry--inflight" : "")">
+                <div class="accession">
+                    <span class="callno">@CallNumber.For(item.Id)</span>
+                    @if (!string.IsNullOrEmpty(pillLabel))
+                    {
+                        <span class="stamp stamp--@pillCss">@pillLabel</span>
+                    }
+                    else if (item.ItemType is not null)
+                    {
+                        <span class="kind">@item.ItemType.ToString()!.ToLowerInvariant()</span>
+                    }
+                </div>
                 <div class="entry__head">
                     <a class="entry__title" href="/Note/@item.Id">@title</a>
                     <span class="entry__time">@RelativeTime.Ago(item.CreatedAt)</span>
@@ -24,24 +35,13 @@ else
                     <p class="entry__body">@item.CleanText</p>
                 }
                 <div class="entry__meta">
-                    @if (!string.IsNullOrEmpty(pillLabel))
+                    @if (item.Actionable)
                     {
-                        <span class="pill @pillCss"><span class="dot"></span>@pillLabel</span>
+                        <span class="flag">actionable</span>
                     }
-                    else
+                    @foreach (var tag in item.Tags)
                     {
-                        @if (item.ItemType is not null)
-                        {
-                            <span class="kind">@item.ItemType.ToString()!.ToLowerInvariant()</span>
-                        }
-                        @if (item.Actionable)
-                        {
-                            <span class="flag">actionable</span>
-                        }
-                        @foreach (var tag in item.Tags)
-                        {
-                            <a class="tag" href="/?tag=@Uri.EscapeDataString(tag)">#@tag</a>
-                        }
+                        <a class="tag" href="/?tag=@Uri.EscapeDataString(tag)">#@tag</a>
                     }
                 </div>
             </li>

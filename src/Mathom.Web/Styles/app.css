@@ -98,4 +98,104 @@
   .stamp--pending    { @apply text-info border-info/40 bg-info/5; }
   .stamp--processing { @apply text-info border-info/40 bg-info/5; }
   .stamp--failed     { @apply text-error border-error/40 bg-error/5; }
+
+  /* timeline */
+
+  /* search toolbar */
+  .toolbar {
+    @apply mb-4;
+  }
+  .search {
+    @apply input w-full font-sans text-sm;
+  }
+
+  /* active filter chips */
+  .filters {
+    @apply flex flex-wrap items-center gap-2 mb-3 text-sm;
+  }
+  .filters__label {
+    @apply text-base-content/50 text-xs uppercase tracking-wider font-mono;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full
+           border border-base-300 bg-base-200 text-base-content/70
+           text-xs font-mono hover:bg-base-300 transition-colors;
+  }
+  .filters__clear {
+    @apply ml-auto text-xs text-base-content/40 hover:text-base-content/70
+           underline underline-offset-2 transition-colors;
+  }
+
+  /* quick-filter type/actionable toggles */
+  .quickfilters {
+    @apply flex flex-wrap gap-1.5 mb-5;
+  }
+  .quickfilter {
+    @apply inline-flex items-center px-2.5 py-1 rounded-full
+           border border-base-300 bg-base-100 text-base-content/60
+           text-xs font-mono tracking-wide
+           hover:border-primary/40 hover:text-base-content/90
+           transition-colors cursor-pointer select-none;
+  }
+  .quickfilter.is-active {
+    @apply border-primary/60 bg-primary/8 text-primary font-medium;
+  }
+
+  /* entries list — register feel with dividers */
+  .entries {
+    @apply list-none p-0 m-0 divide-y divide-base-300;
+  }
+
+  /* single entry */
+  .entry {
+    @apply py-4 first:pt-0 last:pb-0;
+  }
+  .entry--inflight .entry__title {
+    @apply text-base-content/60;
+  }
+
+  /* accession line (call-number + stamp/kind) */
+  /* (rules defined above in the signature section) */
+
+  /* entry head: title + relative time */
+  .entry__head {
+    @apply flex items-baseline justify-between gap-3 mt-1.5;
+  }
+  .entry__title {
+    @apply font-display font-medium text-base leading-snug
+           text-base-content hover:text-primary transition-colors
+           underline-offset-2 hover:underline;
+  }
+  .entry__time {
+    @apply shrink-0 font-mono text-xs text-base-content/40;
+  }
+
+  /* entry body — clamped preview */
+  .entry__body {
+    @apply mt-1.5 text-sm text-base-content/70 leading-relaxed
+           line-clamp-3;
+  }
+
+  /* entry meta footer: kind, actionable flag, tags */
+  .entry__meta {
+    @apply flex flex-wrap items-center gap-2 mt-2;
+  }
+  .kind {
+    @apply font-mono text-xs text-base-content/40 uppercase tracking-wider;
+  }
+  .flag {
+    @apply font-mono text-xs text-accent/80 uppercase tracking-wider;
+  }
+  .tag {
+    @apply font-mono text-xs text-secondary/80
+           hover:text-secondary transition-colors;
+  }
+
+  /* empty state */
+  .empty {
+    @apply py-16 text-center text-base-content/50 text-sm font-sans;
+  }
+  .empty a {
+    @apply text-primary underline underline-offset-2 hover:text-primary/80 transition-colors;
+  }
 }
