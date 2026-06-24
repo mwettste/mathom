@@ -463,4 +463,15 @@
   .glossary-pop__reprocess {
     @apply mt-1;
   }
+
+  /* trash */
+  .trash-actions {
+    @apply flex flex-wrap items-center gap-4 mt-2;
+  }
+  .entry--trashed .entry__title {
+    @apply text-base-content/50;
+  }
+  .entry--trashed .entry__body {
+    @apply text-base-content/40;
+  }
 }
