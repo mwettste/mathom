@@ -17,6 +17,12 @@ public static class RelativeTime
     }
 }
 
+/// <summary>Presentation-only "call number" for an item, derived from its id. No storage.</summary>
+public static class CallNumber
+{
+    public static string For(Guid id) => "M·" + id.ToString("N")[..6].ToUpperInvariant();
+}
+
 /// <summary>Maps an item's processing status to a small status pill for the timeline.</summary>
 public static class StatusView
 {
