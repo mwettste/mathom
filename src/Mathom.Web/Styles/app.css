@@ -4,7 +4,7 @@
   themes: light --default, dark --prefersdark;
 }
 
-/* ---- Catalogue: light ---- */
+/* ---- Catalogue palette: light ---- */
 @plugin "daisyui/theme" {
   name: "light";
   default: true;
@@ -30,7 +30,7 @@
   --border: 1px;
 }
 
-/* ---- Catalogue: dark ---- */
+/* ---- Catalogue palette: dark ---- */
 @plugin "daisyui/theme" {
   name: "dark";
   prefersdark: true;
@@ -71,13 +71,13 @@
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
 
-/* base */
+/* ---- base ---- */
 @layer base {
   body { font-family: var(--font-sans); }
   [x-cloak] { display: none !important; }
   /* Keyboard focus — visible on every interactive element */
   :focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; border-radius: 4px; }
-  /* Unclassed anchors remain legible; component/utility-styled links override this naturally */
+  /* Unclassed anchors stay legible; daisyUI/utility-styled links override this naturally */
   a:not([class]) { color: var(--color-primary); }
   a:not([class]):hover { text-decoration: underline; }
   /* ASP.NET MVC adds this class to the validation summary div when there are no errors */
@@ -87,464 +87,30 @@
   }
 }
 
-/* ---- Catalogue signature components ---- */
+/* ---- JS-injected components ----
+   These two widgets are built in JavaScript (not Razor markup), so their styles
+   must live here — there is no template to attach utility classes to.
+   Everything else is styled with stock daisyUI components + Tailwind utilities
+   directly in the .cshtml markup. */
 @layer components {
-  /* accession line: call-number + stamp, the register voice */
-  .accession {
-    @apply flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-base-content/60;
-  }
-  .callno { @apply text-base-content/50; }
-
-  /* status stamp — inked, not a rounded badge */
-  .stamp {
-    @apply inline-flex items-center gap-1.5 font-mono text-[0.7rem] uppercase tracking-widest
-           px-1.5 py-0.5 border;
-  }
-  .stamp::before { content: ""; @apply inline-block size-1.5 rounded-full bg-current; }
-  .stamp--ready      { @apply text-success border-success/40 bg-success/5; }
-  .stamp--pending    { @apply text-info border-info/40 bg-info/5; }
-  .stamp--processing { @apply text-info border-info/40 bg-info/5; }
-  .stamp--failed     { @apply text-error border-error/40 bg-error/5; }
-
-  /* timeline */
-
-  /* search toolbar */
-  .toolbar {
-    @apply mb-4;
-  }
-  .search {
-    @apply input w-full font-sans text-sm;
-  }
-
-  /* active filter chips */
-  .filters {
-    @apply flex flex-wrap items-center gap-2 mb-3 text-sm;
-  }
-  .filters__label {
-    @apply text-base-content/50 text-xs uppercase tracking-wider font-mono;
-  }
-  .chip {
-    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full
-           border border-base-300 bg-base-200 text-base-content/70
-           text-xs font-mono hover:bg-base-300 transition-colors;
-  }
-  .filters__clear {
-    @apply ml-auto text-xs text-base-content/40 hover:text-base-content/70
-           underline underline-offset-2 transition-colors;
-  }
-
-  /* quick-filter type/actionable toggles */
-  .quickfilters {
-    @apply flex flex-wrap gap-1.5 mb-5;
-  }
-  .quickfilter {
-    @apply inline-flex items-center px-2.5 py-1 rounded-full
-           border border-base-300 bg-base-100 text-base-content/60
-           text-xs font-mono tracking-wide
-           hover:border-primary/40 hover:text-base-content/90
-           transition-colors cursor-pointer select-none;
-  }
-  .quickfilter.is-active {
-    @apply border-primary/60 bg-primary/8 text-primary font-medium;
-  }
-
-  /* entries list — register feel with dividers */
-  .entries {
-    @apply list-none p-0 m-0 divide-y divide-base-300;
-  }
-
-  /* single entry */
-  .entry {
-    @apply py-4 first:pt-0 last:pb-0;
-  }
-  .entry--inflight .entry__title {
-    @apply text-base-content/60;
-  }
-
-  /* accession line (call-number + stamp/kind) */
-  /* (rules defined above in the signature section) */
-
-  /* entry head: title + relative time */
-  .entry__head {
-    @apply flex items-baseline justify-between gap-3 mt-1.5;
-  }
-  .entry__title {
-    @apply font-display font-medium text-base leading-snug
-           text-base-content hover:text-primary transition-colors
-           underline-offset-2 hover:underline;
-  }
-  .entry__time {
-    @apply shrink-0 font-mono text-xs text-base-content/40;
-  }
-
-  /* entry body — clamped preview */
-  .entry__body {
-    @apply mt-1.5 text-sm text-base-content/70 leading-relaxed
-           line-clamp-3;
-  }
-
-  /* entry meta footer: kind, actionable flag, tags */
-  .entry__meta {
-    @apply flex flex-wrap items-center gap-2 mt-2;
-  }
-  .kind {
-    @apply font-mono text-xs text-base-content/40 uppercase tracking-wider;
-  }
-  .flag {
-    @apply font-mono text-xs text-accent/80 uppercase tracking-wider;
-  }
-  .tag {
-    @apply font-mono text-xs text-secondary/80
-           hover:text-secondary transition-colors;
-  }
-
-  /* empty state */
-  .empty {
-    @apply py-16 text-center text-base-content/50 text-sm font-sans;
-  }
-  .empty a {
-    @apply text-primary underline underline-offset-2 hover:text-primary/80 transition-colors;
-  }
-
-  /* capture */
-  .capture {
-    @apply flex flex-col gap-6 max-w-2xl mx-auto py-8 px-4;
-  }
-
-  /* text composer hero card */
-  .capture > .card:first-child {
-    @apply card bg-base-200 shadow-sm;
-  }
-  .capture > .card:first-child .card__title {
-    @apply font-display font-medium text-lg text-base-content/70 mb-3;
-  }
-  .capture > .card:first-child .field {
-    @apply textarea w-full resize-none font-sans text-base leading-relaxed
-           bg-base-100 text-base-content placeholder:text-base-content/35
-           min-h-[8rem] p-3;
-  }
-  .capture > .card:first-child .card__actions {
-    @apply flex items-center gap-3 mt-3;
-  }
-  .capture > .card:first-child .btn--primary {
-    @apply btn btn-primary font-sans text-sm font-medium px-5;
-  }
-
-  /* voice card — secondary */
-  .capture > .card:last-child {
-    @apply card bg-base-200 shadow-sm;
-  }
-  .capture > .card:last-child .card__title {
-    @apply font-display font-medium text-base text-base-content/60 mb-3;
-  }
-
-  /* shared hint */
-  .hint {
-    @apply text-xs text-base-content/50 font-sans;
-  }
-
-  /* record button */
-  .btn--record {
-    @apply btn btn-outline border-base-300 font-sans text-sm font-medium gap-2
-           hover:border-error/60 hover:bg-error/8 hover:text-error transition-colors;
-  }
-  .btn--record.is-recording {
-    @apply border-error/70 bg-error/10 text-error;
-  }
-
-  /* recording indicator dot */
-  .rec-dot {
-    @apply inline-block size-2 rounded-full bg-error animate-pulse;
-  }
-
-  /* processing done block */
-  .capture__done {
-    @apply flex flex-col gap-2 mt-3;
-  }
-  .capture__done a {
-    @apply text-xs text-primary underline underline-offset-2
-           hover:text-primary/80 transition-colors;
-  }
-
-  /* processing pill — matches stamp--processing inked look */
-  .pill.processing {
-    @apply inline-flex items-center gap-1.5 font-mono text-[0.7rem] uppercase tracking-widest
-           px-1.5 py-0.5 border
-           text-info border-info/40 bg-info/5;
-  }
-  .pill.processing::before {
-    content: "";
-    @apply inline-block size-1.5 rounded-full bg-current;
-  }
-  .pill .dot {
-    display: none; /* ::before pseudo-element provides the dot */
-  }
-
-  /* note detail */
-  .back {
-    @apply mb-4 text-sm;
-  }
-  .back a {
-    @apply text-base-content/50 hover:text-base-content/80 transition-colors
-           no-underline font-mono text-xs uppercase tracking-wider;
-  }
-
-  .note__head {
-    @apply mb-4;
-  }
-
-  .note__title {
-    @apply font-display font-medium text-2xl leading-snug text-base-content mt-2 mb-1;
-  }
-
-  .note__meta {
-    @apply flex flex-wrap items-center gap-2 mt-1 text-sm;
-  }
-  .note__time {
-    @apply font-mono text-xs text-base-content/40;
-  }
-
-  /* action links — ghost-style buttons, no chrome */
-  .note-actions {
-    @apply flex flex-wrap items-center gap-3 mb-5 pb-4 border-b border-base-300;
-  }
-  .linklike {
-    @apply inline-flex items-center font-sans text-sm text-base-content/60
-           bg-transparent border-0 p-0 cursor-pointer
-           hover:text-base-content/90 transition-colors underline-offset-2 hover:underline;
-  }
-  .linklike--danger {
-    @apply text-error/70 hover:text-error;
-  }
-
-  /* note body — comfortable reading measure */
-  .note__body {
-    @apply text-base leading-relaxed text-base-content whitespace-pre-wrap
-           max-w-prose mb-6;
-  }
-
-  /* pending / in-flight state message */
-  .note__pending {
-    @apply text-sm text-base-content/50 italic mb-6;
-  }
-
-  /* error state */
-  .note__error {
-    @apply text-sm text-error mb-5 p-3 rounded
-           border border-error/30 bg-error/5;
-  }
-  .note__error span {
-    @apply block mt-1 text-error/70;
-  }
-
-  /* transcript section */
-  .note__transcript {
-    @apply mt-6 pt-5 border-t border-base-300;
-  }
-  .note__subhead {
-    @apply font-mono text-xs uppercase tracking-wider text-base-content/40 mb-2;
-  }
-  .note__transcript p {
-    @apply text-sm text-base-content/60 leading-relaxed whitespace-pre-wrap;
-  }
-
-  /* tags row */
-  .note__tags {
-    @apply flex flex-wrap gap-2 mt-6;
-  }
-
-  /* inline edit form */
-  .note-edit {
-    @apply flex flex-col gap-4 max-w-prose;
-  }
-  .note-edit__label {
-    @apply block font-mono text-xs uppercase tracking-wider text-base-content/50 mb-1;
-  }
-  .note-edit .field {
-    @apply w-full;
-  }
-  .note-edit input.field {
-    @apply input font-sans text-sm text-base-content bg-base-100;
-  }
-  .note-edit textarea.field {
-    @apply textarea font-sans text-sm text-base-content bg-base-100 resize-y;
-  }
-  .note-edit select.field {
-    @apply select font-sans text-sm text-base-content bg-base-100;
-  }
-  .note-edit__row {
-    @apply flex flex-wrap items-center gap-4;
-  }
-  .note-edit__check {
-    @apply flex items-center gap-2 text-sm text-base-content/70 cursor-pointer;
-  }
-  .note-edit__check input[type="checkbox"] {
-    @apply checkbox checkbox-sm;
-  }
-  .note-edit__actions {
-    @apply flex items-center gap-3 pt-2;
-  }
-  .btn {
-    @apply btn font-sans text-sm font-medium;
-  }
-  .btn--primary {
-    @apply btn btn-primary font-sans text-sm font-medium px-5;
-  }
-
-  /* glossary */
-  .glossary-add {
-    @apply flex items-center gap-2 mb-6;
-  }
-  .glossary-add .field {
-    @apply input flex-1 font-sans text-sm text-base-content bg-base-100
-           placeholder:text-base-content/35;
-  }
-
-  .glossary-terms {
-    @apply list-none p-0 m-0 divide-y divide-base-300;
-  }
-
-  .glossary-term {
-    @apply py-4 first:pt-0 last:pb-0;
-  }
-
-  .glossary-term__head {
-    @apply flex items-center justify-between gap-3;
-  }
-  .glossary-term__head > span {
-    @apply font-mono font-medium text-sm text-base-content;
-  }
-
-  .glossary-desc {
-    @apply mt-1.5;
-  }
-  .glossary-desc__text {
-    @apply text-sm text-base-content/60 leading-relaxed mt-0.5 mb-1;
-  }
-  .glossary-desc__edit {
-    @apply text-xs mt-0.5;
-  }
-
-  .glossary-desc__form {
-    @apply flex flex-col gap-2 mt-1;
-  }
-  .glossary-desc__input {
-    @apply textarea w-full font-sans text-sm text-base-content bg-base-100
-           placeholder:text-base-content/35 resize-none;
-  }
-  .glossary-desc__actions {
-    @apply flex items-center gap-3;
-  }
-
-  .glossary-variants {
-    @apply flex flex-wrap gap-1.5 mt-2;
-  }
-  .glossary-variant__remove {
-    @apply inline-flex m-0 p-0;
-  }
-  .glossary-variant__remove button {
-    @apply text-base-content/40 hover:text-error text-[0.65rem] leading-none;
-  }
-
-  /* glossary selection popup (from note pages) */
+  /* glossary "add term/variant" popover — built by wwwroot/js/glossary.js */
   #glossary-pop {
-    @apply fixed z-50 bg-base-100 border border-base-300 rounded-lg shadow-lg
-           p-4 w-60 flex flex-col gap-2;
-    display: none;
+    @apply fixed z-50 hidden w-60 flex-col gap-2 rounded-lg border border-base-300
+           bg-base-100 p-4 shadow-lg;
   }
-  .glossary-pop__lbl {
-    @apply font-mono text-xs uppercase tracking-wider text-base-content/50 mb-1;
+  #glossary-pop .glossary-pop__lbl {
+    @apply mb-1 font-mono text-xs uppercase tracking-wider text-base-content/50;
   }
-  #glossary-pop .field {
-    @apply input w-full font-sans text-sm;
-  }
-  .glossary-pop__row {
-    @apply flex items-center gap-2 justify-end;
-  }
-  .btn--ghost {
-    @apply btn btn-ghost font-sans text-sm font-medium;
-  }
-  .glossary-pop__done {
-    @apply text-xs text-base-content/60 mt-1;
-  }
-  .glossary-pop__reprocess {
-    @apply mt-1;
-  }
+  #glossary-pop .field { @apply input input-sm w-full; }
+  #glossary-pop .glossary-pop__row { @apply flex items-center justify-end gap-2; }
+  #glossary-pop .btn--primary { @apply btn btn-primary btn-sm; }
+  #glossary-pop .btn--ghost { @apply btn btn-ghost btn-sm; }
+  #glossary-pop .glossary-pop__done { @apply mt-1 text-xs text-base-content/60; }
+  #glossary-pop .glossary-pop__reprocess { @apply mt-1; }
 
-  /* admin users */
-  .users {
-    @apply list-none p-0 m-0 divide-y divide-base-300;
-  }
-  .user-row {
-    @apply flex items-center justify-between gap-3 py-4 first:pt-0 last:pb-0;
-  }
-  .user-row__info {
-    @apply flex items-center gap-2 flex-wrap;
-  }
-  .user-row__email {
-    @apply font-sans text-sm text-base-content;
-  }
-  .user-row__actions {
-    @apply shrink-0;
-  }
-
-  /* auth */
-  .auth {
-    @apply min-h-screen flex items-center justify-center px-4 py-12 bg-base-100;
-  }
-  .auth > .card {
-    @apply card bg-base-200 shadow-sm w-full max-w-sm p-8 flex flex-col gap-0;
-  }
-  .auth-title {
-    @apply font-display font-medium text-2xl text-base-content mb-6 leading-snug;
-  }
-  .auth-form {
-    @apply flex flex-col gap-3;
-  }
-  .auth-form label {
-    @apply block font-mono text-xs uppercase tracking-wider text-base-content/50 mt-2 first:mt-0;
-  }
-  .auth-form .field {
-    @apply input w-full font-sans text-sm text-base-content bg-base-100
-           placeholder:text-base-content/35;
-  }
-  .auth-form .btn--primary {
-    @apply mt-3;
-  }
-  .auth-error {
-    @apply text-sm text-error mb-3 p-3 rounded border border-error/30 bg-error/5 empty:hidden;
-  }
-  .auth-alt {
-    @apply mt-6 text-xs text-base-content/50 font-sans;
-  }
-  .auth-alt a {
-    @apply text-primary underline underline-offset-2 hover:text-primary/80 transition-colors;
-  }
-  /* pending card uses the auth wrapper — add vertical spacing for its children */
-  .auth > .card > .note__title {
-    @apply mb-3;
-  }
-  .auth > .card > .hint {
-    @apply mb-6;
-  }
-
-  /* trash */
-  .trash-actions {
-    @apply flex flex-wrap items-center gap-4 mt-2;
-  }
-  .entry--trashed .entry__title {
-    @apply text-base-content/50;
-  }
-  .entry--trashed .entry__body {
-    @apply text-base-content/40;
-  }
-
-  /* offline auth-expired banner (injected by offline.js) */
+  /* offline "session expired" banner — injected by wwwroot/js/offline.js */
   .auth-banner {
-    @apply fixed bottom-0 left-0 right-0 z-50
-           px-4 py-2.5 text-center text-sm text-white bg-error;
+    @apply fixed inset-x-0 bottom-0 z-50 bg-error px-4 py-2.5 text-center text-sm text-white;
   }
-  .auth-banner a {
-    @apply text-white underline underline-offset-2;
-  }
+  .auth-banner a { @apply text-white underline underline-offset-2; }
 }

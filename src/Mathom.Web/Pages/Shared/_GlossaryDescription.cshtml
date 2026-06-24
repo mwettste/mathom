@@ -2,14 +2,14 @@
 
 @if (string.IsNullOrEmpty(Model.Description))
 {
-    <button class="linklike glossary-desc__edit" type="button"
+    <button class="btn btn-ghost btn-xs" type="button"
             hx-get="@($"/Glossary?handler=EditDescription&id={Model.Id}")"
             hx-target="#glossary-desc-@Model.Id" hx-swap="innerHTML">+ Add context</button>
 }
 else
 {
-    <p class="glossary-desc__text">@Model.Description</p>
-    <button class="linklike glossary-desc__edit" type="button"
+    <p class="text-sm text-base-content/60">@Model.Description</p>
+    <button class="btn btn-ghost btn-xs" type="button"
             hx-get="@($"/Glossary?handler=EditDescription&id={Model.Id}")"
             hx-target="#glossary-desc-@Model.Id" hx-swap="innerHTML">Edit context</button>
 }

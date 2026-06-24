@@ -3,45 +3,42 @@
 
 @if (Model.Count == 0)
 {
-    <p class="empty">Nothing here yet. <a href="/Capture">Capture your first thought →</a></p>
+    <p class="py-16 text-center text-base-content/60">Nothing here yet. <a class="link link-primary" href="/Capture">Capture your first thought →</a></p>
 }
 else
 {
-    <ul class="entries">
+    <ul class="divide-y divide-base-300">
         @foreach (var item in Model)
         {
             var inflight = StatusView.InFlight(item.Status);
             var (pillCss, pillLabel) = StatusView.Pill(item.Status, item.SourceType);
             var title = item.Title
                 ?? (item.SourceType == SourceType.Voice ? "Voice note" : "Quick note");
-            <li class="entry @(inflight ? "entry--inflight" : "")">
-                <div class="accession">
-                    <span class="callno">@CallNumber.For(item.Id)</span>
-                    @if (!string.IsNullOrEmpty(pillLabel))
-                    {
-                        <span class="stamp stamp--@pillCss">@pillLabel</span>
-                    }
-                    else if (item.ItemType is not null)
-                    {
-                        <span class="kind">@item.ItemType.ToString()!.ToLowerInvariant()</span>
-                    }
-                </div>
-                <div class="entry__head">
-                    <a class="entry__title" href="/Note/@item.Id">@title</a>
-                    <span class="entry__time">@RelativeTime.Ago(item.CreatedAt)</span>
+            <li class="py-4">
+                <div class="flex items-baseline justify-between gap-3">
+                    <a class="font-display text-base font-medium leading-snug hover:text-primary transition-colors @(inflight ? "text-base-content/60" : "")" href="/Note/@item.Id">@title</a>
+                    <span class="shrink-0 font-mono text-xs text-base-content/40">@RelativeTime.Ago(item.CreatedAt)</span>
                 </div>
                 @if (!string.IsNullOrEmpty(item.CleanText))
                 {
-                    <p class="entry__body">@item.CleanText</p>
+                    <p class="mt-1 text-sm leading-relaxed text-base-content/70 line-clamp-3">@item.CleanText</p>
                 }
-                <div class="entry__meta">
+                <div class="mt-2 flex flex-wrap items-center gap-2">
+                    @if (!string.IsNullOrEmpty(pillLabel))
+                    {
+                        <span class="badge badge-sm @(pillCss == "failed" ? "badge-error" : "badge-info")">@pillLabel</span>
+                    }
+                    else if (item.ItemType is not null)
+                    {
+                        <span class="font-mono text-xs uppercase tracking-wider text-base-content/40">@item.ItemType.ToString()!.ToLowerInvariant()</span>
+                    }
                     @if (item.Actionable)
                     {
-                        <span class="flag">actionable</span>
+                        <span class="badge badge-warning badge-sm">actionable</span>
                     }
                     @foreach (var tag in item.Tags)
                     {
-                        <a class="tag" href="/?tag=@Uri.EscapeDataString(tag)">#@tag</a>
+                        <a class="badge badge-ghost badge-sm font-mono" href="/?tag=@Uri.EscapeDataString(tag)">#@tag</a>
                     }
                 </div>
             </li>
@@ -50,7 +47,7 @@ else
 
     @if (Model.Any(i => StatusView.InFlight(i.Status)))
     {
-        <div class="poller" aria-hidden="true"
+        <div aria-hidden="true"
              hx-get="/?handler=Timeline" hx-trigger="every 3s"
              hx-target="#item-list" hx-ext="morph" hx-swap="morph:innerHTML"></div>
     }

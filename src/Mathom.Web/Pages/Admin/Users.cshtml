@@ -2,9 +2,9 @@
 @model Mathom.Web.Pages.Admin.UsersModel
 @{ ViewData["Title"] = "Users"; }
 
-<p class="back"><a href="/">← Timeline</a></p>
-<h1 class="note__title">Users</h1>
-<p class="hint">Approve new users to grant access. Revoke to remove it.</p>
+<p class="mb-4"><a class="link link-hover font-mono text-xs uppercase tracking-wider text-base-content/50" href="/">← Timeline</a></p>
+<h1 class="font-display text-2xl font-medium leading-snug">Users</h1>
+<p class="text-sm text-base-content/60">Approve new users to grant access. Revoke to remove it.</p>
 
 <div id="users-list">
     <partial name="Shared/_UsersList" model="Model.Users" />

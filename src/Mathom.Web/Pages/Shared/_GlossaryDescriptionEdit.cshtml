@@ -1,14 +1,14 @@
 @model Mathom.Web.Glossary.GlossaryDescription
 
-<form method="post" class="glossary-desc__form"
+<form method="post" class="flex flex-col gap-2"
       hx-post="@($"/Glossary?handler=SetDescription&id={Model.Id}")"
       hx-target="#glossary-desc-@Model.Id" hx-swap="innerHTML">
     @Html.AntiForgeryToken()
-    <textarea class="field glossary-desc__input" name="description" rows="2" maxlength="500"
+    <textarea class="textarea w-full" name="description" rows="2" maxlength="500"
               placeholder="What is this term? (domain context for the AI)">@Model.Description</textarea>
-    <div class="glossary-desc__actions">
-        <button class="btn btn--primary" type="submit">Save</button>
-        <button class="linklike" type="button"
+    <div class="flex gap-2">
+        <button class="btn btn-primary btn-sm" type="submit">Save</button>
+        <button class="btn btn-ghost btn-sm" type="button"
                 hx-get="@($"/Glossary?handler=ShowDescription&id={Model.Id}")"
                 hx-target="#glossary-desc-@Model.Id" hx-swap="innerHTML">Cancel</button>
     </div>

@@ -3,17 +3,23 @@
 @{
     ViewData["Title"] = "Sign in";
 }
-<section class="auth">
-    <div class="card">
-        <h1 class="auth-title">Sign in</h1>
-        <form method="post" class="auth-form">
-            <div asp-validation-summary="All" class="auth-error"></div>
-            <label asp-for="Input.Email">Email</label>
-            <input class="field" asp-for="Input.Email" autocomplete="username" autofocus />
-            <label asp-for="Input.Password">Password</label>
-            <input class="field" asp-for="Input.Password" type="password" autocomplete="current-password" />
-            <button type="submit" class="btn btn--primary">Sign in</button>
-        </form>
-        <p class="auth-alt">No account yet? <a href="/Register">Register →</a></p>
+<section class="flex min-h-[70vh] items-center justify-center px-4">
+    <div class="card bg-base-200 w-full max-w-sm">
+        <div class="card-body">
+            <h1 class="font-display text-2xl font-medium leading-snug mb-2">Sign in</h1>
+            <form method="post" class="flex flex-col gap-3">
+                <div asp-validation-summary="All" class="alert alert-error text-sm"></div>
+                <div>
+                    <label asp-for="Input.Email" class="font-mono text-xs uppercase tracking-wider text-base-content/50">Email</label>
+                    <input class="input w-full" asp-for="Input.Email" autocomplete="username" autofocus />
+                </div>
+                <div>
+                    <label asp-for="Input.Password" class="font-mono text-xs uppercase tracking-wider text-base-content/50">Password</label>
+                    <input class="input w-full" asp-for="Input.Password" type="password" autocomplete="current-password" />
+                </div>
+                <button type="submit" class="btn btn-primary w-full mt-2">Sign in</button>
+            </form>
+            <p class="text-xs text-base-content/50 mt-4">No account yet? <a href="/Register" class="link link-primary">Register →</a></p>
+        </div>
     </div>
 </section>

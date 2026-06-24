@@ -2,8 +2,8 @@
 @model IndexModel
 @{ ViewData["Title"] = "Timeline"; }
 
-<div class="toolbar">
-    <input class="search" type="search" name="q" value="@Model.Q"
+<div class="mb-4">
+    <input class="input w-full" type="search" name="q" value="@Model.Q"
            placeholder="Search your brain…" autocomplete="off" aria-label="Search notes"
            hx-get="/" hx-target="#results" hx-select="#results" hx-push-url="true"
            hx-trigger="input changed delay:300ms, search"
@@ -18,35 +18,35 @@
 <div id="results">
     @if (Model.HasFilters)
     {
-        <div class="filters">
-            <span class="filters__label">Filters:</span>
+        <div class="mb-3 flex flex-wrap items-center gap-2 text-sm">
+            <span class="font-mono text-xs uppercase tracking-wider text-base-content/50">Filters:</span>
             @if (Model.Tag is not null)
             {
-                <a class="chip" href="@Model.WithoutTag()">#@Model.Tag <span aria-hidden="true">✕</span></a>
+                <a class="badge badge-outline gap-1 font-mono" href="@Model.WithoutTag()">#@Model.Tag <span aria-hidden="true">✕</span></a>
             }
             @if (Model.Type is not null)
             {
-                <a class="chip" href="@Model.WithoutType()">type:@Model.TypeParam <span aria-hidden="true">✕</span></a>
+                <a class="badge badge-outline gap-1 font-mono" href="@Model.WithoutType()">type:@Model.TypeParam <span aria-hidden="true">✕</span></a>
             }
             @if (Model.Actionable == true)
             {
-                <a class="chip" href="@Model.WithoutActionable()">actionable <span aria-hidden="true">✕</span></a>
+                <a class="badge badge-outline gap-1 font-mono" href="@Model.WithoutActionable()">actionable <span aria-hidden="true">✕</span></a>
             }
-            <a class="filters__clear" href="/">Clear</a>
+            <a class="ml-auto link link-hover text-xs text-base-content/50" href="/">Clear</a>
         </div>
     }
-    <div class="quickfilters">
+    <div class="mb-5 flex flex-wrap gap-1.5">
         @foreach (var tt in IndexModel.AllTypes)
         {
             var active = Model.Type == tt;
-            <a class="quickfilter @(active ? "is-active" : "")" href="@Model.ToggleType(tt)">@tt.ToString().ToLowerInvariant()</a>
+            <a class="btn btn-xs font-mono @(active ? "btn-primary" : "btn-ghost border border-base-300")" href="@Model.ToggleType(tt)">@tt.ToString().ToLowerInvariant()</a>
         }
-        <a class="quickfilter @(Model.Actionable == true ? "is-active" : "")" href="@Model.ToggleActionable()">actionable</a>
+        <a class="btn btn-xs font-mono @(Model.Actionable == true ? "btn-primary" : "btn-ghost border border-base-300")" href="@Model.ToggleActionable()">actionable</a>
     </div>
 
     @if (Model.Items.Count == 0 && (Model.HasFilters || Model.Q is not null))
     {
-        <p class="empty">No notes match these filters — try broadening your search. <a href="/">Clear</a></p>
+        <p class="py-16 text-center text-base-content/60">No notes match these filters — try broadening your search. <a class="link link-primary" href="/">Clear</a></p>
     }
     else
     {

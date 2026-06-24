@@ -83,8 +83,8 @@ public class TagFilterTests
 
         var html = await app.CreateClient().GetStringAsync("/?tag=alpha");
 
-        Assert.Contains("class=\"chip\"", html);   // active-filter chip present
-        Assert.Contains("href=\"/\"", html);        // chip removal / clear returns to /
+        Assert.Contains("Filters:", html);          // active-filter row present
+        Assert.Contains("href=\"/\"", html);         // chip removal / clear returns to /
     }
 
     [Fact]

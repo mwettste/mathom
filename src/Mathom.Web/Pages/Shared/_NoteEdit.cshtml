@@ -3,23 +3,23 @@
 @{
     var allTypes = new[] { ItemType.Idea, ItemType.Task, ItemType.Note, ItemType.Reference, ItemType.Journal };
 }
-<form class="note-edit" method="post"
+<form class="flex flex-col gap-4" method="post"
       hx-post="@($"/Note/{Model.Id}?handler=Edit")" hx-target="#note-content" hx-swap="innerHTML">
     @Html.AntiForgeryToken()
     <div>
-        <label class="note-edit__label" for="edit-title">Title</label>
-        <input class="field" id="edit-title" name="title" value="@Model.Title" autocomplete="off" />
+        <label class="font-mono text-xs uppercase tracking-wider text-base-content/40 block mb-1" for="edit-title">Title</label>
+        <input class="input w-full" id="edit-title" name="title" value="@Model.Title" autocomplete="off" />
     </div>
 
     <div>
-        <label class="note-edit__label" for="edit-body">Body</label>
-        <textarea class="field" id="edit-body" name="body" rows="6">@Model.CleanText</textarea>
+        <label class="font-mono text-xs uppercase tracking-wider text-base-content/40 block mb-1" for="edit-body">Body</label>
+        <textarea class="textarea w-full" id="edit-body" name="body" rows="6">@Model.CleanText</textarea>
     </div>
 
-    <div class="note-edit__row">
+    <div class="flex flex-wrap gap-4 items-end">
         <div>
-            <label class="note-edit__label" for="edit-type">Type</label>
-            <select class="field" id="edit-type" name="type">
+            <label class="font-mono text-xs uppercase tracking-wider text-base-content/40 block mb-1" for="edit-type">Type</label>
+            <select class="select" id="edit-type" name="type">
                 <option value="">—</option>
                 @foreach (var t in allTypes)
                 {
@@ -28,19 +28,19 @@
                 }
             </select>
         </div>
-        <label class="note-edit__check">
-            <input type="checkbox" name="actionable" value="true" checked="@Model.Actionable" /> actionable
+        <label class="flex items-center gap-2 font-mono text-xs text-base-content/40 cursor-pointer">
+            <input class="checkbox checkbox-sm" type="checkbox" name="actionable" value="true" checked="@Model.Actionable" /> actionable
         </label>
     </div>
 
     <div>
-        <label class="note-edit__label" for="edit-tags">Tags (comma-separated)</label>
-        <input class="field" id="edit-tags" name="tags" value="@string.Join(", ", Model.Tags)" autocomplete="off" />
+        <label class="font-mono text-xs uppercase tracking-wider text-base-content/40 block mb-1" for="edit-tags">Tags (comma-separated)</label>
+        <input class="input w-full" id="edit-tags" name="tags" value="@string.Join(", ", Model.Tags)" autocomplete="off" />
     </div>
 
-    <div class="note-edit__actions">
-        <button class="btn--primary" type="submit">Save</button>
-        <button class="btn--record" type="button"
+    <div class="flex gap-2">
+        <button class="btn btn-primary" type="submit">Save</button>
+        <button class="btn btn-ghost btn-sm" type="button"
                 hx-get="@($"/Note/{Model.Id}?handler=Content")" hx-target="#note-content" hx-swap="innerHTML">Cancel</button>
     </div>
 </form>

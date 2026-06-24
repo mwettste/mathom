@@ -2,7 +2,7 @@
 @model NoteModel
 @{ ViewData["Title"] = Model.Item?.Title ?? "Note"; }
 
-<p class="back"><a href="/">← Timeline</a></p>
+<p class="mb-4"><a class="link link-hover font-mono text-xs uppercase tracking-wider text-base-content/50" href="/">← Timeline</a></p>
 
 <article id="note-content">
     <partial name="Shared/_NoteContent" model="Model.Item" />
