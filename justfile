@@ -16,6 +16,17 @@ up:
 up-fg:
     docker compose up --build
 
+# Start ONLY Postgres (on localhost:${POSTGRES_PORT:-5432}), so you can run the app
+# yourself from the IDE/CLI. Migrations apply on app startup. Pair with `just run`.
+db:
+    docker compose up -d db
+    @echo "Postgres ready on localhost:${POSTGRES_PORT:-5432}  →  just run"
+
+# Run the app directly (not in Docker) with hot reload, all .env vars loaded as environment
+# variables (connection string, LLM/STT keys, AdminEmail). Starts Postgres first. Ctrl-C to stop.
+run: db
+    ASPNETCORE_ENVIRONMENT=Development dotnet watch --project src/Mathom.Web
+
 # Stop the stack (keeps the database volume)
 down:
     docker compose down

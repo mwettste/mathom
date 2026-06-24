@@ -8,6 +8,10 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - mathom-pgdata:/var/lib/postgresql/data
+    # Publish on the host (localhost only) so an app run directly from the IDE/CLI can
+    # reach it. The `web` container talks to `db` over the compose network regardless.
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
