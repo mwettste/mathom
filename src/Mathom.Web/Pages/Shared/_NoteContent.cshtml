@@ -6,11 +6,11 @@
     var title = Model.Title ?? (Model.SourceType == SourceType.Voice ? "Voice note" : "Quick note");
 }
 <header class="note__head">
-    <h1 class="note__title">@title</h1>
-    <div class="note__meta">
+    <div class="accession">
+        <span class="callno">@CallNumber.For(Model.Id)</span>
         @if (!string.IsNullOrEmpty(pillLabel))
         {
-            <span class="pill @pillCss"><span class="dot"></span>@pillLabel</span>
+            <span class="stamp stamp--@pillCss">@pillLabel</span>
         }
         else
         {
@@ -18,10 +18,13 @@
             {
                 <span class="kind">@Model.ItemType.ToString()!.ToLowerInvariant()</span>
             }
-            @if (Model.Actionable)
-            {
-                <span class="flag">actionable</span>
-            }
+        }
+    </div>
+    <h1 class="note__title">@title</h1>
+    <div class="note__meta">
+        @if (Model.Actionable)
+        {
+            <span class="flag">actionable</span>
         }
         <span class="note__time">@RelativeTime.Ago(Model.CreatedAt)</span>
     </div>

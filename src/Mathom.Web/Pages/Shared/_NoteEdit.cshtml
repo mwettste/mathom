@@ -6,33 +6,41 @@
 <form class="note-edit" method="post"
       hx-post="@($"/Note/{Model.Id}?handler=Edit")" hx-target="#note-content" hx-swap="innerHTML">
     @Html.AntiForgeryToken()
-    <label class="note-edit__label" for="edit-title">Title</label>
-    <input class="field" id="edit-title" name="title" value="@Model.Title" autocomplete="off" />
+    <div>
+        <label class="note-edit__label" for="edit-title">Title</label>
+        <input class="field" id="edit-title" name="title" value="@Model.Title" autocomplete="off" />
+    </div>
 
-    <label class="note-edit__label" for="edit-body">Body</label>
-    <textarea class="field" id="edit-body" name="body" rows="6">@Model.CleanText</textarea>
+    <div>
+        <label class="note-edit__label" for="edit-body">Body</label>
+        <textarea class="field" id="edit-body" name="body" rows="6">@Model.CleanText</textarea>
+    </div>
 
     <div class="note-edit__row">
-        <label class="note-edit__label" for="edit-type">Type</label>
-        <select class="field" id="edit-type" name="type">
-            <option value="">—</option>
-            @foreach (var t in allTypes)
-            {
-                var v = t.ToString().ToLowerInvariant();
-                <option value="@v" selected="@(Model.ItemType == t)">@v</option>
-            }
-        </select>
+        <div>
+            <label class="note-edit__label" for="edit-type">Type</label>
+            <select class="field" id="edit-type" name="type">
+                <option value="">—</option>
+                @foreach (var t in allTypes)
+                {
+                    var v = t.ToString().ToLowerInvariant();
+                    <option value="@v" selected="@(Model.ItemType == t)">@v</option>
+                }
+            </select>
+        </div>
         <label class="note-edit__check">
             <input type="checkbox" name="actionable" value="true" checked="@Model.Actionable" /> actionable
         </label>
     </div>
 
-    <label class="note-edit__label" for="edit-tags">Tags (comma-separated)</label>
-    <input class="field" id="edit-tags" name="tags" value="@string.Join(", ", Model.Tags)" autocomplete="off" />
+    <div>
+        <label class="note-edit__label" for="edit-tags">Tags (comma-separated)</label>
+        <input class="field" id="edit-tags" name="tags" value="@string.Join(", ", Model.Tags)" autocomplete="off" />
+    </div>
 
     <div class="note-edit__actions">
-        <button class="btn btn--primary" type="submit">Save</button>
-        <button class="btn btn--record" type="button"
+        <button class="btn--primary" type="submit">Save</button>
+        <button class="btn--record" type="button"
                 hx-get="@($"/Note/{Model.Id}?handler=Content")" hx-target="#note-content" hx-swap="innerHTML">Cancel</button>
     </div>
 </form>

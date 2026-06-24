@@ -272,4 +272,115 @@
   .pill .dot {
     display: none; /* ::before pseudo-element provides the dot */
   }
+
+  /* note detail */
+  .back {
+    @apply mb-4 text-sm;
+  }
+  .back a {
+    @apply text-base-content/50 hover:text-base-content/80 transition-colors
+           no-underline font-mono text-xs uppercase tracking-wider;
+  }
+
+  .note__head {
+    @apply mb-4;
+  }
+
+  .note__title {
+    @apply font-display font-medium text-2xl leading-snug text-base-content mt-2 mb-1;
+  }
+
+  .note__meta {
+    @apply flex flex-wrap items-center gap-2 mt-1 text-sm;
+  }
+  .note__time {
+    @apply font-mono text-xs text-base-content/40;
+  }
+
+  /* action links — ghost-style buttons, no chrome */
+  .note-actions {
+    @apply flex flex-wrap items-center gap-3 mb-5 pb-4 border-b border-base-300;
+  }
+  .linklike {
+    @apply inline-flex items-center font-sans text-sm text-base-content/60
+           bg-transparent border-0 p-0 cursor-pointer
+           hover:text-base-content/90 transition-colors underline-offset-2 hover:underline;
+  }
+  .linklike--danger {
+    @apply text-error/70 hover:text-error;
+  }
+
+  /* note body — comfortable reading measure */
+  .note__body {
+    @apply text-base leading-relaxed text-base-content whitespace-pre-wrap
+           max-w-prose mb-6;
+  }
+
+  /* pending / in-flight state message */
+  .note__pending {
+    @apply text-sm text-base-content/50 italic mb-6;
+  }
+
+  /* error state */
+  .note__error {
+    @apply text-sm text-error mb-5 p-3 rounded
+           border border-error/30 bg-error/5;
+  }
+  .note__error span {
+    @apply block mt-1 text-error/70;
+  }
+
+  /* transcript section */
+  .note__transcript {
+    @apply mt-6 pt-5 border-t border-base-300;
+  }
+  .note__subhead {
+    @apply font-mono text-xs uppercase tracking-wider text-base-content/40 mb-2;
+  }
+  .note__transcript p {
+    @apply text-sm text-base-content/60 leading-relaxed whitespace-pre-wrap;
+  }
+
+  /* tags row */
+  .note__tags {
+    @apply flex flex-wrap gap-2 mt-6;
+  }
+
+  /* inline edit form */
+  .note-edit {
+    @apply flex flex-col gap-4 max-w-prose;
+  }
+  .note-edit__label {
+    @apply block font-mono text-xs uppercase tracking-wider text-base-content/50 mb-1;
+  }
+  .note-edit .field {
+    @apply w-full;
+  }
+  .note-edit input.field {
+    @apply input font-sans text-sm text-base-content bg-base-100;
+  }
+  .note-edit textarea.field {
+    @apply textarea font-sans text-sm text-base-content bg-base-100 resize-y;
+  }
+  .note-edit select.field {
+    @apply select font-sans text-sm text-base-content bg-base-100;
+  }
+  .note-edit__row {
+    @apply flex flex-wrap items-center gap-4;
+  }
+  .note-edit__check {
+    @apply flex items-center gap-2 text-sm text-base-content/70 cursor-pointer;
+  }
+  .note-edit__check input[type="checkbox"] {
+    @apply checkbox checkbox-sm;
+  }
+  .note-edit__actions {
+    @apply flex items-center gap-3 pt-2;
+  }
+  .btn {
+    @apply btn font-sans text-sm font-medium;
+  }
+  .btn--primary {
+    @apply btn btn-primary font-sans text-sm font-medium px-5;
+  }
 }
