@@ -16,3 +16,6 @@ docs
 .env
 **/appsettings.Local.json
 **/appsettings.Development.json
+
+# Node build artifacts (the css stage runs npm ci itself)
+**/node_modules

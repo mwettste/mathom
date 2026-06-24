@@ -1,0 +1,14 @@
+{
+  "name": "mathom-web-styles",
+  "private": true,
+  "description": "Build-time CSS toolchain for Mathom (Tailwind v4 + daisyUI v5). No runtime JS.",
+  "scripts": {
+    "build:css": "tailwindcss -i ./src/Mathom.Web/Styles/app.css -o ./src/Mathom.Web/wwwroot/css/app.css --minify",
+    "watch:css": "tailwindcss -i ./src/Mathom.Web/Styles/app.css -o ./src/Mathom.Web/wwwroot/css/app.css --watch"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.0.0",
+    "tailwindcss": "^4.0.0",
+    "daisyui": "^5.0.0"
+  }
+}
