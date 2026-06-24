@@ -11,6 +11,7 @@ public class MathomDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Item> Items => Set<Item>()!;
     public DbSet<Tag> Tags => Set<Tag>()!;
     public DbSet<ItemTag> ItemTags => Set<ItemTag>()!;
+    public DbSet<ItemPhoto> ItemPhotos => Set<ItemPhoto>()!;
     public DbSet<GlossaryTerm> GlossaryTerms => Set<GlossaryTerm>()!;
     public DbSet<GlossaryVariant> GlossaryVariants => Set<GlossaryVariant>()!;
 
@@ -60,6 +61,17 @@ public class MathomDbContext : IdentityDbContext<ApplicationUser>
             e.HasKey(x => new { x.ItemId, x.TagId });
             e.HasOne(x => x.Item).WithMany(i => i.ItemTags).HasForeignKey(x => x.ItemId);
             e.HasOne(x => x.Tag).WithMany(t => t.ItemTags).HasForeignKey(x => x.TagId);
+        });
+
+        b.Entity<ItemPhoto>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.MediaPath).IsRequired();
+            e.HasOne(x => x.Item)
+                .WithMany(i => i.Photos)
+                .HasForeignKey(x => x.ItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.ItemId);
         });
 
         b.Entity<GlossaryTerm>(e =>

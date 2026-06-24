@@ -3,6 +3,7 @@ using System;
 using Mathom.Web.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using NpgsqlTypes;
@@ -12,9 +13,11 @@ using NpgsqlTypes;
 namespace Mathom.Web.Data.Migrations
 {
     [DbContext(typeof(MathomDbContext))]
-    partial class MathomDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260624182832_AddItemPhoto")]
+    partial class AddItemPhoto
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
