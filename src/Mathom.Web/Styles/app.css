@@ -75,6 +75,13 @@
 @layer base {
   body { font-family: var(--font-sans); }
   [x-cloak] { display: none !important; }
+  /* Keyboard focus — visible on every interactive element */
+  :focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; border-radius: 4px; }
+  /* Unclassed anchors remain legible; component/utility-styled links override this naturally */
+  a:not([class]) { color: var(--color-primary); }
+  a:not([class]):hover { text-decoration: underline; }
+  /* ASP.NET MVC adds this class to the validation summary div when there are no errors */
+  .validation-summary-valid { display: none; }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
   }
@@ -530,5 +537,14 @@
   }
   .entry--trashed .entry__body {
     @apply text-base-content/40;
+  }
+
+  /* offline auth-expired banner (injected by offline.js) */
+  .auth-banner {
+    @apply fixed bottom-0 left-0 right-0 z-50
+           px-4 py-2.5 text-center text-sm text-white bg-error;
+  }
+  .auth-banner a {
+    @apply text-white underline underline-offset-2;
   }
 }
