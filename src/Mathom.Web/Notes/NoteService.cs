@@ -87,9 +87,14 @@ public class NoteService
         _db.Items.Remove(item);                 // cascades ItemTags + ItemPhoto rows
         await _db.SaveChangesAsync(ct);
 
-        // Best-effort per file: one failed delete must not abort the rest or fail the purge.
+        // Best-effort per file: the DB row is already gone, so a failed media delete must not
+        // fail the purge or block deleting the remaining files. Orphaned blobs are
+        // acceptable over a failed purge.
         foreach (var key in mediaKeys)
-            await _media.DeleteAsync(key, ct);
+        {
+            try { await _media.DeleteAsync(key, ct); }
+            catch { /* swallow: best-effort cleanup */ }
+        }
 
         return true;
     }

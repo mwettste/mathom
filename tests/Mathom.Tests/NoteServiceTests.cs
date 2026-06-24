@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Mathom.Web.Domain;
+using Mathom.Web.Media;
 using Mathom.Web.Notes;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -202,6 +203,39 @@ public class NoteServiceTests
     }
 
     [Fact]
+    public async Task Purge_OneMediaDeleteFails_StillDeletesOthersAndSucceeds()
+    {
+        var u = "purge-besteff-user";
+        await _fx.EnsureUserAsync(u, u + "@example.com");
+        var inner = new FakeMediaStore();
+        string k1, k2;
+        using (var a = new System.IO.MemoryStream(new byte[] { 1 })) k1 = await inner.SaveAsync(a, ".jpg", CancellationToken.None);
+        using (var b = new System.IO.MemoryStream(new byte[] { 2 })) k2 = await inner.SaveAsync(b, ".png", CancellationToken.None);
+
+        // k1 is the poison key: DeleteAsync will throw for it.
+        var media = new PoisonKeyMediaStore(inner, poisonKey: k1);
+
+        var item = Item.CreatePending(SourceType.Photo, "", Guid.NewGuid().ToString(), u, DateTimeOffset.UtcNow);
+        item.DeletedAt = DateTimeOffset.UtcNow;
+        item.Photos.Add(new ItemPhoto { Id = Guid.NewGuid(), MediaPath = k1, Order = 0, CreatedAt = DateTimeOffset.UtcNow });
+        item.Photos.Add(new ItemPhoto { Id = Guid.NewGuid(), MediaPath = k2, Order = 1, CreatedAt = DateTimeOffset.UtcNow });
+        await using (var seed = _fx.NewDbContext()) { seed.Items.Add(item); await seed.SaveChangesAsync(); }
+
+        bool result;
+        await using (var db = _fx.NewDbContext())
+            result = await new NoteService(db, media).PurgeAsync(u, item.Id, CancellationToken.None);
+
+        // PurgeAsync must return true even though k1 delete threw.
+        Assert.True(result);
+        // k2 (non-poison) must have been deleted.
+        Assert.False(inner.Has(k2));
+        // DB rows must be gone.
+        await using var verify = _fx.NewDbContext();
+        Assert.False(await verify.Items.IgnoreQueryFilters().AnyAsync(i => i.Id == item.Id));
+        Assert.False(await verify.Set<ItemPhoto>().AnyAsync(p => p.ItemId == item.Id));
+    }
+
+    [Fact]
     public async Task Mutations_AreUserScoped()
     {
         var owner = "ns-owner";
@@ -239,5 +273,29 @@ public class NoteServiceTests
         var saved = await verify.Items.IgnoreQueryFilters().FirstAsync(i => i.Id == item.Id);
         Assert.Equal("Owned", saved.Title);     // attacker never updated it
         Assert.NotNull(saved.DeletedAt);        // attacker never restored or purged it; still in owner's trash
+    }
+}
+
+/// <summary>
+/// Delegates all IMediaStore calls to an inner FakeMediaStore except DeleteAsync for
+/// a single "poison" key, which throws — used to prove best-effort purge behaviour.
+/// </summary>
+file sealed class PoisonKeyMediaStore : IMediaStore
+{
+    private readonly FakeMediaStore _inner;
+    private readonly string _poisonKey;
+    public PoisonKeyMediaStore(FakeMediaStore inner, string poisonKey) { _inner = inner; _poisonKey = poisonKey; }
+
+    public Task<string> SaveAsync(System.IO.Stream content, string fileExtension, CancellationToken ct)
+        => _inner.SaveAsync(content, fileExtension, ct);
+
+    public Task<System.IO.Stream> OpenReadAsync(string mediaPath, CancellationToken ct)
+        => _inner.OpenReadAsync(mediaPath, ct);
+
+    public Task DeleteAsync(string mediaPath, CancellationToken ct)
+    {
+        if (mediaPath == _poisonKey)
+            throw new InvalidOperationException($"Simulated delete failure for key '{mediaPath}'.");
+        return _inner.DeleteAsync(mediaPath, ct);
     }
 }
