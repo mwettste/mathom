@@ -87,7 +87,7 @@ public class SearchService(MathomDbContext db)
             var query = q!;
             items = items
                 .Where(i => i.Status == ItemStatus.Ready)
-                .Where(i => i.SearchVector!.Matches(EF.Functions.WebSearchToTsQuery("english", query)));
+                .Where(i => i.SearchVector!.Matches(EF.Functions.WebSearchToTsQuery("simple", query)));
         }
 
         if (filters.ItemType is { } t) items = items.Where(i => i.ItemType == t);
@@ -99,7 +99,7 @@ public class SearchService(MathomDbContext db)
         }
 
         items = hasQuery
-            ? items.OrderByDescending(i => i.SearchVector!.Rank(EF.Functions.WebSearchToTsQuery("english", q!)))
+            ? items.OrderByDescending(i => i.SearchVector!.Rank(EF.Functions.WebSearchToTsQuery("simple", q!)))
             : items.OrderByDescending(i => i.CreatedAt);
 
         return await items
