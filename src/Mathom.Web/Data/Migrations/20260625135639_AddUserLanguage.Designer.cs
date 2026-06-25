@@ -3,6 +3,7 @@ using System;
 using Mathom.Web.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using NpgsqlTypes;
@@ -12,9 +13,11 @@ using NpgsqlTypes;
 namespace Mathom.Web.Data.Migrations
 {
     [DbContext(typeof(MathomDbContext))]
-    partial class MathomDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260625135639_AddUserLanguage")]
+    partial class AddUserLanguage
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -225,13 +228,6 @@ namespace Mathom.Web.Data.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("DisplayPath")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ExternalId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<Guid>("ItemId")
                         .HasColumnType("uuid");
 
@@ -243,9 +239,6 @@ namespace Mathom.Web.Data.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
 
                     b.HasIndex("ItemId");
 

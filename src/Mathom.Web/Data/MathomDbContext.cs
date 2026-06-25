@@ -12,6 +12,7 @@ public class MathomDbContext(DbContextOptions<MathomDbContext> options) : Identi
     public DbSet<ItemPhoto> ItemPhotos => Set<ItemPhoto>()!;
     public DbSet<GlossaryTerm> GlossaryTerms => Set<GlossaryTerm>()!;
     public DbSet<GlossaryVariant> GlossaryVariants => Set<GlossaryVariant>()!;
+    public DbSet<UserLanguage> UserLanguages => Set<UserLanguage>()!;
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -96,6 +97,18 @@ public class MathomDbContext(DbContextOptions<MathomDbContext> options) : Identi
                 .HasForeignKey(x => x.GlossaryTermId)
                 .OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => new { x.GlossaryTermId, x.Text }).IsUnique();
+        });
+
+        b.Entity<UserLanguage>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.UserId).IsRequired();
+            e.Property(x => x.Locale).IsRequired();
+            e.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.UserId, x.Locale }).IsUnique();
         });
     }
 }
