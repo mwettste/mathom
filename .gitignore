@@ -13,6 +13,9 @@ appsettings.Local.json
 # Media volume (local dev)
 media/
 
+# Local git worktrees (for testing PR branches; see test-worktree.sh)
+worktrees/
+
 # OS
 .DS_Store
 

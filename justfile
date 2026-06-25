@@ -65,3 +65,9 @@ psql:
 # Run the test suite locally (needs .NET 10 SDK + Docker for Testcontainers; not the compose stack)
 test:
     dotnet test
+
+# Pick an open PR that has a local worktree and launch it for manual testing: opens an iTerm
+# window running `just dev` (Postgres + Tailwind --watch + dotnet watch) in that worktree. macOS only.
+# Create a worktree first with: git worktree add worktrees/<name> <branch>
+test-worktree:
+    ./test-worktree.sh
