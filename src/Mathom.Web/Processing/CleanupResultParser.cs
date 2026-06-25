@@ -39,7 +39,11 @@ public static class CleanupResultParser
                 }
             }
 
-            return new CleanupResult(title, cleanText, itemType, actionable, tags);
+            string? language = null;
+            if (root.TryGetProperty("language", out var lang) && lang.ValueKind == JsonValueKind.String)
+                language = lang.GetString();
+
+            return new CleanupResult(title, cleanText, itemType, actionable, tags, language);
         }
         catch (Exception ex) when (ex is not FormatException)
         {

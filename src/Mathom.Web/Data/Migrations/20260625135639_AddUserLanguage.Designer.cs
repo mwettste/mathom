@@ -3,6 +3,7 @@ using System;
 using Mathom.Web.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using NpgsqlTypes;
@@ -12,9 +13,11 @@ using NpgsqlTypes;
 namespace Mathom.Web.Data.Migrations
 {
     [DbContext(typeof(MathomDbContext))]
-    partial class MathomDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260625135639_AddUserLanguage")]
+    partial class AddUserLanguage
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -184,11 +187,8 @@ namespace Mathom.Web.Data.Migrations
                     b.Property<NpgsqlTsVector>("SearchVector")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("tsvector")
-                        .HasAnnotation("Npgsql:TsVectorConfig", "simple")
+                        .HasAnnotation("Npgsql:TsVectorConfig", "english")
                         .HasAnnotation("Npgsql:TsVectorProperties", new[] { "Title", "CleanText" });
-
-                    b.Property<string>("SourceLanguage")
-                        .HasColumnType("text");
 
                     b.Property<int>("SourceType")
                         .HasColumnType("integer");
@@ -228,13 +228,6 @@ namespace Mathom.Web.Data.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("DisplayPath")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ExternalId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<Guid>("ItemId")
                         .HasColumnType("uuid");
 
@@ -246,9 +239,6 @@ namespace Mathom.Web.Data.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
 
                     b.HasIndex("ItemId");
 
@@ -268,45 +258,6 @@ namespace Mathom.Web.Data.Migrations
                     b.HasIndex("TagId");
 
                     b.ToTable("ItemTags");
-                });
-
-            modelBuilder.Entity("Mathom.Web.Domain.ItemTranslation", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("CleanText")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("ItemId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Locale")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<NpgsqlTsVector>("SearchVector")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("tsvector")
-                        .HasAnnotation("Npgsql:TsVectorConfig", "simple")
-                        .HasAnnotation("Npgsql:TsVectorProperties", new[] { "Title", "CleanText" });
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SearchVector");
-
-                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SearchVector"), "GIN");
-
-                    b.HasIndex("ItemId", "Locale")
-                        .IsUnique();
-
-                    b.ToTable("ItemTranslations");
                 });
 
             modelBuilder.Entity("Mathom.Web.Domain.Tag", b =>
@@ -552,17 +503,6 @@ namespace Mathom.Web.Data.Migrations
                     b.Navigation("Tag");
                 });
 
-            modelBuilder.Entity("Mathom.Web.Domain.ItemTranslation", b =>
-                {
-                    b.HasOne("Mathom.Web.Domain.Item", "Item")
-                        .WithMany("Translations")
-                        .HasForeignKey("ItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Item");
-                });
-
             modelBuilder.Entity("Mathom.Web.Domain.UserLanguage", b =>
                 {
                     b.HasOne("Mathom.Web.Domain.ApplicationUser", null)
@@ -633,8 +573,6 @@ namespace Mathom.Web.Data.Migrations
                     b.Navigation("ItemTags");
 
                     b.Navigation("Photos");
-
-                    b.Navigation("Translations");
                 });
 
             modelBuilder.Entity("Mathom.Web.Domain.Tag", b =>

@@ -9,6 +9,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Mathom.Web.Search;
 
+public record TranslationSummary(string Locale, string Title, string CleanText);
+
 public record ItemSummary(
     Guid Id,
     string? Title,
@@ -18,7 +20,9 @@ public record ItemSummary(
     ItemStatus Status,
     SourceType SourceType,
     bool Actionable,
-    IReadOnlyList<string> Tags);
+    IReadOnlyList<string> Tags,
+    string? SourceLanguage,
+    IReadOnlyList<TranslationSummary> Translations);
 
 public record SearchFilters(ItemType? ItemType = null, bool? Actionable = null, string? Tag = null);
 
@@ -35,7 +39,9 @@ public record ItemDetail(
     DateTimeOffset? ProcessedAt,
     string? Error,
     IReadOnlyList<string> Tags,
-    IReadOnlyList<string> PhotoExternalIds);
+    IReadOnlyList<string> PhotoExternalIds,
+    string? SourceLanguage,
+    IReadOnlyList<TranslationSummary> Translations);
 
 public class SearchService(MathomDbContext db)
 {
@@ -48,7 +54,9 @@ public class SearchService(MathomDbContext db)
                 i.Id, i.Title, i.CleanText, i.RawText, i.ItemType, i.SourceType,
                 i.Status, i.Actionable, i.CreatedAt, i.ProcessedAt, i.Error,
                 i.ItemTags.Select(it => it.Tag.Name).ToList(),
-                i.Photos.OrderBy(p => p.Order).Select(p => p.ExternalId).ToList()))
+                i.Photos.OrderBy(p => p.Order).Select(p => p.ExternalId).ToList(),
+                i.SourceLanguage,
+                i.Translations.Select(t => new TranslationSummary(t.Locale, t.Title, t.CleanText)).ToList()))
             .FirstOrDefaultAsync(ct);
     }
 
@@ -64,7 +72,9 @@ public class SearchService(MathomDbContext db)
             .Select(i => new ItemSummary(
                 i.Id, i.Title, i.CleanText, i.ItemType, i.CreatedAt,
                 i.Status, i.SourceType, i.Actionable,
-                i.ItemTags.Select(it => it.Tag.Name).ToList()))
+                i.ItemTags.Select(it => it.Tag.Name).ToList(),
+                i.SourceLanguage,
+                i.Translations.Select(t => new TranslationSummary(t.Locale, t.Title, t.CleanText)).ToList()))
             .ToListAsync(ct);
     }
 
@@ -87,7 +97,8 @@ public class SearchService(MathomDbContext db)
             var query = q!;
             items = items
                 .Where(i => i.Status == ItemStatus.Ready)
-                .Where(i => i.SearchVector!.Matches(EF.Functions.WebSearchToTsQuery("english", query)));
+                .Where(i => i.SearchVector!.Matches(EF.Functions.WebSearchToTsQuery("simple", query))
+                         || i.Translations.Any(t => t.SearchVector!.Matches(EF.Functions.WebSearchToTsQuery("simple", query))));
         }
 
         if (filters.ItemType is { } t) items = items.Where(i => i.ItemType == t);
@@ -99,7 +110,7 @@ public class SearchService(MathomDbContext db)
         }
 
         items = hasQuery
-            ? items.OrderByDescending(i => i.SearchVector!.Rank(EF.Functions.WebSearchToTsQuery("english", q!)))
+            ? items.OrderByDescending(i => i.SearchVector!.Rank(EF.Functions.WebSearchToTsQuery("simple", q!)))
             : items.OrderByDescending(i => i.CreatedAt);
 
         return await items
@@ -107,7 +118,9 @@ public class SearchService(MathomDbContext db)
             .Select(i => new ItemSummary(
                 i.Id, i.Title, i.CleanText, i.ItemType, i.CreatedAt,
                 i.Status, i.SourceType, i.Actionable,
-                i.ItemTags.Select(it => it.Tag.Name).ToList()))
+                i.ItemTags.Select(it => it.Tag.Name).ToList(),
+                i.SourceLanguage,
+                i.Translations.Select(t => new TranslationSummary(t.Locale, t.Title, t.CleanText)).ToList()))
             .ToListAsync(ct);
     }
 }

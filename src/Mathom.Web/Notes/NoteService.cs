@@ -101,7 +101,9 @@ public class NoteService(MathomDbContext db, IMediaStore media)
             .Select(i => new ItemSummary(
                 i.Id, i.Title, i.CleanText, i.ItemType, i.CreatedAt,
                 i.Status, i.SourceType, i.Actionable,
-                i.ItemTags.Select(it => it.Tag.Name).ToList()))
+                i.ItemTags.Select(it => it.Tag.Name).ToList(),
+                i.SourceLanguage,
+                i.Translations.Select(t => new TranslationSummary(t.Locale, t.Title, t.CleanText)).ToList()))
             .ToListAsync(ct);
     }
 

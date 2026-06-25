@@ -38,4 +38,21 @@ public class FallbackLlmClientTests
 
         await Assert.ThrowsAnyAsync<Exception>(() => fallback.CleanupAsync("hi", System.Array.Empty<string>(), CancellationToken.None));
     }
+
+    [Fact]
+    public async Task Translate_FallsToSecondProvider_OnFirstFailure()
+    {
+        var good = new Mathom.Tests.FakeLlmClient
+        {
+            TranslateRespond = (_, text, locale) => new Mathom.Web.Processing.TranslationResult("T-" + locale, text),
+        };
+        var bad = new Mathom.Tests.FakeLlmClient { ThrowTranslate = true };
+        var fallback = new Mathom.Web.Processing.FallbackLlmClient(
+            new Mathom.Web.Processing.ILlmClient[] { bad, good },
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<Mathom.Web.Processing.FallbackLlmClient>.Instance,
+            System.TimeSpan.Zero);
+
+        var r = await fallback.TranslateAsync("Title", "Body", "en", "", System.Array.Empty<string>(), System.Threading.CancellationToken.None);
+        Assert.Equal("T-en", r.Title);
+    }
 }

@@ -215,4 +215,59 @@ public class SearchServiceTests(PostgresFixture fx)
         Assert.Contains(result, r => r.Id == live.Id);
         Assert.DoesNotContain(result, r => r.Id == trashed.Id);
     }
+
+    [Fact]
+    public async Task Search_FindsNote_ByTranslatedText()
+    {
+        var u = "search-translated-user";
+        await fx.EnsureUserAsync(u, u + "@example.com");
+        var id = Guid.NewGuid();
+        await using (var db = fx.NewDbContext())
+        {
+            var item = new Item
+            {
+                Id = id, Status = ItemStatus.Ready, SourceType = SourceType.Text,
+                RawText = "Hallo", CleanText = "Hallo Welt", Title = "Begruessung",
+                SourceLanguage = "de-DE", ItemType = ItemType.Note,
+                CreatedAt = DateTimeOffset.UtcNow, ProcessedAt = DateTimeOffset.UtcNow,
+                IdempotencyKey = Guid.NewGuid().ToString(), UserId = u,
+            };
+            item.Translations.Add(new ItemTranslation
+            {
+                Id = Guid.NewGuid(), ItemId = id, Locale = "en", Title = "Greeting", CleanText = "Hello world",
+            });
+            db.Items.Add(item);
+            await db.SaveChangesAsync();
+        }
+
+        var svc = new SearchService(fx.NewDbContext());
+        var hits = await svc.SearchAsync(u, "hello", new SearchFilters(), 50, CancellationToken.None);
+        Assert.Contains(hits, h => h.Id == id);          // matched via English translation
+    }
+
+    [Fact]
+    public async Task Summary_CarriesSourceLanguage_AndTranslations()
+    {
+        var u = "search-variants-user";
+        await fx.EnsureUserAsync(u, u + "@example.com");
+        var id = Guid.NewGuid();
+        await using (var db = fx.NewDbContext())
+        {
+            var item = new Item
+            {
+                Id = id, Status = ItemStatus.Ready, SourceType = SourceType.Text,
+                RawText = "x", CleanText = "Inhalt", Title = "Titel", SourceLanguage = "de-CH",
+                ItemType = ItemType.Note, CreatedAt = DateTimeOffset.UtcNow, ProcessedAt = DateTimeOffset.UtcNow,
+                IdempotencyKey = Guid.NewGuid().ToString(), UserId = u,
+            };
+            item.Translations.Add(new ItemTranslation { Id = Guid.NewGuid(), ItemId = id, Locale = "en", Title = "Title", CleanText = "Content" });
+            db.Items.Add(item);
+            await db.SaveChangesAsync();
+        }
+        var svc = new SearchService(fx.NewDbContext());
+        var list = await svc.TimelineAsync(u, 50, CancellationToken.None);
+        var summary = list.Single(i => i.Id == id);
+        Assert.Equal("de-CH", summary.SourceLanguage);
+        Assert.Equal("en", Assert.Single(summary.Translations).Locale);
+    }
 }

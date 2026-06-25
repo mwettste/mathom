@@ -58,9 +58,42 @@ public abstract class OpenAiCompatibleLlmClient : ILlmClient
         return CleanupResultParser.Parse(content);
     }
 
+    public async Task<TranslationResult> TranslateAsync(
+        string sourceTitle, string sourceText, string targetLocale, string styleHint,
+        IReadOnlyList<string> glossaryTerms, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(_model))
+            throw new InvalidOperationException(
+                $"LLM model is not configured for '{_providerName}'.");
+
+        var payload = new
+        {
+            model = _model,
+            response_format = BuildTranslateResponseFormat(),
+            messages = new object[]
+            {
+                new { role = "system", content = TranslatePromptBuilder.BuildSystemPrompt(targetLocale, styleHint, glossaryTerms) },
+                new { role = "user", content = TranslatePromptBuilder.BuildUserPrompt(sourceTitle, sourceText) }
+            }
+        };
+
+        using var resp = await _http.PostAsJsonAsync("chat/completions", payload, ct);
+        resp.EnsureSuccessStatusCode();
+        using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(ct));
+        var content = doc.RootElement
+            .GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString()!;
+        return TranslationResultParser.Parse(content);
+    }
+
     /// <summary>
     /// The OpenAI <c>response_format</c> object. Defaults to <c>json_object</c> (works on most
     /// providers, e.g. OpenRouter); a provider can override to require a JSON schema.
     /// </summary>
     protected virtual object BuildResponseFormat() => new { type = "json_object" };
+
+    /// <summary>
+    /// The OpenAI <c>response_format</c> for the translation call. Defaults to
+    /// <c>json_object</c>; a provider can override to require a JSON schema.
+    /// </summary>
+    protected virtual object BuildTranslateResponseFormat() => new { type = "json_object" };
 }

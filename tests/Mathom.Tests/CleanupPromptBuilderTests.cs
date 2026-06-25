@@ -39,4 +39,12 @@ public class CleanupPromptBuilderTests
         Assert.Contains("FireSkills — our internal time-tracking product", p);
         Assert.Contains("em dash", p, System.StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void SystemPrompt_InstructsSameLanguage_AndAsksForLanguageField()
+    {
+        var p = CleanupPromptBuilder.BuildSystemPrompt(System.Array.Empty<string>());
+        Assert.Contains("same language", p, System.StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("language", p, System.StringComparison.OrdinalIgnoreCase);
+    }
 }

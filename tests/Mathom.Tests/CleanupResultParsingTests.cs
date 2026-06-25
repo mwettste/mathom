@@ -42,4 +42,24 @@ public class CleanupResultParsingTests
         var json = """{"title":"t","clean_text":"x","item_type":"note","actionable":"yes","tags":[]}""";
         Assert.Throws<FormatException>(() => CleanupResultParser.Parse(json));
     }
+
+    [Fact]
+    public void Parse_ReadsLanguage_WhenPresent()
+    {
+        var json = """
+        {"title":"Titel","clean_text":"Inhalt","item_type":"note","actionable":false,"tags":[],"language":"de"}
+        """;
+        var r = CleanupResultParser.Parse(json);
+        Assert.Equal("de", r.Language);
+    }
+
+    [Fact]
+    public void Parse_LanguageNull_WhenAbsent()
+    {
+        var json = """
+        {"title":"Title","clean_text":"Body","item_type":"note","actionable":false,"tags":[]}
+        """;
+        var r = CleanupResultParser.Parse(json);
+        Assert.Null(r.Language);
+    }
 }
