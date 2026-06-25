@@ -96,14 +96,15 @@ function photoCapture() {
     done: false,
     pick(e) {
       const incoming = Array.from(e.target.files || []);
+      let capped = false;
       for (const f of incoming) {
-        if (this.bag.files.length >= 8) { this.status = 'At most 8 images.'; break; }
+        if (this.bag.files.length >= 8) { this.status = 'At most 8 images.'; capped = true; break; }
         this.bag.items.add(f);
         this.previews.push({ url: URL.createObjectURL(f) });
       }
       this.count = this.bag.files.length;
       this.done = false;
-      if (this.bag.files.length <= 8) this.status = '';
+      if (!capped) this.status = '';
       e.target.value = '';
     },
     remove(i) {
