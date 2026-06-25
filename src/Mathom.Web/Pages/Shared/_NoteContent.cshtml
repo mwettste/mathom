@@ -80,11 +80,18 @@ else if (inflight)
 
 @if (Model.PhotoExternalIds.Count > 0)
 {
-    <section class="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+    <section class="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3" x-data="{ zoom: null }">
         @foreach (var pid in Model.PhotoExternalIds)
         {
-            <img class="h-32 w-full rounded-box border border-base-300 object-cover" src="@($"/media/{pid}?variant=display")" alt="Captured photo" loading="lazy" />
+            <img class="h-32 w-full rounded-box border border-base-300 object-cover cursor-zoom-in"
+                 src="@($"/media/{pid}?variant=display")" alt="Captured photo" loading="lazy"
+                 x-on:click="zoom = $el.currentSrc || $el.src" />
         }
+        <div x-show="zoom" x-cloak
+             x-on:click="zoom = null" x-on:keydown.escape.window="zoom = null"
+             class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 cursor-zoom-out">
+            <img x-bind:src="zoom" alt="Captured photo, enlarged" class="max-h-full max-w-full rounded-box" />
+        </div>
     </section>
 }
 

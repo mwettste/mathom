@@ -38,5 +38,8 @@ public class PhotoDetailPageTests(PostgresFixture fx)
         var html = await client.GetStringAsync($"/Note/{item.Id}");
 
         Assert.Contains($"/media/{photoExternalId}?variant=display", html);
+        // Tapping a thumbnail opens an Alpine lightbox showing the enlarged variant.
+        Assert.Contains("cursor-zoom-in", html);
+        Assert.Contains("x-bind:src=\"zoom\"", html);
     }
 }
