@@ -13,5 +13,5 @@ public readonly record struct ImageData(Stream Content, string FileName);
 /// images into a single string. Parallel to <see cref="ITranscriber"/> for the voice path.</summary>
 public interface IImageReader
 {
-    Task<string> ExtractAsync(IReadOnlyList<ImageData> images, IReadOnlyList<string> glossary, CancellationToken ct);
+    Task<string> ExtractAsync(IReadOnlyList<ImageData> images, IReadOnlyList<string> glossary, string? context, CancellationToken ct);
 }
