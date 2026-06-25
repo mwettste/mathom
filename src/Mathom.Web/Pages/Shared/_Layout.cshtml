@@ -47,6 +47,7 @@
     <script defer src="~/lib/htmx.min.js"></script>
     <script defer src="~/lib/idiomorph-ext.min.js"></script>
     <script defer src="~/js/offline.js" asp-append-version="true"></script>
+    <script defer src="~/js/toasts.js" asp-append-version="true"></script>
     <script defer src="~/js/capture.js" asp-append-version="true"></script>
     <script defer src="~/js/glossary.js" asp-append-version="true"></script>
     <script defer src="~/lib/alpine.min.js"></script>
@@ -98,6 +99,12 @@
     <main class="mx-auto max-w-2xl px-4 py-6 pb-16">
         @RenderBody()
     </main>
+    @if (User.Identity?.IsAuthenticated == true && (ViewData["HideAppNav"] as bool?) != true)
+    {
+        <a href="/Capture" aria-label="Capture a thought" class="btn btn-primary btn-circle fixed bottom-6 right-6 z-40 shadow-lg md:hidden">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+        </a>
+    }
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function () {

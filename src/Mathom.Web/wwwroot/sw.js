@@ -1,4 +1,4 @@
-const CACHE = 'mathom-shell-v12';
+const CACHE = 'mathom-shell-v13';
 const SHELL = [
   '/Capture',
   '/css/app.css',
@@ -10,6 +10,7 @@ const SHELL = [
   '/fonts/ibm-plex-mono-400.woff2',
   '/fonts/ibm-plex-mono-500.woff2',
   '/js/offline.js',
+  '/js/toasts.js',
   '/js/capture.js',
   '/js/glossary.js',
   '/lib/htmx.min.js',

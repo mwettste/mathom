@@ -2,12 +2,13 @@
 @model IndexModel
 @{ ViewData["Title"] = "Timeline"; }
 
-<div class="mb-4">
-    <input class="input w-full" type="search" name="q" value="@Model.Q"
+<div class="mb-4 relative">
+    <input class="input w-full pr-10" type="search" name="q" value="@Model.Q"
            placeholder="Search your brain…" autocomplete="off" aria-label="Search notes"
            hx-get="/" hx-target="#results" hx-select="#results" hx-push-url="true"
            hx-trigger="input changed delay:300ms, search"
-           hx-include="#active-filters [name]" />
+           hx-include="#active-filters [name]" hx-indicator="#search-spin" />
+    <span id="search-spin" class="htmx-indicator loading loading-spinner loading-sm absolute right-3 top-1/2 -translate-y-1/2"></span>
     <span id="active-filters" hidden>
         @if (Model.Tag is not null) { <input type="hidden" name="tag" value="@Model.Tag" /> }
         @if (Model.Type is not null) { <input type="hidden" name="type" value="@Model.TypeParam" /> }
