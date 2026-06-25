@@ -28,6 +28,8 @@ public class Item
 
     public string IdempotencyKey { get; set; } = string.Empty;
     public string UserId { get; set; } = string.Empty;
+    // Null = Inbox (no context). FK to Context with ON DELETE SET NULL.
+    public Guid? ContextId { get; set; }
     public List<ItemTag> ItemTags { get; set; } = new();
     public List<ItemPhoto> Photos { get; set; } = new();
 
