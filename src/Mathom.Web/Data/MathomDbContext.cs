@@ -65,11 +65,13 @@ public class MathomDbContext(DbContextOptions<MathomDbContext> options) : Identi
         {
             e.HasKey(x => x.Id);
             e.Property(x => x.MediaPath).IsRequired();
+            e.Property(x => x.ExternalId).IsRequired();
             e.HasOne(x => x.Item)
                 .WithMany(i => i.Photos)
                 .HasForeignKey(x => x.ItemId)
                 .OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => x.ItemId);
+            e.HasIndex(x => x.ExternalId).IsUnique();
         });
 
         b.Entity<GlossaryTerm>(e =>
