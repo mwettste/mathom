@@ -2,18 +2,24 @@
 @model IReadOnlyList<Mathom.Web.Admin.UserRow>
 @{ var me = User.FindFirstValue(ClaimTypes.NameIdentifier); }
 
-<ul class="glossary-terms">
+<ul class="divide-y divide-base-300">
     @foreach (var u in Model)
     {
-        <li class="glossary-term">
-            <div class="glossary-term__head">
-                <span>@u.Email @(u.IsApproved ? "" : "· pending")</span>
+        <li class="flex items-center justify-between gap-3 py-4">
+            <div class="flex items-center gap-2">
+                <span class="font-sans text-sm">@u.Email</span>
+                @if (!u.IsApproved)
+                {
+                    <span class="badge badge-info badge-sm">pending</span>
+                }
+            </div>
+            <div>
                 @if (!u.IsApproved)
                 {
                     <form method="post" hx-post="@($"/Admin/Users?handler=Approve&id={u.Id}")"
                           hx-target="#users-list" hx-swap="innerHTML">
                         @Html.AntiForgeryToken()
-                        <button class="linklike" type="submit">Approve</button>
+                        <button class="btn btn-primary btn-sm" type="submit">Approve</button>
                     </form>
                 }
                 else if (u.Id != me)
@@ -21,7 +27,7 @@
                     <form method="post" hx-post="@($"/Admin/Users?handler=Revoke&id={u.Id}")"
                           hx-target="#users-list" hx-swap="innerHTML">
                         @Html.AntiForgeryToken()
-                        <button class="linklike linklike--danger" type="submit">Revoke</button>
+                        <button class="btn btn-ghost btn-sm text-error" type="submit">Revoke</button>
                     </form>
                 }
             </div>

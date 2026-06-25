@@ -3,32 +3,32 @@
 
 @if (Model.Count == 0)
 {
-    <p class="empty">Trash is empty.</p>
+    <p class="py-16 text-center text-base-content/60">Nothing in the bin — the archive is clean.</p>
 }
 else
 {
-    <ul class="entries">
+    <ul class="divide-y divide-base-300">
         @foreach (var item in Model)
         {
             var title = item.Title ?? (item.SourceType == SourceType.Voice ? "Voice note" : "Quick note");
-            <li class="entry">
-                <div class="entry__head">
-                    <span class="entry__title">@title</span>
+            <li class="py-4">
+                <div>
+                    <span class="font-display text-base font-medium text-base-content/50">@title</span>
                 </div>
                 @if (!string.IsNullOrEmpty(item.CleanText))
                 {
-                    <p class="entry__body">@item.CleanText</p>
+                    <p class="text-sm text-base-content/40 line-clamp-2">@item.CleanText</p>
                 }
-                <div class="entry__meta trash-actions">
+                <div class="mt-2 flex flex-wrap items-center gap-3">
                     <form method="post" hx-post="@($"/Trash?handler=Restore&id={item.Id}")"
                           hx-target="#trash-list" hx-swap="innerHTML">
                         @Html.AntiForgeryToken()
-                        <button class="linklike" type="submit">Restore</button>
+                        <button class="btn btn-ghost btn-sm" type="submit">Restore</button>
                     </form>
                     <form method="post" hx-post="@($"/Trash?handler=Purge&id={item.Id}")"
                           hx-target="#trash-list" hx-swap="innerHTML" hx-confirm="Permanently delete this note? This cannot be undone.">
                         @Html.AntiForgeryToken()
-                        <button class="linklike linklike--danger" type="submit">Delete permanently</button>
+                        <button class="btn btn-ghost btn-sm text-error" type="submit">Delete permanently</button>
                     </form>
                 </div>
             </li>

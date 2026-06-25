@@ -2,38 +2,38 @@
 
 @if (Model.Count == 0)
 {
-    <p class="empty">No terms yet.</p>
+    <p class="py-16 text-center text-base-content/60">No terms yet — add one above.</p>
 }
 else
 {
-    <ul class="glossary-terms">
+    <ul class="divide-y divide-base-300">
         @foreach (var t in Model)
         {
-            <li class="glossary-term">
-                <div class="glossary-term__head">
-                    <span>@t.Term</span>
+            <li class="py-4">
+                <div class="flex items-center justify-between">
+                    <span class="font-mono font-medium text-sm">@t.Term</span>
                     <form method="post" hx-post="@($"/Glossary?handler=Remove&id={t.Id}")"
                           hx-target="#glossary-list" hx-swap="innerHTML">
                         @Html.AntiForgeryToken()
-                        <button class="linklike linklike--danger" type="submit" aria-label="Remove @t.Term">✕</button>
+                        <button class="btn btn-ghost btn-xs text-base-content/40 hover:text-error" type="submit" aria-label="Remove @t.Term">✕</button>
                     </form>
                 </div>
-                <div id="glossary-desc-@t.Id" class="glossary-desc">
+                <div id="glossary-desc-@t.Id" class="glossary-desc mt-1">
                     <partial name="Shared/_GlossaryDescription" model="@(new Mathom.Web.Glossary.GlossaryDescription(t.Id, t.Description))" />
                 </div>
                 @if (t.Variants.Count > 0)
                 {
-                    <div class="glossary-variants">
+                    <div class="mt-2 flex flex-wrap gap-1">
                         @foreach (var v in t.Variants)
                         {
-                            <div class="chip">
-                                <span>@v.Text</span>
+                            <span class="badge badge-ghost badge-sm font-mono">
+                                @v.Text
                                 <form method="post" hx-post="@($"/Glossary?handler=RemoveVariant&id={v.Id}")"
-                                      hx-target="#glossary-list" hx-swap="innerHTML" class="glossary-variant__remove">
+                                      hx-target="#glossary-list" hx-swap="innerHTML" class="inline">
                                     @Html.AntiForgeryToken()
-                                    <button class="linklike" type="submit" aria-label="Remove variant @v.Text">✕</button>
+                                    <button class="btn btn-ghost btn-xs text-base-content/40 hover:text-error" type="submit" aria-label="Remove variant @v.Text">✕</button>
                                 </form>
-                            </div>
+                            </span>
                         }
                     </div>
                 }

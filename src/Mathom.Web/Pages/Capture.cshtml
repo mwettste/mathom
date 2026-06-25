@@ -2,29 +2,33 @@
 @model CaptureModel
 @{ ViewData["Title"] = "Capture"; }
 
-<section class="capture">
-    <div class="card" x-data="textCapture()">
-        <h2 class="card__title">Type</h2>
-        <textarea class="field" x-model="text" rows="4" placeholder="Dump an idea…"
-                  @@keydown.cmd.enter="submit()" @@keydown.ctrl.enter="submit()"></textarea>
-        <div class="card__actions">
-            <button class="btn btn--primary" type="button" @@click="submit()"
-                    x-bind:disabled="busy" x-text="busy ? 'Saving…' : 'Capture'"></button>
-            <span class="hint" x-text="status"></span>
+<section class="flex flex-col gap-6">
+    <div class="card bg-base-200" x-data="textCapture()">
+        <div class="card-body gap-3">
+            <h2 class="font-display text-lg font-medium text-base-content/70">Type</h2>
+            <textarea class="textarea w-full text-base leading-relaxed min-h-[8rem]" x-model="text" rows="6" placeholder="Dump an idea…"
+                      @@keydown.cmd.enter="submit()" @@keydown.ctrl.enter="submit()"></textarea>
+            <div class="flex items-center gap-3">
+                <button class="btn btn-primary" type="button" @@click="submit()"
+                        x-bind:disabled="busy" x-text="busy ? 'Saving…' : 'Capture'"></button>
+                <span class="text-xs text-base-content/50" x-text="status"></span>
+            </div>
         </div>
     </div>
 
-    <div class="card" x-data="voiceCapture()">
-        <h2 class="card__title">Speak</h2>
-        <button class="btn btn--record" type="button" @@click="toggle()"
-                x-bind:class="{ 'is-recording': recording }" x-bind:disabled="uploading">
-            <span class="rec-dot" x-show="recording"></span>
-            <span x-text="recording ? ('Stop · ' + fmt(elapsed)) : (uploading ? 'Uploading…' : 'Record')"></span>
-        </button>
-        <p class="hint" x-text="status"></p>
-        <div class="hint capture__done" x-show="done" x-cloak>
-            <span class="pill processing"><span class="dot"></span>transcribing in the background</span>
-            <a href="/">View timeline →</a>
+    <div class="card bg-base-200" x-data="voiceCapture()">
+        <div class="card-body gap-3">
+            <h2 class="font-display text-base font-medium text-base-content/60">Speak</h2>
+            <button class="btn btn-outline w-fit gap-2" type="button" @@click="toggle()"
+                    x-bind:class="{ 'btn-error': recording }" x-bind:disabled="uploading">
+                <span class="inline-block size-2 rounded-full bg-error animate-pulse" x-show="recording"></span>
+                <span x-text="recording ? ('Stop · ' + fmt(elapsed)) : (uploading ? 'Uploading…' : 'Record')"></span>
+            </button>
+            <p class="text-xs text-base-content/50" x-text="status"></p>
+            <div class="flex flex-col items-start gap-2 text-xs" x-show="done" x-cloak>
+                <span class="badge badge-info">transcribing in the background</span>
+                <a class="link link-primary" href="/">View timeline →</a>
+            </div>
         </div>
     </div>
 

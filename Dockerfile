@@ -1,5 +1,13 @@
 # syntax=docker/dockerfile:1
 
+# ---- css (Tailwind + daisyUI; build-time only) ----
+FROM node:22-alpine AS css
+WORKDIR /css
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY src/ src/
+RUN npx tailwindcss -i src/Mathom.Web/Styles/app.css -o src/Mathom.Web/wwwroot/css/app.css --minify
+
 # ---- build ----
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
@@ -10,6 +18,8 @@ RUN dotnet restore src/Mathom.Web/Mathom.Web.csproj
 
 # Build & publish (migrations and wwwroot are part of the web project).
 COPY src/ src/
+# Built CSS from the css stage (overlays into wwwroot before publish)
+COPY --from=css /css/src/Mathom.Web/wwwroot/css/app.css src/Mathom.Web/wwwroot/css/app.css
 RUN dotnet publish src/Mathom.Web/Mathom.Web.csproj -c Release -o /app/publish /p:UseAppHost=false
 
 # ---- runtime ----

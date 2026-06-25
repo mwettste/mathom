@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+@plugin "daisyui" {
+  themes: light --default, dark --prefersdark, forest;
+}
+
+/* ---- Catalogue palette: light ---- */
+@plugin "daisyui/theme" {
+  name: "light";
+  default: true;
+  color-scheme: light;
+  --color-base-100: #FCFCFA;
+  --color-base-200: #F4F3EF;
+  --color-base-300: #E8E7E1;
+  --color-base-content: #15171C;
+  --color-primary: #7A2E2A;
+  --color-primary-content: #FCFCFA;
+  --color-secondary: #3E5C73;
+  --color-secondary-content: #FCFCFA;
+  --color-accent: #E0A53B;
+  --color-accent-content: #1A1206;
+  --color-neutral: #2A2C32;
+  --color-neutral-content: #FCFCFA;
+  --color-info: #3E5C73;
+  --color-success: #2F6B4F;
+  --color-warning: #B07A12;
+  --color-error: #A23B36;
+  --radius-box: 0.5rem;
+  --radius-field: 0.375rem;
+  --border: 1px;
+}
+
+/* ---- Catalogue palette: dark ---- */
+@plugin "daisyui/theme" {
+  name: "dark";
+  prefersdark: true;
+  color-scheme: dark;
+  --color-base-100: #141519;
+  --color-base-200: #1B1D22;
+  --color-base-300: #24262C;
+  --color-base-content: #E7E6E1;
+  --color-primary: #C2615B;
+  --color-primary-content: #141519;
+  --color-secondary: #7FA8C9;
+  --color-secondary-content: #141519;
+  --color-accent: #E2A93F;
+  --color-accent-content: #141519;
+  --color-neutral: #E7E6E1;
+  --color-neutral-content: #141519;
+  --color-info: #7FA8C9;
+  --color-success: #6FB39C;
+  --color-warning: #D6A24A;
+  --color-error: #D98179;
+  --radius-box: 0.5rem;
+  --radius-field: 0.375rem;
+  --border: 1px;
+}
+
+/* ---- fonts (self-hosted) ---- */
+@font-face { font-family: "Newsreader"; font-weight: 500; font-display: swap; src: url("/fonts/newsreader-500.woff2") format("woff2"); }
+@font-face { font-family: "Newsreader"; font-weight: 600; font-display: swap; src: url("/fonts/newsreader-600.woff2") format("woff2"); }
+@font-face { font-family: "Public Sans"; font-weight: 400; font-display: swap; src: url("/fonts/public-sans-400.woff2") format("woff2"); }
+@font-face { font-family: "Public Sans"; font-weight: 500; font-display: swap; src: url("/fonts/public-sans-500.woff2") format("woff2"); }
+@font-face { font-family: "Public Sans"; font-weight: 600; font-display: swap; src: url("/fonts/public-sans-600.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-weight: 400; font-display: swap; src: url("/fonts/ibm-plex-mono-400.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-weight: 500; font-display: swap; src: url("/fonts/ibm-plex-mono-500.woff2") format("woff2"); }
+
+@theme {
+  --font-sans: "Public Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Newsreader", ui-serif, Georgia, serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+/* ---- base ---- */
+@layer base {
+  body { font-family: var(--font-sans); }
+  [x-cloak] { display: none !important; }
+  /* Keyboard focus — visible on every interactive element */
+  :focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; border-radius: 4px; }
+  /* Unclassed anchors stay legible; daisyUI/utility-styled links override this naturally */
+  a:not([class]) { color: var(--color-primary); }
+  a:not([class]):hover { text-decoration: underline; }
+  /* ASP.NET MVC adds this class to the validation summary div when there are no errors */
+  .validation-summary-valid { display: none; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+}
+
+/* No custom component CSS: every widget — including the JS-injected glossary
+   modal and offline banner — is styled with stock daisyUI components +
+   Tailwind utilities directly in its markup. */

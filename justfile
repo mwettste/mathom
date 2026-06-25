@@ -27,6 +27,12 @@ db:
 run: db
     ASPNETCORE_ENVIRONMENT=Development dotnet watch --project src/Mathom.Web
 
+# Run the app with hot reload AND Tailwind --watch (CSS rebuilds on class changes).
+# Ctrl-C stops both. Use this for UI work; `just run` is backend-only.
+dev: db
+    npx tailwindcss -i src/Mathom.Web/Styles/app.css -o src/Mathom.Web/wwwroot/css/app.css --watch &
+    ASPNETCORE_ENVIRONMENT=Development dotnet watch --project src/Mathom.Web
+
 # Stop the stack (keeps the database volume)
 down:
     docker compose down

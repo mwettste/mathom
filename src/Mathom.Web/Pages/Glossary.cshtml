@@ -2,17 +2,17 @@
 @model GlossaryModel
 @{ ViewData["Title"] = "Glossary"; }
 
-<p class="back"><a href="/">← Timeline</a></p>
-<h1 class="note__title">Glossary</h1>
-<p class="hint">Correct spellings of your domain terms. New captures are corrected against this list.</p>
+<p class="mb-4"><a class="link link-hover font-mono text-xs uppercase tracking-wider text-base-content/50" href="/">← Timeline</a></p>
+<h1 class="font-display text-2xl font-medium leading-snug">Glossary</h1>
+<p class="text-sm text-base-content/60">Teach the AI your domain vocabulary. Terms are used to correct transcriptions and guide clean-up.</p>
 
-<form class="glossary-add" method="post" hx-post="/Glossary?handler=Add"
+<form class="mt-4 flex gap-2" method="post" hx-post="/Glossary?handler=Add"
       hx-target="#glossary-list" hx-swap="innerHTML">
     @Html.AntiForgeryToken()
-    <input class="field" name="term" placeholder="Add a term…" autocomplete="off" />
-    <button class="btn btn--primary" type="submit">Add</button>
+    <input class="input flex-1" name="term" placeholder="Add a term…" autocomplete="off" />
+    <button class="btn btn-primary" type="submit">Add</button>
 </form>
 
-<div id="glossary-list">
+<div id="glossary-list" class="mt-6">
     <partial name="Shared/_GlossaryList" model="Model.Terms" />
 </div>

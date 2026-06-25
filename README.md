@@ -130,6 +130,8 @@ Needs the **.NET 10 SDK** and a local PostgreSQL matching `ConnectionStrings:Mat
 `appsettings.json` (or override it). Then `dotnet run --project src/Mathom.Web`. Put provider keys and
 `AdminEmail` in `appsettings.Development.json` (gitignored).
 
+Before the first `just run` (or after pulling), generate the stylesheet once: `npm install && npm run build:css`. `just dev` does this continuously while you work on the UI.
+
 ### Tests
 
 `just test` (or `dotnet test`). Integration tests spin up a real PostgreSQL via

@@ -105,8 +105,8 @@ window.mathomOutbox = (function () {
     if (document.getElementById('auth-required-banner')) return;
     const b = document.createElement('div');
     b.id = 'auth-required-banner';
-    b.className = 'auth-banner';
-    b.innerHTML = 'Your session expired — <a href="/Login">sign in</a> to sync queued notes.';
+    b.className = 'alert alert-error fixed inset-x-0 bottom-0 z-50 justify-center rounded-none';
+    b.innerHTML = 'Your session expired — <a class="link" href="/Login">sign in</a> to sync queued notes.';
     document.body.appendChild(b);
   });
 

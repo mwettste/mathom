@@ -9,47 +9,47 @@
         _ => "Quick note"
     });
 }
-<header class="note__head">
-    <h1 class="note__title">@title</h1>
-    <div class="note__meta">
+<header class="mb-4">
+    <div class="flex items-center gap-2 mb-1">
         @if (!string.IsNullOrEmpty(pillLabel))
         {
-            <span class="pill @pillCss"><span class="dot"></span>@pillLabel</span>
+            <span class="badge badge-sm @(Model.Status == ItemStatus.Failed ? "badge-error" : "badge-info")">@pillLabel</span>
         }
         else
         {
             @if (Model.ItemType is not null)
             {
-                <span class="kind">@Model.ItemType.ToString()!.ToLowerInvariant()</span>
-            }
-            @if (Model.Actionable)
-            {
-                <span class="flag">actionable</span>
+                <span class="font-mono text-xs text-base-content/40">@Model.ItemType.ToString()!.ToLowerInvariant()</span>
             }
         }
-        <span class="note__time">@RelativeTime.Ago(Model.CreatedAt)</span>
+        @if (Model.Actionable)
+        {
+            <span class="font-mono text-xs text-base-content/40">actionable</span>
+        }
+        <span class="font-mono text-xs text-base-content/40 ml-auto">@RelativeTime.Ago(Model.CreatedAt)</span>
     </div>
+    <h1 class="font-display text-2xl font-medium leading-snug">@title</h1>
 </header>
 
 @if (Model.Status == ItemStatus.Ready || Model.Status == ItemStatus.Failed)
 {
-    <div class="note-actions">
+    <div class="flex gap-2 mb-4">
         @if (Model.Status == ItemStatus.Ready)
         {
-            <button class="linklike" type="button"
+            <button class="btn btn-ghost btn-sm" type="button"
                     hx-get="@($"/Note/{Model.Id}?handler=Edit")" hx-target="#note-content" hx-swap="innerHTML">Edit</button>
         }
-        <form method="post" class="note-actions__reprocess"
+        <form method="post"
               hx-post="@($"/Note/{Model.Id}?handler=Reprocess")" hx-target="#note-content" hx-swap="innerHTML">
             @Html.AntiForgeryToken()
-            <button class="linklike" type="submit">Re-process</button>
+            <button class="btn btn-ghost btn-sm" type="submit">Re-process</button>
         </form>
         @if (Model.Status == ItemStatus.Ready)
         {
-            <form method="post" class="note-actions__delete"
+            <form method="post"
                   hx-post="@($"/Note/{Model.Id}?handler=Delete")" hx-confirm="Move this note to trash?">
                 @Html.AntiForgeryToken()
-                <button class="linklike linklike--danger" type="submit">Delete</button>
+                <button class="btn btn-ghost btn-sm text-error" type="submit">Delete</button>
             </form>
         }
     </div>
@@ -57,23 +57,23 @@
 
 @if (Model.Status == ItemStatus.Failed)
 {
-    <p class="note__error">Couldn't process this note. <span>@Model.Error</span></p>
+    <div class="alert alert-error mb-4">Couldn't process this note. <span>@Model.Error</span></div>
 }
 
 @if (!string.IsNullOrEmpty(Model.CleanText))
 {
-    <div class="note__body">@Model.CleanText</div>
+    <div class="text-base leading-relaxed whitespace-pre-wrap max-w-prose mb-4" data-glossary-source>@Model.CleanText</div>
 }
 else if (inflight)
 {
-    <p class="note__pending">Working on it…</p>
+    <p class="text-base-content/50 mb-4">Working on it…</p>
 }
 
 @if (Model.SourceType == SourceType.Voice && !string.IsNullOrEmpty(Model.RawText) && Model.RawText != Model.CleanText)
 {
-    <section class="note__transcript">
-        <h2 class="note__subhead">Transcript</h2>
-        <p>@Model.RawText</p>
+    <section class="mb-4">
+        <h2 class="font-display text-base font-medium text-base-content/70 mb-1">Transcript</h2>
+        <p class="text-base leading-relaxed whitespace-pre-wrap max-w-prose text-base-content/50" data-glossary-source>@Model.RawText</p>
     </section>
 }
 
@@ -89,10 +89,10 @@ else if (inflight)
 
 @if (Model.Tags.Count > 0)
 {
-    <div class="note__tags">
+    <div class="flex flex-wrap gap-1 mb-4">
         @foreach (var t in Model.Tags)
         {
-            <a class="tag" href="/?tag=@Uri.EscapeDataString(t)">#@t</a>
+            <a class="badge badge-ghost badge-sm font-mono" href="/?tag=@Uri.EscapeDataString(t)">#@t</a>
         }
     </div>
 }

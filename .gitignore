@@ -21,3 +21,8 @@ media/
 
 # AI-assisted design docs (specs & plans) — kept local, not published
 docs/superpowers/
+
+# Node / Tailwind build (build-time only)
+node_modules/
+# Generated CSS bundle (built in Docker for prod, by `just dev` locally)
+src/Mathom.Web/wwwroot/css/app.css
