@@ -15,7 +15,13 @@ public record CleanupResult(
     IReadOnlyList<CleanupTag> Tags,
     string? Language = null);
 
+public record TranslationResult(string Title, string CleanText);
+
 public interface ILlmClient
 {
     Task<CleanupResult> CleanupAsync(string rawText, IReadOnlyList<string> glossary, CancellationToken ct);
+
+    Task<TranslationResult> TranslateAsync(
+        string sourceTitle, string sourceText, string targetLocale, string styleHint,
+        IReadOnlyList<string> glossaryTerms, CancellationToken ct);
 }

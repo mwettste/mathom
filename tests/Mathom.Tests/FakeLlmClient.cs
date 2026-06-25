@@ -28,4 +28,19 @@ public class FakeLlmClient : ILlmClient
         if (Throw) throw new InvalidOperationException("fake failure");
         return Task.FromResult(Respond(rawText));
     }
+
+    public bool ThrowTranslate { get; set; }
+    public int TranslateCalls { get; private set; }
+    // (rawTitle, rawText, targetLocale) -> result
+    public Func<string, string, string, TranslationResult> TranslateRespond { get; set; } =
+        (title, text, locale) => new TranslationResult(title + " [" + locale + "]", text + " [" + locale + "]");
+
+    public Task<TranslationResult> TranslateAsync(
+        string sourceTitle, string sourceText, string targetLocale, string styleHint,
+        IReadOnlyList<string> glossaryTerms, CancellationToken ct)
+    {
+        TranslateCalls++;
+        if (ThrowTranslate) throw new InvalidOperationException("fake translate failure");
+        return Task.FromResult(TranslateRespond(sourceTitle, sourceText, targetLocale));
+    }
 }
