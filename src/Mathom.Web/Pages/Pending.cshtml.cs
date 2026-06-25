@@ -9,13 +9,10 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 namespace Mathom.Web.Pages;
 
 [Authorize]
-public class PendingModel : PageModel
+public class PendingModel(UserAdminService userAdmin) : PageModel
 {
-    private readonly UserAdminService _userAdmin;
-    public PendingModel(UserAdminService userAdmin) => _userAdmin = userAdmin;
-
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
     public async Task<IActionResult> OnGetAsync(CancellationToken ct)
-        => await _userAdmin.IsApprovedAsync(UserId, ct) ? Redirect("/") : Page();
+        => await userAdmin.IsApprovedAsync(UserId, ct) ? Redirect("/") : Page();
 }

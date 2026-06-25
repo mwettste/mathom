@@ -12,16 +12,13 @@ using Xunit;
 namespace Mathom.Tests;
 
 [Collection("postgres")]
-public class AuthTests
+public class AuthTests(PostgresFixture fx)
 {
-    private readonly PostgresFixture _fx;
-    public AuthTests(PostgresFixture fx) => _fx = fx;
-
     private WebApplicationFactory<Program> CreateApp() =>
         new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
         {
             b.UseEnvironment("Testing");
-            b.UseSetting("ConnectionStrings:Mathom", _fx.ConnectionString);
+            b.UseSetting("ConnectionStrings:Mathom", fx.ConnectionString);
         });
 
     // GET the page, scrape its anti-forgery token, POST the form with the cookie+token.
@@ -152,7 +149,7 @@ public class AuthTests
         new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
         {
             b.UseEnvironment("Testing");
-            b.UseSetting("ConnectionStrings:Mathom", _fx.ConnectionString);
+            b.UseSetting("ConnectionStrings:Mathom", fx.ConnectionString);
             b.UseSetting("AdminEmail", adminEmail);
         });
 
@@ -235,7 +232,7 @@ public class AuthTests
             using var app = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
             {
                 b.UseEnvironment("Testing");
-                b.UseSetting("ConnectionStrings:Mathom", _fx.ConnectionString);
+                b.UseSetting("ConnectionStrings:Mathom", fx.ConnectionString);
                 b.UseSetting("DataProtection:KeysPath", keysDir);
             });
 

@@ -5,14 +5,11 @@ using Xunit;
 namespace Mathom.Tests;
 
 [Collection("postgres")]
-public class PwaTests
+public class PwaTests(PostgresFixture fx)
 {
-    private readonly PostgresFixture _fx;
-    public PwaTests(PostgresFixture fx) => _fx = fx;
-
     private async Task<TestWebAppFactory> CreateAppAsync()
     {
-        var app = new TestWebAppFactory(_fx.ConnectionString);
+        var app = new TestWebAppFactory(fx.ConnectionString);
         await app.SeedUsersAsync();
         return app;
     }

@@ -10,28 +10,20 @@ using Microsoft.Extensions.Logging;
 
 namespace Mathom.Web.Processing;
 
-public class ProcessingWorker : BackgroundService
+public class ProcessingWorker(IServiceScopeFactory scopeFactory, ILogger<ProcessingWorker> logger) : BackgroundService
 {
-    private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ILogger<ProcessingWorker> _logger;
     private readonly TimeSpan _idleDelay = TimeSpan.FromSeconds(1);
-
-    public ProcessingWorker(IServiceScopeFactory scopeFactory, ILogger<ProcessingWorker> logger)
-    {
-        _scopeFactory = scopeFactory;
-        _logger = logger;
-    }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         // On startup, any item still in Processing was orphaned by a previous crash/restart.
         // Because there is exactly one worker, we can safely reset them to Pending for retry.
-        using (var startupScope = _scopeFactory.CreateScope())
+        using (var startupScope = scopeFactory.CreateScope())
         {
             var db = startupScope.ServiceProvider.GetRequiredService<MathomDbContext>();
             var resetCount = await ResetOrphanedProcessingAsync(db, stoppingToken);
             if (resetCount > 0)
-                _logger.LogWarning("Reset {Count} orphaned Processing item(s) to Pending on startup.", resetCount);
+                logger.LogWarning("Reset {Count} orphaned Processing item(s) to Pending on startup.", resetCount);
         }
 
         while (!stoppingToken.IsCancellationRequested)
@@ -39,7 +31,7 @@ public class ProcessingWorker : BackgroundService
             Guid? claimedId = null;
             try
             {
-                using var scope = _scopeFactory.CreateScope();
+                using var scope = scopeFactory.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<MathomDbContext>();
                 claimedId = await ClaimNextPendingIdAsync(db, stoppingToken);
 
@@ -51,7 +43,7 @@ public class ProcessingWorker : BackgroundService
             }
             catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
-                _logger.LogError(ex, "Worker tick failed");
+                logger.LogError(ex, "Worker tick failed");
             }
 
             if (claimedId is null)

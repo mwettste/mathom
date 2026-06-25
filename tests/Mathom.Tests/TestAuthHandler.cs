@@ -20,12 +20,10 @@ public static class TestUsers
 // Authenticates every request as the user named by the X-Test-User header
 // (default Alice). The literal "anonymous" leaves the request unauthenticated
 // so 401 behavior can be exercised.
-public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
+public class TestAuthHandler(IOptionsMonitor<AuthenticationSchemeOptions> options,
+    ILoggerFactory logger, UrlEncoder encoder)
+    : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
-    public TestAuthHandler(IOptionsMonitor<AuthenticationSchemeOptions> options,
-        ILoggerFactory logger, UrlEncoder encoder)
-        : base(options, logger, encoder) { }
-
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         var userId = Request.Headers[TestUsers.Header].ToString();

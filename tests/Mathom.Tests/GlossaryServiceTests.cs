@@ -9,17 +9,14 @@ using Xunit;
 namespace Mathom.Tests;
 
 [Collection("postgres")]
-public class GlossaryServiceTests
+public class GlossaryServiceTests(PostgresFixture fx)
 {
-    private readonly PostgresFixture _fx;
-    public GlossaryServiceTests(PostgresFixture fx) => _fx = fx;
-
     [Fact]
     public async Task Add_Normalizes_Dedupes_RejectsEmpty()
     {
         var u = "gloss-add-user";
-        await _fx.EnsureUserAsync(u, u + "@example.com");
-        await using var db = _fx.NewDbContext();
+        await fx.EnsureUserAsync(u, u + "@example.com");
+        await using var db = fx.NewDbContext();
         var svc = new GlossaryService(db);
 
         Assert.True(await svc.AddAsync(u, "  Obersaxen  ", null, CancellationToken.None)); // trimmed
@@ -34,8 +31,8 @@ public class GlossaryServiceTests
     public async Task Remove_Works_AndListIsOldestFirst()
     {
         var u = "gloss-remove-user";
-        await _fx.EnsureUserAsync(u, u + "@example.com");
-        await using var db = _fx.NewDbContext();
+        await fx.EnsureUserAsync(u, u + "@example.com");
+        await using var db = fx.NewDbContext();
         var svc = new GlossaryService(db);
         await svc.AddAsync(u, "Alpha", null, CancellationToken.None);
         await svc.AddAsync(u, "Beta", null, CancellationToken.None);
@@ -54,9 +51,9 @@ public class GlossaryServiceTests
     public async Task Glossary_IsUserScoped()
     {
         var a = "gloss-a"; var b = "gloss-b";
-        await _fx.EnsureUserAsync(a, a + "@example.com");
-        await _fx.EnsureUserAsync(b, b + "@example.com");
-        await using var db = _fx.NewDbContext();
+        await fx.EnsureUserAsync(a, a + "@example.com");
+        await fx.EnsureUserAsync(b, b + "@example.com");
+        await using var db = fx.NewDbContext();
         var svc = new GlossaryService(db);
         await svc.AddAsync(a, "ATerm", null, CancellationToken.None);
         await svc.AddAsync(b, "BTerm", null, CancellationToken.None);
@@ -70,8 +67,8 @@ public class GlossaryServiceTests
     public async Task Add_CapturesVariant_WhenDifferentFromTerm()
     {
         var u = "gloss-variant-user";
-        await _fx.EnsureUserAsync(u, u + "@example.com");
-        await using var db = _fx.NewDbContext();
+        await fx.EnsureUserAsync(u, u + "@example.com");
+        await using var db = fx.NewDbContext();
         var svc = new GlossaryService(db);
 
         Assert.True(await svc.AddAsync(u, "FireSkills", "Fairstills", CancellationToken.None)); // term + variant
@@ -90,9 +87,9 @@ public class GlossaryServiceTests
     {
         var owner = "desc-owner";
         var attacker = "desc-attacker";
-        await _fx.EnsureUserAsync(owner, owner + "@example.com");
-        await _fx.EnsureUserAsync(attacker, attacker + "@example.com");
-        await using var db = _fx.NewDbContext();
+        await fx.EnsureUserAsync(owner, owner + "@example.com");
+        await fx.EnsureUserAsync(attacker, attacker + "@example.com");
+        await using var db = fx.NewDbContext();
         var svc = new GlossaryService(db);
         await svc.AddAsync(owner, "FireSkills", null, CancellationToken.None);
         var termId = (await svc.GetTermViewsAsync(owner, CancellationToken.None)).Single().Id;
@@ -120,9 +117,9 @@ public class GlossaryServiceTests
     {
         var owner = "gv-owner";
         var attacker = "gv-attacker";
-        await _fx.EnsureUserAsync(owner, owner + "@example.com");
-        await _fx.EnsureUserAsync(attacker, attacker + "@example.com");
-        await using var db = _fx.NewDbContext();
+        await fx.EnsureUserAsync(owner, owner + "@example.com");
+        await fx.EnsureUserAsync(attacker, attacker + "@example.com");
+        await using var db = fx.NewDbContext();
         var svc = new GlossaryService(db);
         await svc.AddAsync(owner, "FireSkills", "Fairstills", CancellationToken.None);
 
@@ -137,7 +134,7 @@ public class GlossaryServiceTests
         await svc.AddAsync(owner, "FireSkills", "Fairstills", CancellationToken.None);
         var termId = (await svc.GetTermViewsAsync(owner, CancellationToken.None)).Single().Id;
         await svc.RemoveAsync(owner, termId, CancellationToken.None);
-        await using var verify = _fx.NewDbContext();
+        await using var verify = fx.NewDbContext();
         var ownerTermIds = verify.GlossaryTerms.Where(t => t.UserId == owner).Select(t => t.Id);
         Assert.Empty(await verify.GlossaryVariants.Where(v => ownerTermIds.Contains(v.GlossaryTermId)).ToListAsync());
     }

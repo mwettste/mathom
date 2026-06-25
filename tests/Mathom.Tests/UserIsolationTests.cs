@@ -13,11 +13,8 @@ namespace Mathom.Tests;
 file record IdResponse(Guid Id);
 
 [Collection("postgres")]
-public class UserIsolationTests
+public class UserIsolationTests(PostgresFixture fx)
 {
-    private readonly PostgresFixture _fx;
-    public UserIsolationTests(PostgresFixture fx) => _fx = fx;
-
     private static HttpClient As(TestWebAppFactory app, string userId)
     {
         var c = app.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
@@ -28,7 +25,7 @@ public class UserIsolationTests
     [Fact]
     public async Task UserB_CannotSeeOrFetch_UserA_Item()
     {
-        using var app = new TestWebAppFactory(_fx.ConnectionString);
+        using var app = new TestWebAppFactory(fx.ConnectionString);
         await app.SeedUsersAsync();
 
         // Alice captures.
@@ -60,7 +57,7 @@ public class UserIsolationTests
         using var app = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
         {
             b.UseEnvironment("Testing");
-            b.UseSetting("ConnectionStrings:Mathom", _fx.ConnectionString);
+            b.UseSetting("ConnectionStrings:Mathom", fx.ConnectionString);
         });
         var client = app.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
@@ -85,7 +82,7 @@ public class UserIsolationTests
         using var app = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
         {
             b.UseEnvironment("Testing");
-            b.UseSetting("ConnectionStrings:Mathom", _fx.ConnectionString);
+            b.UseSetting("ConnectionStrings:Mathom", fx.ConnectionString);
         });
         var client = app.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 

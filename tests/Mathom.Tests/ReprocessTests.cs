@@ -11,21 +11,18 @@ using Xunit;
 namespace Mathom.Tests;
 
 [Collection("postgres")]
-public class ReprocessTests
+public class ReprocessTests(PostgresFixture fx)
 {
-    private readonly PostgresFixture _fx;
-    public ReprocessTests(PostgresFixture fx) => _fx = fx;
-
     private async Task<TestWebAppFactory> AppAsync()
     {
-        var app = new TestWebAppFactory(_fx.ConnectionString);
+        var app = new TestWebAppFactory(fx.ConnectionString);
         await app.SeedUsersAsync();
         return app;
     }
 
     private async Task<Guid> SeedReadyAsync(string userId, string title)
     {
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         var item = new Item
         {
             Id = Guid.NewGuid(), Status = ItemStatus.Ready, SourceType = SourceType.Text,
@@ -55,7 +52,7 @@ public class ReprocessTests
         }));
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
 
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         Assert.Equal(ItemStatus.Pending, (await db.Items.FirstAsync(i => i.Id == id)).Status);
     }
 
@@ -92,7 +89,7 @@ public class ReprocessTests
     {
         using var app = await AppAsync();
         var id = await SeedReadyAsync(TestUsers.AliceId, "failed note");
-        await using (var db = _fx.NewDbContext())
+        await using (var db = fx.NewDbContext())
         {
             var item = await db.Items.FirstAsync(i => i.Id == id);
             item.Status = ItemStatus.Failed; item.Error = "boom";

@@ -13,14 +13,11 @@ using Xunit;
 namespace Mathom.Tests;
 
 [Collection("postgres")]
-public class VoiceCaptureControllerTests
+public class VoiceCaptureControllerTests(PostgresFixture fx)
 {
-    private readonly PostgresFixture _fx;
-    public VoiceCaptureControllerTests(PostgresFixture fx) => _fx = fx;
-
     private async Task<TestWebAppFactory> CreateAppAsync(FakeMediaStore media)
     {
-        var app = new TestWebAppFactory(_fx.ConnectionString, s =>
+        var app = new TestWebAppFactory(fx.ConnectionString, s =>
         {
             s.RemoveAll(typeof(IMediaStore));
             s.AddSingleton<IMediaStore>(media);
@@ -49,7 +46,7 @@ public class VoiceCaptureControllerTests
         var resp = await client.PostAsync("/capture/voice", VoicePayload(new byte[] { 1, 2, 3 }, "voice-1"));
         Assert.Equal(HttpStatusCode.Created, resp.StatusCode);
 
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         var item = await db.Items.SingleAsync(i => i.IdempotencyKey == "voice-1");
         Assert.Equal(SourceType.Voice, item.SourceType);
         Assert.Equal(ItemStatus.Pending, item.Status);
@@ -68,7 +65,7 @@ public class VoiceCaptureControllerTests
         var second = await client.PostAsync("/capture/voice", VoicePayload(new byte[] { 1 }, "voice-dup"));
         Assert.Equal(HttpStatusCode.OK, second.StatusCode);
 
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         Assert.Equal(1, await db.Items.CountAsync(i => i.IdempotencyKey == "voice-dup"));
     }
 
@@ -84,7 +81,7 @@ public class VoiceCaptureControllerTests
             VoicePayload(new byte[26 * 1024 * 1024], "voice-big"));
         Assert.Equal(HttpStatusCode.RequestEntityTooLarge, resp.StatusCode);
 
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         Assert.False(await db.Items.IgnoreQueryFilters().AnyAsync(i => i.IdempotencyKey == "voice-big"));
     }
 

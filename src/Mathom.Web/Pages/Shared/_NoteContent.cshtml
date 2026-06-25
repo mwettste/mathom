@@ -3,7 +3,11 @@
 @{
     var (pillCss, pillLabel) = StatusView.Pill(Model.Status, Model.SourceType);
     var inflight = StatusView.InFlight(Model.Status);
-    var title = Model.Title ?? (Model.SourceType == SourceType.Voice ? "Voice note" : "Quick note");
+    var title = Model.Title ?? (Model.SourceType switch {
+        SourceType.Voice => "Voice note",
+        SourceType.Photo => "Photo note",
+        _ => "Quick note"
+    });
 }
 <header class="note__head">
     <h1 class="note__title">@title</h1>
@@ -70,6 +74,16 @@ else if (inflight)
     <section class="note__transcript">
         <h2 class="note__subhead">Transcript</h2>
         <p>@Model.RawText</p>
+    </section>
+}
+
+@if (Model.PhotoIds.Count > 0)
+{
+    <section class="note__photos">
+        @foreach (var pid in Model.PhotoIds)
+        {
+            <img class="note__photo" src="@($"/media/{pid}")" alt="Captured photo" loading="lazy" />
+        }
     </section>
 }
 

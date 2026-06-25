@@ -10,14 +10,11 @@ using Xunit;
 namespace Mathom.Tests;
 
 [Collection("postgres")]
-public class AdminAreaTests
+public class AdminAreaTests(PostgresFixture fx)
 {
-    private readonly PostgresFixture _fx;
-    public AdminAreaTests(PostgresFixture fx) => _fx = fx;
-
     private async Task<TestWebAppFactory> AppAsync()
     {
-        var app = new TestWebAppFactory(_fx.ConnectionString);
+        var app = new TestWebAppFactory(fx.ConnectionString);
         await app.SeedUsersAsync();
         return app;
     }
@@ -58,7 +55,7 @@ public class AdminAreaTests
             new KeyValuePair<string,string>("__RequestVerificationToken", token),
         }));
         Assert.True(approve.IsSuccessStatusCode);
-        await using (var db = _fx.NewDbContext())
+        await using (var db = fx.NewDbContext())
             Assert.True(await db.Users.Where(u => u.Id == TestUsers.PendingId).Select(u => u.IsApproved).FirstAsync());
 
         // Admin cannot revoke their own account.
@@ -67,7 +64,7 @@ public class AdminAreaTests
             new KeyValuePair<string,string>("__RequestVerificationToken", token),
         }));
         Assert.True(revoke.IsSuccessStatusCode);
-        await using (var db = _fx.NewDbContext())
+        await using (var db = fx.NewDbContext())
             Assert.True(await db.Users.Where(u => u.Id == TestUsers.AdminId).Select(u => u.IsApproved).FirstAsync());
     }
 }

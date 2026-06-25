@@ -8,14 +8,11 @@ using Xunit;
 namespace Mathom.Tests;
 
 [Collection("postgres")]
-public class GlossaryPageTests
+public class GlossaryPageTests(PostgresFixture fx)
 {
-    private readonly PostgresFixture _fx;
-    public GlossaryPageTests(PostgresFixture fx) => _fx = fx;
-
     private async Task<TestWebAppFactory> AppAsync()
     {
-        var app = new TestWebAppFactory(_fx.ConnectionString);
+        var app = new TestWebAppFactory(fx.ConnectionString);
         await app.SeedUsersAsync();
         return app;
     }
@@ -39,7 +36,7 @@ public class GlossaryPageTests
         Assert.Contains("Obersaxen", await resp.Content.ReadAsStringAsync());
 
         // Persisted for Alice (the default test user).
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         Assert.True(await db.GlossaryTerms.AnyAsync(g => g.UserId == TestUsers.AliceId && g.Term == "Obersaxen"));
     }
 
@@ -61,7 +58,7 @@ public class GlossaryPageTests
         Assert.Contains("FireSkills", body);
         Assert.Contains("Fairstills", body); // variant rendered
 
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         var term = await db.GlossaryTerms.Include(t => t.Variants)
             .FirstAsync(t => t.UserId == TestUsers.AliceId && t.Term == "FireSkills");
         Assert.Contains(term.Variants, v => v.Text == "Fairstills");
@@ -81,7 +78,7 @@ public class GlossaryPageTests
             new KeyValuePair<string,string>("term", "FireSkills"),
         }));
 
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         var termId = await db.GlossaryTerms.Where(t => t.UserId == TestUsers.AliceId && t.Term == "FireSkills").Select(t => t.Id).FirstAsync();
 
         // The list shows the per-term description region with an "Add context" affordance.
@@ -96,7 +93,7 @@ public class GlossaryPageTests
         }));
         Assert.True(setResp.IsSuccessStatusCode);
         Assert.Contains("our internal time-tracking product", await setResp.Content.ReadAsStringAsync());
-        await using (var v = _fx.NewDbContext())
+        await using (var v = fx.NewDbContext())
             Assert.Equal("our internal time-tracking product", await v.GlossaryTerms.Where(t => t.Id == termId).Select(t => t.Description).FirstAsync());
 
         // Cross-user (Bob) cannot edit Alice's term.
@@ -113,7 +110,7 @@ public class GlossaryPageTests
         using var app = await AppAsync();
         // seed a Ready note for Alice
         System.Guid id;
-        await using (var db = _fx.NewDbContext())
+        await using (var db = fx.NewDbContext())
         {
             var item = new Mathom.Web.Domain.Item
             {

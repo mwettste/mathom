@@ -7,14 +7,11 @@ using Xunit;
 namespace Mathom.Tests;
 
 [Collection("postgres")]
-public class NotePageTests
+public class NotePageTests(PostgresFixture fx)
 {
-    private readonly PostgresFixture _fx;
-    public NotePageTests(PostgresFixture fx) => _fx = fx;
-
     private async Task<TestWebAppFactory> CreateAppAsync()
     {
-        var app = new TestWebAppFactory(_fx.ConnectionString);
+        var app = new TestWebAppFactory(fx.ConnectionString);
         await app.SeedUsersAsync();
         return app;
     }
@@ -39,7 +36,7 @@ public class NotePageTests
             UserId = TestUsers.AliceId,
         };
         using var app = await CreateAppAsync();
-        await using (var seed = _fx.NewDbContext()) { seed.Items.Add(item); await seed.SaveChangesAsync(); }
+        await using (var seed = fx.NewDbContext()) { seed.Items.Add(item); await seed.SaveChangesAsync(); }
 
         var resp = await app.CreateClient().GetAsync($"/Note/{item.Id}");
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);

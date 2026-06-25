@@ -5,15 +5,12 @@ using Xunit;
 namespace Mathom.Tests;
 
 [Collection("postgres")]
-public class CapturePageTests
+public class CapturePageTests(PostgresFixture fx)
 {
-    private readonly PostgresFixture _fx;
-    public CapturePageTests(PostgresFixture fx) => _fx = fx;
-
     [Fact]
     public async Task CapturePage_RendersTextAndVoiceModes()
     {
-        using var app = new TestWebAppFactory(_fx.ConnectionString);
+        using var app = new TestWebAppFactory(fx.ConnectionString);
         await app.SeedUsersAsync();
         var resp = await app.CreateClient().GetAsync("/Capture");
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
@@ -22,5 +19,16 @@ public class CapturePageTests
         Assert.Contains("Record", html);            // record button label
         Assert.Contains("capture.js", html);        // Alpine components (voice posts to /capture/voice)
         Assert.Contains("alpine.min.js", html);     // Alpine runtime (from layout)
+    }
+
+    [Fact]
+    public async Task CapturePage_RendersPhotoMode()
+    {
+        using var app = new TestWebAppFactory(fx.ConnectionString);
+        await app.SeedUsersAsync();
+        var html = await app.CreateClient().GetStringAsync("/Capture");
+        Assert.Contains("Photo", html);                 // photo card heading
+        Assert.Contains("photoCapture()", html);        // Alpine component wired up
+        Assert.Contains("/capture/photo", html);        // upload target referenced in markup
     }
 }

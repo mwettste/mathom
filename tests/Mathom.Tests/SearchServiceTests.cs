@@ -10,12 +10,9 @@ using Xunit;
 namespace Mathom.Tests;
 
 [Collection("postgres")]
-public class SearchServiceTests
+public class SearchServiceTests(PostgresFixture fx)
 {
     private const string Uid = "search-tests-user";
-
-    private readonly PostgresFixture _fx;
-    public SearchServiceTests(PostgresFixture fx) => _fx = fx;
 
     private static Item Ready(string title, string clean, ItemType type, DateTimeOffset created, bool actionable = false)
         => new()
@@ -39,8 +36,8 @@ public class SearchServiceTests
     private async Task<Item> SeedTaggedAsync(
         string userId, string title, ItemType type, bool actionable, params string[] tags)
     {
-        await _fx.EnsureUserAsync(userId, userId + "@example.com");
-        await using var db = _fx.NewDbContext();
+        await fx.EnsureUserAsync(userId, userId + "@example.com");
+        await using var db = fx.NewDbContext();
         var item = new Item
         {
             Id = Guid.NewGuid(),
@@ -70,12 +67,12 @@ public class SearchServiceTests
     [Fact]
     public async Task Timeline_ReturnsReadyNewestFirst()
     {
-        await _fx.EnsureUserAsync(Uid, "search@example.com");
+        await fx.EnsureUserAsync(Uid, "search@example.com");
         var older = Ready("Older", "older body about gardening", ItemType.Note, DateTimeOffset.UtcNow.AddHours(-2));
         var newer = Ready("Newer", "newer body about coding", ItemType.Idea, DateTimeOffset.UtcNow);
-        await using (var seed = _fx.NewDbContext()) { seed.Items.AddRange(older, newer); await seed.SaveChangesAsync(); }
+        await using (var seed = fx.NewDbContext()) { seed.Items.AddRange(older, newer); await seed.SaveChangesAsync(); }
 
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         var result = await new SearchService(db).TimelineAsync(Uid, 50, CancellationToken.None);
 
         var ids = result.Select(r => r.Id).ToList();
@@ -85,7 +82,7 @@ public class SearchServiceTests
     [Fact]
     public async Task Timeline_IncludesInFlightItems_WithStatus()
     {
-        await _fx.EnsureUserAsync(Uid, "search@example.com");
+        await fx.EnsureUserAsync(Uid, "search@example.com");
         var pending = new Item
         {
             Id = Guid.NewGuid(),
@@ -96,9 +93,9 @@ public class SearchServiceTests
             CreatedAt = DateTimeOffset.UtcNow,
             UserId = Uid,
         };
-        await using (var seed = _fx.NewDbContext()) { seed.Items.Add(pending); await seed.SaveChangesAsync(); }
+        await using (var seed = fx.NewDbContext()) { seed.Items.Add(pending); await seed.SaveChangesAsync(); }
 
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         var result = await new SearchService(db).TimelineAsync(Uid, 50, CancellationToken.None);
 
         var found = result.Single(r => r.Id == pending.Id);
@@ -109,12 +106,12 @@ public class SearchServiceTests
     [Fact]
     public async Task Search_MatchesKeywordInBody()
     {
-        await _fx.EnsureUserAsync(Uid, "search@example.com");
+        await fx.EnsureUserAsync(Uid, "search@example.com");
         var match = Ready("Recipe", "a note about sourdough bread", ItemType.Reference, DateTimeOffset.UtcNow);
         var noMatch = Ready("Other", "completely unrelated content", ItemType.Note, DateTimeOffset.UtcNow);
-        await using (var seed = _fx.NewDbContext()) { seed.Items.AddRange(match, noMatch); await seed.SaveChangesAsync(); }
+        await using (var seed = fx.NewDbContext()) { seed.Items.AddRange(match, noMatch); await seed.SaveChangesAsync(); }
 
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         var result = await new SearchService(db).SearchAsync(Uid, "sourdough", new SearchFilters(null, null), 50, CancellationToken.None);
 
         Assert.Contains(result, r => r.Id == match.Id);
@@ -124,12 +121,12 @@ public class SearchServiceTests
     [Fact]
     public async Task Search_AppliesTypeFilter()
     {
-        await _fx.EnsureUserAsync(Uid, "search@example.com");
+        await fx.EnsureUserAsync(Uid, "search@example.com");
         var idea = Ready("Idea one", "shared keyword alpha", ItemType.Idea, DateTimeOffset.UtcNow);
         var note = Ready("Note one", "shared keyword alpha", ItemType.Note, DateTimeOffset.UtcNow);
-        await using (var seed = _fx.NewDbContext()) { seed.Items.AddRange(idea, note); await seed.SaveChangesAsync(); }
+        await using (var seed = fx.NewDbContext()) { seed.Items.AddRange(idea, note); await seed.SaveChangesAsync(); }
 
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         var result = await new SearchService(db).SearchAsync(Uid, "alpha", new SearchFilters(ItemType.Idea, null), 50, CancellationToken.None);
 
         Assert.Contains(result, r => r.Id == idea.Id);
@@ -143,7 +140,7 @@ public class SearchServiceTests
         var match = await SeedTaggedAsync(u, "Has work tag", ItemType.Note, false, "Work");
         await SeedTaggedAsync(u, "Other", ItemType.Note, false, "home");
 
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         var result = await new SearchService(db)
             .QueryAsync(u, null, new SearchFilters(Tag: "work"), 50, CancellationToken.None);
 
@@ -159,7 +156,7 @@ public class SearchServiceTests
         var aItem = await SeedTaggedAsync(a, "A work note", ItemType.Note, false, "work");
         await SeedTaggedAsync(b, "B work note", ItemType.Note, false, "work");
 
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         var result = await new SearchService(db)
             .QueryAsync(a, null, new SearchFilters(Tag: "work"), 50, CancellationToken.None);
 
@@ -174,7 +171,7 @@ public class SearchServiceTests
         var want = await SeedTaggedAsync(u, "work task", ItemType.Task, false, "work");
         await SeedTaggedAsync(u, "work note", ItemType.Note, false, "work");
 
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         var result = await new SearchService(db)
             .QueryAsync(u, null, new SearchFilters(ItemType.Task, null, "work"), 50, CancellationToken.None);
 
@@ -186,13 +183,13 @@ public class SearchServiceTests
     public async Task Query_NoFilters_ReturnsNewestFirst()
     {
         var u = "qnone-user";
-        await _fx.EnsureUserAsync(u, u + "@example.com");
+        await fx.EnsureUserAsync(u, u + "@example.com");
         var older = Ready("Older", "older", ItemType.Note, DateTimeOffset.UtcNow.AddHours(-2));
         var newer = Ready("Newer", "newer", ItemType.Idea, DateTimeOffset.UtcNow);
         older.UserId = u; newer.UserId = u;
-        await using (var seed = _fx.NewDbContext()) { seed.Items.AddRange(older, newer); await seed.SaveChangesAsync(); }
+        await using (var seed = fx.NewDbContext()) { seed.Items.AddRange(older, newer); await seed.SaveChangesAsync(); }
 
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         var result = await new SearchService(db)
             .QueryAsync(u, null, new SearchFilters(), 50, CancellationToken.None);
 
@@ -204,15 +201,15 @@ public class SearchServiceTests
     public async Task Timeline_ExcludesSoftDeletedItems()
     {
         var u = "softdelete-user";
-        await _fx.EnsureUserAsync(u, u + "@example.com");
+        await fx.EnsureUserAsync(u, u + "@example.com");
         var live = Ready("Live note", "live", ItemType.Note, DateTimeOffset.UtcNow);
         var trashed = Ready("Trashed note", "trashed", ItemType.Note, DateTimeOffset.UtcNow);
         live.UserId = u;
         trashed.UserId = u;
         trashed.DeletedAt = DateTimeOffset.UtcNow;
-        await using (var seed = _fx.NewDbContext()) { seed.Items.AddRange(live, trashed); await seed.SaveChangesAsync(); }
+        await using (var seed = fx.NewDbContext()) { seed.Items.AddRange(live, trashed); await seed.SaveChangesAsync(); }
 
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         var result = await new SearchService(db).TimelineAsync(u, 50, CancellationToken.None);
 
         Assert.Contains(result, r => r.Id == live.Id);

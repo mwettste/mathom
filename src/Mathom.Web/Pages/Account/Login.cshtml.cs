@@ -7,11 +7,8 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Mathom.Web.Pages.Account;
 
-public class LoginModel : PageModel
+public class LoginModel(SignInManager<ApplicationUser> signIn) : PageModel
 {
-    private readonly SignInManager<ApplicationUser> _signIn;
-    public LoginModel(SignInManager<ApplicationUser> signIn) => _signIn = signIn;
-
     [BindProperty] public InputModel Input { get; set; } = new();
 
     public class InputModel
@@ -28,7 +25,7 @@ public class LoginModel : PageModel
 
         // lockoutOnFailure: true counts failed attempts and locks the account per the
         // Identity lockout options, throttling password brute-force.
-        var result = await _signIn.PasswordSignInAsync(
+        var result = await signIn.PasswordSignInAsync(
             Input.Email, Input.Password, isPersistent: true, lockoutOnFailure: true);
         if (result.IsLockedOut)
         {

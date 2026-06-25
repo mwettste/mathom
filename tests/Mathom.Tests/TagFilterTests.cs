@@ -7,14 +7,11 @@ using Xunit;
 namespace Mathom.Tests;
 
 [Collection("postgres")]
-public class TagFilterTests
+public class TagFilterTests(PostgresFixture fx)
 {
-    private readonly PostgresFixture _fx;
-    public TagFilterTests(PostgresFixture fx) => _fx = fx;
-
     private async Task<TestWebAppFactory> AppAsync()
     {
-        var app = new TestWebAppFactory(_fx.ConnectionString);
+        var app = new TestWebAppFactory(fx.ConnectionString);
         await app.SeedUsersAsync();
         return app;
     }
@@ -23,7 +20,7 @@ public class TagFilterTests
     // using a direct DbContext so the integration test has deterministic data.
     private async Task SeedReadyAsync(string title, string tag)
     {
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         var item = new Mathom.Web.Domain.Item
         {
             Id = System.Guid.NewGuid(),

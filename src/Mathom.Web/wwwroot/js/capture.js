@@ -80,3 +80,44 @@ function voiceCapture() {
     },
   };
 }
+
+function photoCapture() {
+  return {
+    files: [],
+    count: 0,
+    busy: false,
+    status: '',
+    done: false,
+    pick(e) {
+      this.files = Array.from(e.target.files || []);
+      this.count = this.files.length;
+      this.done = false;
+      this.status = '';
+    },
+    async submit() {
+      if (!this.files.length) { this.status = 'Choose a photo first.'; return; }
+      if (this.files.length > 8) { this.status = 'At most 8 images.'; return; }
+      this.busy = true;
+      try {
+        const form = new FormData();
+        for (const f of this.files) form.append('images', f, f.name || 'photo.jpg');
+        form.append('idempotencyKey', crypto.randomUUID());
+        const res = await fetch('/capture/photo', { method: 'POST', body: form });
+        if (res.ok) {
+          this.status = 'Sent.';
+          this.done = true;
+          this.files = [];
+          this.count = 0;
+        } else {
+          let msg = 'Upload failed.';
+          try { msg = (await res.json()).error || msg; } catch {}
+          this.status = msg;
+        }
+      } catch {
+        this.status = 'Upload failed.';
+      } finally {
+        this.busy = false;
+      }
+    },
+  };
+}

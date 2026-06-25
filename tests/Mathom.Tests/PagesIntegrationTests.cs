@@ -5,14 +5,11 @@ using Xunit;
 namespace Mathom.Tests;
 
 [Collection("postgres")]
-public class PagesIntegrationTests
+public class PagesIntegrationTests(PostgresFixture fx)
 {
-    private readonly PostgresFixture _fx;
-    public PagesIntegrationTests(PostgresFixture fx) => _fx = fx;
-
     private async Task<TestWebAppFactory> CreateAppAsync()
     {
-        var app = new TestWebAppFactory(_fx.ConnectionString);
+        var app = new TestWebAppFactory(fx.ConnectionString);
         await app.SeedUsersAsync();
         return app;
     }
@@ -29,7 +26,7 @@ public class PagesIntegrationTests
     [Fact]
     public async Task Search_NoMatch_RendersEmptyState()
     {
-        using var app = new TestWebAppFactory(_fx.ConnectionString);
+        using var app = new TestWebAppFactory(fx.ConnectionString);
         await app.SeedUsersAsync();
         var resp = await app.CreateClient().GetAsync("/?q=nothingmatchesthis");
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);

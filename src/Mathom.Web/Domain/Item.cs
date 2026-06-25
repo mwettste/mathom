@@ -29,6 +29,7 @@ public class Item
     public string IdempotencyKey { get; set; } = string.Empty;
     public string UserId { get; set; } = string.Empty;
     public List<ItemTag> ItemTags { get; set; } = new();
+    public List<ItemPhoto> Photos { get; set; } = new();
 
     // Postgres-generated full-text search vector (configured in MathomDbContext).
     public NpgsqlTypes.NpgsqlTsVector? SearchVector { get; set; }

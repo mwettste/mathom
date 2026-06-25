@@ -26,7 +26,8 @@ public static class StatusView
     public static (string Css, string Label) Pill(ItemStatus status, SourceType source) => status switch
     {
         ItemStatus.Pending => ("pending", "captured"),
-        ItemStatus.Processing => ("processing", source == SourceType.Voice ? "transcribing…" : "thinking…"),
+        ItemStatus.Processing => ("processing",
+            source == SourceType.Voice ? "transcribing…" : source == SourceType.Photo ? "reading…" : "thinking…"),
         ItemStatus.Failed => ("failed", "needs attention"),
         _ => ("", ""),
     };

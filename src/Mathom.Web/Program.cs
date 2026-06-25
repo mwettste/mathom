@@ -102,6 +102,8 @@ builder.Services.AddHttpClient<InfomaniakLlmClient>();
 builder.Services.AddHttpClient<OpenRouterLlmClient>();
 builder.Services.AddHttpClient<InfomaniakTranscriber>();
 builder.Services.AddScoped<ITranscriber>(sp => sp.GetRequiredService<InfomaniakTranscriber>());
+builder.Services.AddHttpClient<OpenRouterImageReader>();
+builder.Services.AddScoped<IImageReader>(sp => sp.GetRequiredService<OpenRouterImageReader>());
 builder.Services.AddScoped<ILlmClient>(sp => new FallbackLlmClient(
     new ILlmClient[]
     {

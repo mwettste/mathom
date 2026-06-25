@@ -27,4 +27,19 @@
             <a href="/">View timeline →</a>
         </div>
     </div>
+
+    <div class="card" x-data="photoCapture()" data-endpoint="/capture/photo">
+        <h2 class="card__title">Photo</h2>
+        <input class="field" type="file" accept="image/jpeg,image/png,image/webp"
+               capture="environment" multiple x-on:change="pick($event)" />
+        <div class="card__actions">
+            <button class="btn btn--primary" type="button" @@click="submit()"
+                    x-bind:disabled="busy || !count" x-text="busy ? 'Uploading…' : 'Capture'"></button>
+            <span class="hint" x-text="status"></span>
+        </div>
+        <div class="hint capture__done" x-show="done" x-cloak>
+            <span class="pill processing"><span class="dot"></span>reading in the background</span>
+            <a href="/">View timeline →</a>
+        </div>
+    </div>
 </section>

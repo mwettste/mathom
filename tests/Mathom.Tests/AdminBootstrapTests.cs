@@ -9,15 +9,12 @@ using Xunit;
 namespace Mathom.Tests;
 
 [Collection("postgres")]
-public class AdminBootstrapTests
+public class AdminBootstrapTests(PostgresFixture fx)
 {
-    private readonly PostgresFixture _fx;
-    public AdminBootstrapTests(PostgresFixture fx) => _fx = fx;
-
     [Fact]
     public async Task EnsureRoleAndPromote_PromotesConfiguredAdmin_AndIsIdempotent()
     {
-        using var app = new TestWebAppFactory(_fx.ConnectionString);
+        using var app = new TestWebAppFactory(fx.ConnectionString);
         await app.SeedUsersAsync();
         using var scope = app.Services.CreateScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
@@ -38,7 +35,7 @@ public class AdminBootstrapTests
     [Fact]
     public async Task EnsureRoleAndPromote_NoAdminEmail_JustEnsuresRole()
     {
-        using var app = new TestWebAppFactory(_fx.ConnectionString);
+        using var app = new TestWebAppFactory(fx.ConnectionString);
         await app.SeedUsersAsync();
         using var scope = app.Services.CreateScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();

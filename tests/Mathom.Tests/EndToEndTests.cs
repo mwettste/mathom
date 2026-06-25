@@ -14,11 +14,8 @@ using Xunit;
 namespace Mathom.Tests;
 
 [Collection("postgres")]
-public class EndToEndTests
+public class EndToEndTests(PostgresFixture fx)
 {
-    private readonly PostgresFixture _fx;
-    public EndToEndTests(PostgresFixture fx) => _fx = fx;
-
     private record IdResponse(Guid Id);
 
     [Fact]
@@ -34,7 +31,7 @@ public class EndToEndTests
                 new[] { new CleanupTag("gardening", TagKind.Topic) })
         };
 
-        using var app = new TestWebAppFactory(_fx.ConnectionString, s =>
+        using var app = new TestWebAppFactory(fx.ConnectionString, s =>
         {
             s.RemoveAll(typeof(ILlmClient));
             s.AddScoped<ILlmClient>(_ => fake);
@@ -56,7 +53,7 @@ public class EndToEndTests
         while (DateTimeOffset.UtcNow < deadline)
         {
             await Task.Delay(250);
-            await using var db = _fx.NewDbContext();
+            await using var db = fx.NewDbContext();
             var item = await db.Items.FirstOrDefaultAsync(i => i.Id == id);
             if (item is not null)
             {
@@ -68,7 +65,7 @@ public class EndToEndTests
 
         Assert.Equal(ItemStatus.Ready, status);
 
-        await using var verify = _fx.NewDbContext();
+        await using var verify = fx.NewDbContext();
         var results = await new SearchService(verify)
             .SearchAsync(TestUsers.AliceId, "tomatoes", new SearchFilters(null, null), 50, CancellationToken.None);
         Assert.Contains(results, r => r.Id == id);

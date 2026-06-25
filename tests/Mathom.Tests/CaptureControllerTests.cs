@@ -12,14 +12,11 @@ namespace Mathom.Tests;
 file record IdResponse(Guid Id);
 
 [Collection("postgres")]
-public class CaptureControllerTests
+public class CaptureControllerTests(PostgresFixture fx)
 {
-    private readonly PostgresFixture _fx;
-    public CaptureControllerTests(PostgresFixture fx) => _fx = fx;
-
     private async Task<TestWebAppFactory> CreateAppAsync()
     {
-        var app = new TestWebAppFactory(_fx.ConnectionString);
+        var app = new TestWebAppFactory(fx.ConnectionString);
         await app.SeedUsersAsync();
         return app;
     }
@@ -35,7 +32,7 @@ public class CaptureControllerTests
 
         var body = await resp.Content.ReadFromJsonAsync<IdResponse>();
 
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         var item = await db.Items.SingleAsync(i => i.IdempotencyKey == "idem-1");
         Assert.Equal(item.Id, body!.Id);
         Assert.Equal(ItemStatus.Pending, item.Status);
@@ -57,7 +54,7 @@ public class CaptureControllerTests
         var secondBody = await second.Content.ReadFromJsonAsync<IdResponse>();
         Assert.Equal(firstBody!.Id, secondBody!.Id);
 
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         Assert.Equal(1, await db.Items.CountAsync(i => i.IdempotencyKey == "idem-dup"));
     }
 
@@ -79,7 +76,7 @@ public class CaptureControllerTests
         var resp = await client.PostAsJsonAsync("/capture", new CaptureRequest(huge, "idem-huge"));
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
 
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         Assert.False(await db.Items.IgnoreQueryFilters().AnyAsync(i => i.IdempotencyKey == "idem-huge"));
     }
 
@@ -96,7 +93,7 @@ public class CaptureControllerTests
         var firstBody = await first.Content.ReadFromJsonAsync<IdResponse>();
 
         // 2. Soft-delete the item directly via DbContext (bypasses the global query filter).
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         var item = await db.Items.SingleAsync(i => i.IdempotencyKey == key);
         item.DeletedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync();

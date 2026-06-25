@@ -17,16 +17,13 @@ namespace Mathom.Tests;
 // proto header, which it must do ONLY when ForwardedHeaders:Enabled is set (the platform
 // deploy) and NOT on the directly-exposed standalone compose (header would be spoofable).
 [Collection("postgres")]
-public class ForwardedHeadersTests
+public class ForwardedHeadersTests(PostgresFixture fx)
 {
-    private readonly PostgresFixture _fx;
-    public ForwardedHeadersTests(PostgresFixture fx) => _fx = fx;
-
     private WebApplicationFactory<Program> CreateApp(bool forwardedHeadersEnabled) =>
         new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
         {
             b.UseEnvironment("Testing");
-            b.UseSetting("ConnectionStrings:Mathom", _fx.ConnectionString);
+            b.UseSetting("ConnectionStrings:Mathom", fx.ConnectionString);
             b.UseSetting("ForwardedHeaders:Enabled", forwardedHeadersEnabled ? "true" : "false");
         });
 
