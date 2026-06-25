@@ -10,6 +10,7 @@ public class MathomDbContext(DbContextOptions<MathomDbContext> options) : Identi
     public DbSet<Tag> Tags => Set<Tag>()!;
     public DbSet<ItemTag> ItemTags => Set<ItemTag>()!;
     public DbSet<ItemPhoto> ItemPhotos => Set<ItemPhoto>()!;
+    public DbSet<ItemTranslation> ItemTranslations => Set<ItemTranslation>()!;
     public DbSet<GlossaryTerm> GlossaryTerms => Set<GlossaryTerm>()!;
     public DbSet<GlossaryVariant> GlossaryVariants => Set<GlossaryVariant>()!;
     public DbSet<UserLanguage> UserLanguages => Set<UserLanguage>()!;
@@ -41,7 +42,7 @@ public class MathomDbContext(DbContextOptions<MathomDbContext> options) : Identi
 #pragma warning disable CS8603
             e.HasGeneratedTsVectorColumn(
                     x => x.SearchVector,
-                    "english",
+                    "simple",
                     x => new { x.Title, x.CleanText })
                 .HasIndex(x => x.SearchVector)
                 .HasMethod("GIN");
@@ -73,6 +74,29 @@ public class MathomDbContext(DbContextOptions<MathomDbContext> options) : Identi
                 .OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => x.ItemId);
             e.HasIndex(x => x.ExternalId).IsUnique();
+        });
+
+        b.Entity<ItemTranslation>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Locale).IsRequired();
+            e.Property(x => x.Title).IsRequired();
+            e.Property(x => x.CleanText).IsRequired();
+            e.HasOne(x => x.Item)
+                .WithMany(i => i.Translations)
+                .HasForeignKey(x => x.ItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.ItemId, x.Locale }).IsUnique();
+
+            // Per-locale generated tsvector for full-text search across translations.
+#pragma warning disable CS8603
+            e.HasGeneratedTsVectorColumn(
+                    x => x.SearchVector,
+                    "simple",
+                    x => new { x.Title, x.CleanText })
+                .HasIndex(x => x.SearchVector)
+                .HasMethod("GIN");
+#pragma warning restore CS8603
         });
 
         b.Entity<GlossaryTerm>(e =>

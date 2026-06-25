@@ -34,6 +34,12 @@ public class Item
     // Postgres-generated full-text search vector (configured in MathomDbContext).
     public NpgsqlTypes.NpgsqlTsVector? SearchVector { get; set; }
 
+    // Detected source locale (Locales code), e.g. "de-CH". Null until processed.
+    public string? SourceLanguage { get; set; }
+
+    // Polished variants in the user's other active languages (source lives on this row).
+    public List<ItemTranslation> Translations { get; set; } = new();
+
     public static Item CreatePending(SourceType sourceType, string rawText, string idempotencyKey, string userId, DateTimeOffset now)
         => new()
         {
