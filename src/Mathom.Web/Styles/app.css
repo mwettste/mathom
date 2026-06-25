@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @plugin "daisyui" {
-  themes: light --default, dark --prefersdark;
+  themes: light --default, dark --prefersdark, forest;
 }
 
 /* ---- Catalogue palette: light ---- */
@@ -87,30 +87,6 @@
   }
 }
 
-/* ---- JS-injected components ----
-   These two widgets are built in JavaScript (not Razor markup), so their styles
-   must live here — there is no template to attach utility classes to.
-   Everything else is styled with stock daisyUI components + Tailwind utilities
-   directly in the .cshtml markup. */
-@layer components {
-  /* glossary "add term/variant" popover — built by wwwroot/js/glossary.js */
-  #glossary-pop {
-    @apply fixed z-50 hidden w-60 flex-col gap-2 rounded-lg border border-base-300
-           bg-base-100 p-4 shadow-lg;
-  }
-  #glossary-pop .glossary-pop__lbl {
-    @apply mb-1 font-mono text-xs uppercase tracking-wider text-base-content/50;
-  }
-  #glossary-pop .field { @apply input input-sm w-full; }
-  #glossary-pop .glossary-pop__row { @apply flex items-center justify-end gap-2; }
-  #glossary-pop .btn--primary { @apply btn btn-primary btn-sm; }
-  #glossary-pop .btn--ghost { @apply btn btn-ghost btn-sm; }
-  #glossary-pop .glossary-pop__done { @apply mt-1 text-xs text-base-content/60; }
-  #glossary-pop .glossary-pop__reprocess { @apply mt-1; }
-
-  /* offline "session expired" banner — injected by wwwroot/js/offline.js */
-  .auth-banner {
-    @apply fixed inset-x-0 bottom-0 z-50 bg-error px-4 py-2.5 text-center text-sm text-white;
-  }
-  .auth-banner a { @apply text-white underline underline-offset-2; }
-}
+/* No custom component CSS: every widget — including the JS-injected glossary
+   modal and offline banner — is styled with stock daisyUI components +
+   Tailwind utilities directly in its markup. */

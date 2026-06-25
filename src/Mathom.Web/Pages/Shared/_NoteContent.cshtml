@@ -58,7 +58,7 @@
 
 @if (!string.IsNullOrEmpty(Model.CleanText))
 {
-    <div class="text-base leading-relaxed whitespace-pre-wrap max-w-prose mb-4">@Model.CleanText</div>
+    <div class="text-base leading-relaxed whitespace-pre-wrap max-w-prose mb-4" data-glossary-source>@Model.CleanText</div>
 }
 else if (inflight)
 {
@@ -69,7 +69,7 @@ else if (inflight)
 {
     <section class="mb-4">
         <h2 class="font-display text-base font-medium text-base-content/70 mb-1">Transcript</h2>
-        <p class="text-base leading-relaxed whitespace-pre-wrap max-w-prose text-base-content/50">@Model.RawText</p>
+        <p class="text-base leading-relaxed whitespace-pre-wrap max-w-prose text-base-content/50" data-glossary-source>@Model.RawText</p>
     </section>
 }
 

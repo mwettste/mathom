@@ -1,7 +1,3 @@
-@{
-    var path = ViewContext.HttpContext.Request.Path.Value ?? "/";
-    string Active(string p) => string.Equals(path, p, StringComparison.OrdinalIgnoreCase) ? "font-semibold text-primary underline underline-offset-4" : "";
-}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,22 +5,30 @@
         // Resolve theme before paint (no flash): stored choice, else OS preference.
         (function () {
             var root = document.documentElement;
+            var THEMES = ['light', 'dark', 'forest'];
+            var ICON = { light: '☀', dark: '☾', forest: '❧' };
             function apply(t) { root.setAttribute('data-theme', t); }
-            function current() { return root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; }
-            var saved = localStorage.getItem('mathom-theme');
-            apply(saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
-            function sync() {
-                var btn = document.getElementById('theme-toggle');
-                if (!btn) return;
-                var dark = current() === 'dark';
-                btn.textContent = dark ? '☀' : '☾';
-                btn.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+            function current() {
+                var t = root.getAttribute('data-theme');
+                return THEMES.indexOf(t) >= 0 ? t : 'light';
             }
-            window.toggleTheme = function () {
-                var next = current() === 'dark' ? 'light' : 'dark';
-                localStorage.setItem('mathom-theme', next);
-                apply(next);
+            var saved = localStorage.getItem('mathom-theme');
+            apply(THEMES.indexOf(saved) >= 0 ? saved
+                : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+            function sync() {
+                var cur = current();
+                var icon = document.getElementById('theme-icon');
+                if (icon) icon.textContent = ICON[cur] || '☾';
+                // Keep the daisyUI theme-controller radios in sync with the active theme.
+                var radios = document.getElementsByName('theme-choice');
+                for (var i = 0; i < radios.length; i++) radios[i].checked = (radios[i].value === cur);
+            }
+            window.setTheme = function (t) {
+                if (THEMES.indexOf(t) < 0) return;
+                localStorage.setItem('mathom-theme', t);
+                apply(t);
                 sync();
+                if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
             };
             document.addEventListener('DOMContentLoaded', sync);
         })();
@@ -47,34 +51,48 @@
     <script defer src="~/js/glossary.js" asp-append-version="true"></script>
     <script defer src="~/lib/alpine.min.js"></script>
 </head>
-<body class="bg-base-100 text-base-content min-h-screen">
+<body class="min-h-screen">
     <header class="navbar bg-base-100 border-b border-base-300 px-4 sticky top-0 z-50">
-        <div class="navbar-start">
+        <div class="navbar-start gap-1">
+            @if (User.Identity?.IsAuthenticated == true && (ViewData["HideAppNav"] as bool?) != true)
+            {
+                <div class="dropdown md:hidden">
+                    <button tabindex="0" class="btn btn-ghost btn-sm px-2" aria-label="Open menu">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                    </button>
+                    <ul tabindex="0" class="dropdown-content menu bg-base-200 border border-base-300 rounded-box z-50 mt-2 w-44 p-2 shadow-lg">
+                        <partial name="Shared/_AppNavLinks" />
+                    </ul>
+                </div>
+            }
             <a class="font-display font-semibold text-lg tracking-tight text-base-content hover:text-primary transition-colors" href="/">Mathom</a>
         </div>
-        <div class="navbar-end">
-            <nav class="flex items-center gap-1 flex-wrap">
-                @if (User.Identity?.IsAuthenticated == true)
-                {
-                    @if (ViewData["HideAppNav"] as bool? != true)
-                    {
-                        <a href="/Capture" class="btn btn-ghost btn-sm font-normal @Active("/Capture")">Capture</a>
-                        <a href="/" class="btn btn-ghost btn-sm font-normal @Active("/")">Timeline</a>
-                        <a href="/Trash" class="btn btn-ghost btn-sm font-normal @Active("/Trash")">Trash</a>
-                        <a href="/Glossary" class="btn btn-ghost btn-sm font-normal @Active("/Glossary")">Glossary</a>
-                        @if (User.IsInRole("Admin"))
-                        {
-                            <a href="/Admin/Users" class="btn btn-ghost btn-sm font-normal @Active("/Admin")">Admin</a>
-                        }
-                    }
-                    <span class="nav-user text-xs text-base-content/50 px-2 hidden sm:inline">@User.Identity!.Name</span>
-                    <form method="post" action="/Logout" class="nav-logout inline">
-                        @Html.AntiForgeryToken()
-                        <button type="submit" class="btn btn-ghost btn-sm font-normal text-base-content/60 hover:text-base-content">Log out</button>
-                    </form>
-                }
-                <button id="theme-toggle" class="btn btn-ghost btn-sm font-mono text-base" type="button" onclick="toggleTheme()" aria-label="Toggle theme">☾</button>
-            </nav>
+        @if (User.Identity?.IsAuthenticated == true && (ViewData["HideAppNav"] as bool?) != true)
+        {
+            <div class="navbar-center hidden md:flex">
+                <ul class="menu menu-horizontal gap-1 px-0">
+                    <partial name="Shared/_AppNavLinks" />
+                </ul>
+            </div>
+        }
+        <div class="navbar-end gap-1">
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <span class="text-xs text-base-content/50 px-2 hidden md:inline">@User.Identity!.Name</span>
+                <form method="post" action="/Logout" class="inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-ghost btn-sm font-normal text-base-content/60 hover:text-base-content">Log out</button>
+                </form>
+            }
+            <div class="dropdown dropdown-end">
+                <button tabindex="0" class="btn btn-ghost btn-sm font-mono text-base" aria-label="Choose theme"><span id="theme-icon">☾</span></button>
+                <ul tabindex="0" class="dropdown-content menu bg-base-200 border border-base-300 rounded-box z-50 mt-2 w-40 p-2 shadow-lg">
+                    <li class="menu-title text-xs">Theme</li>
+                    <li><label class="flex cursor-pointer items-center gap-3"><input type="radio" name="theme-choice" value="light" class="theme-controller radio radio-xs" onchange="setTheme(this.value)" /><span class="font-mono">☀</span> Light</label></li>
+                    <li><label class="flex cursor-pointer items-center gap-3"><input type="radio" name="theme-choice" value="dark" class="theme-controller radio radio-xs" onchange="setTheme(this.value)" /><span class="font-mono">☾</span> Dark</label></li>
+                    <li><label class="flex cursor-pointer items-center gap-3"><input type="radio" name="theme-choice" value="forest" class="theme-controller radio radio-xs" onchange="setTheme(this.value)" /><span class="font-mono">❧</span> Forest</label></li>
+                </ul>
+            </div>
         </div>
     </header>
     <main class="mx-auto max-w-2xl px-4 py-6 pb-16">

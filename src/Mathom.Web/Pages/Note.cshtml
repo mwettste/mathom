@@ -8,3 +8,18 @@
     <partial name="Shared/_NoteContent" model="Model.Item" />
 </article>
 <span id="glossary-token" data-note-id="@Model.Item?.Id" hidden>@Html.AntiForgeryToken()</span>
+
+@* Add-to-glossary dialog: bottom sheet on mobile, centered on desktop. Opened by glossary.js. *@
+<dialog id="glossary-modal" class="modal modal-bottom sm:modal-middle">
+    <div class="modal-box">
+        <h3 class="font-display text-lg font-medium mb-1">Add to glossary</h3>
+        <p class="text-xs text-base-content/60 mb-3">The correct spelling of a term — future captures get corrected to it.</p>
+        <input id="glossary-modal__input" class="input w-full" autocomplete="off" aria-label="Term" />
+        <div id="glossary-modal__done" class="text-sm mt-3 empty:hidden"></div>
+        <div class="modal-action">
+            <form method="dialog"><button class="btn btn-ghost">Cancel</button></form>
+            <button id="glossary-modal__add" type="button" class="btn btn-primary">Add</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button aria-label="Close">close</button></form>
+</dialog>

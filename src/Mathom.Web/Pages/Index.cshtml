@@ -39,9 +39,9 @@
         @foreach (var tt in IndexModel.AllTypes)
         {
             var active = Model.Type == tt;
-            <a class="btn btn-xs font-mono @(active ? "btn-primary" : "btn-ghost border border-base-300")" href="@Model.ToggleType(tt)">@tt.ToString().ToLowerInvariant()</a>
+            <a class="btn btn-xs font-mono @(active ? "btn-primary" : "btn-outline")" href="@Model.ToggleType(tt)">@tt.ToString().ToLowerInvariant()</a>
         }
-        <a class="btn btn-xs font-mono @(Model.Actionable == true ? "btn-primary" : "btn-ghost border border-base-300")" href="@Model.ToggleActionable()">actionable</a>
+        <a class="btn btn-xs font-mono @(Model.Actionable == true ? "btn-primary" : "btn-outline")" href="@Model.ToggleActionable()">actionable</a>
     </div>
 
     @if (Model.Items.Count == 0 && (Model.HasFilters || Model.Q is not null))

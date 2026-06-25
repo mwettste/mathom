@@ -1,0 +1,12 @@
+@{
+    var navPath = ViewContext.HttpContext.Request.Path.Value ?? "/";
+    string Active(string p) => string.Equals(navPath, p, StringComparison.OrdinalIgnoreCase) ? "menu-active" : "";
+}
+<li><a href="/Capture" class="@Active("/Capture")">Capture</a></li>
+<li><a href="/" class="@Active("/")">Timeline</a></li>
+<li><a href="/Trash" class="@Active("/Trash")">Trash</a></li>
+<li><a href="/Glossary" class="@Active("/Glossary")">Glossary</a></li>
+@if (User.IsInRole("Admin"))
+{
+    <li><a href="/Admin/Users" class="@Active("/Admin/Users")">Admin</a></li>
+}
