@@ -37,7 +37,7 @@ public class ItemProcessor(
 
         try
         {
-            var entries = await glossary.GetEntriesAsync(item.UserId, ct);
+            var entries = await glossary.GetEntriesAsync(item.UserId, item.ContextId, ct);
             if (entries.Count > 100)
             {
                 logger.LogInformation("Glossary for user {User} has {Count} entries; injecting first 100.", item.UserId, entries.Count);

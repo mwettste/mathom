@@ -460,6 +460,47 @@ public class ItemProcessorTests(PostgresFixture fx)
     }
 
     [Fact]
+    public async Task ProcessAsync_UsesContextScopedGlossary()
+    {
+        var u = "processor-context-user";
+        await fx.EnsureUserAsync(u, u + "@example.com");
+
+        var ctxId = Guid.NewGuid();
+        var item = Item.CreatePending(SourceType.Text, "meeting about acme", Guid.NewGuid().ToString(), u, DateTimeOffset.UtcNow);
+        item.ContextId = ctxId;
+        await using (var seed = fx.NewDbContext())
+        {
+            seed.Contexts.Add(new Context { Id = ctxId, UserId = u, Name = "Biz", CreatedAt = DateTimeOffset.UtcNow });
+            // Variant "acme" -> term "Acme Corp", defined ONLY in this context.
+            var term = new GlossaryTerm { Id = Guid.NewGuid(), UserId = u, ContextId = ctxId, Term = "Acme Corp", CreatedAt = DateTimeOffset.UtcNow };
+            term.Variants.Add(new GlossaryVariant { Id = Guid.NewGuid(), GlossaryTermId = term.Id, Text = "acme", CreatedAt = DateTimeOffset.UtcNow });
+            seed.GlossaryTerms.Add(term);
+            seed.Items.Add(item);
+            await seed.SaveChangesAsync();
+        }
+
+        // Cleanup echoes the raw text so the deterministic corrector can act on it.
+        var fake = new FakeLlmClient
+        {
+            Respond = raw => new CleanupResult("Meeting", raw, ItemType.Note, false, System.Array.Empty<CleanupTag>())
+        };
+
+        await using (var db = fx.NewDbContext())
+        {
+            var processor = new ItemProcessor(db, fake, new FakeTranscriber(), new FakeImageReader(), new FakeMediaStore(),
+                new Mathom.Web.Media.PhotoVariantService(db, new FakeMediaStore(), new Mathom.Web.Media.ImageVariantProcessor()),
+                new Mathom.Web.Glossary.GlossaryService(db), new Mathom.Web.Languages.UserLanguageService(db), NullLogger<ItemProcessor>.Instance);
+            await processor.ProcessAsync(item.Id, CancellationToken.None);
+        }
+
+        await using (var verify = fx.NewDbContext())
+        {
+            var loaded = await verify.Items.SingleAsync(i => i.Id == item.Id);
+            Assert.Contains("Acme Corp", loaded.CleanText); // variant corrected via the context glossary
+        }
+    }
+
+    [Fact]
     public async Task ProcessAsync_Photo_EmptyRead_SetsFailed()
     {
         var u = "photo-empty-user";

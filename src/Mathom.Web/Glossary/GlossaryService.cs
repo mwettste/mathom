@@ -17,31 +17,39 @@ public record GlossaryDescription(Guid Id, string? Description);
 // User-scoped per-user glossary of correct domain terms.
 public class GlossaryService(MathomDbContext db)
 {
-    public async Task<IReadOnlyList<string>> GetTermsAsync(string userId, CancellationToken ct)
-        => await db.GlossaryTerms
-            .Where(g => g.UserId == userId)
+    public async Task<IReadOnlyList<string>> GetTermsAsync(string userId, Guid? contextId, CancellationToken ct)
+    {
+        var q = db.GlossaryTerms.Where(g => g.UserId == userId);
+        q = contextId is { } cid ? q.Where(g => g.ContextId == cid) : q.Where(g => g.ContextId == null);
+        return await q
             .OrderBy(g => g.CreatedAt)
             .Select(g => g.Term)
             .ToListAsync(ct);
+    }
 
-    public async Task<IReadOnlyList<(Guid Id, string Term)>> GetTermRowsAsync(string userId, CancellationToken ct)
-        => await db.GlossaryTerms
-            .Where(g => g.UserId == userId)
+    public async Task<IReadOnlyList<(Guid Id, string Term)>> GetTermRowsAsync(string userId, Guid? contextId, CancellationToken ct)
+    {
+        var q = db.GlossaryTerms.Where(g => g.UserId == userId);
+        q = contextId is { } cid ? q.Where(g => g.ContextId == cid) : q.Where(g => g.ContextId == null);
+        return await q
             .OrderBy(g => g.CreatedAt)
             .Select(g => new ValueTuple<Guid, string>(g.Id, g.Term))
             .ToListAsync(ct);
+    }
 
-    public async Task<bool> AddAsync(string userId, string term, string? variant, CancellationToken ct)
+    public async Task<bool> AddAsync(string userId, Guid? contextId, string term, string? variant, CancellationToken ct)
     {
         term = (term ?? string.Empty).Trim();
         if (term.Length == 0) return false;
 
         var lower = term.ToLowerInvariant();
-        var existing = await db.GlossaryTerms.FirstOrDefaultAsync(g => g.UserId == userId && g.Term.ToLower() == lower, ct);
+        var existing = contextId is { } cid
+            ? await db.GlossaryTerms.FirstOrDefaultAsync(g => g.UserId == userId && g.ContextId == cid && g.Term.ToLower() == lower, ct)
+            : await db.GlossaryTerms.FirstOrDefaultAsync(g => g.UserId == userId && g.ContextId == null && g.Term.ToLower() == lower, ct);
         var changed = false;
         if (existing is null)
         {
-            existing = new GlossaryTerm { Id = Guid.NewGuid(), UserId = userId, Term = term, CreatedAt = DateTimeOffset.UtcNow };
+            existing = new GlossaryTerm { Id = Guid.NewGuid(), UserId = userId, ContextId = contextId, Term = term, CreatedAt = DateTimeOffset.UtcNow };
             db.GlossaryTerms.Add(existing);
             changed = true;
         }
@@ -75,25 +83,31 @@ public class GlossaryService(MathomDbContext db)
         }
     }
 
-    public async Task<IReadOnlyList<GlossaryEntry>> GetEntriesAsync(string userId, CancellationToken ct)
-        => await db.GlossaryTerms
-            .Where(g => g.UserId == userId)
+    public async Task<IReadOnlyList<GlossaryEntry>> GetEntriesAsync(string userId, Guid? contextId, CancellationToken ct)
+    {
+        var q = db.GlossaryTerms.Where(g => g.UserId == userId);
+        q = contextId is { } cid ? q.Where(g => g.ContextId == cid) : q.Where(g => g.ContextId == null);
+        return await q
             .OrderBy(g => g.CreatedAt)
             .Select(g => new GlossaryEntry(
                 g.Term,
                 g.Variants.OrderBy(v => v.CreatedAt).Select(v => v.Text).ToList(),
                 g.Description))
             .ToListAsync(ct);
+    }
 
-    public async Task<IReadOnlyList<GlossaryTermView>> GetTermViewsAsync(string userId, CancellationToken ct)
-        => await db.GlossaryTerms
-            .Where(g => g.UserId == userId)
+    public async Task<IReadOnlyList<GlossaryTermView>> GetTermViewsAsync(string userId, Guid? contextId, CancellationToken ct)
+    {
+        var q = db.GlossaryTerms.Where(g => g.UserId == userId);
+        q = contextId is { } cid ? q.Where(g => g.ContextId == cid) : q.Where(g => g.ContextId == null);
+        return await q
             .OrderBy(g => g.CreatedAt)
             .Select(g => new GlossaryTermView(
                 g.Id, g.Term,
                 g.Variants.OrderBy(v => v.CreatedAt).Select(v => new GlossaryVariantView(v.Id, v.Text)).ToList(),
                 g.Description))
             .ToListAsync(ct);
+    }
 
     public async Task<GlossaryDescription?> GetDescriptionAsync(string userId, Guid termId, CancellationToken ct)
         => await db.GlossaryTerms
