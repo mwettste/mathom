@@ -397,6 +397,34 @@ public class ItemProcessorTests(PostgresFixture fx)
     }
 
     [Fact]
+    public async Task ProcessAsync_Photo_WithCaptureNote_PassesNoteAndPrepends()
+    {
+        await fx.EnsureUserAsync(Uid, "processor@example.com");
+        var media = new FakeMediaStore();
+        var k1 = await media.SaveAsync(new MemoryStream(new byte[] { 1, 2, 3 }), ".jpg", default);
+
+        var item = Item.CreatePending(SourceType.Photo, "", Guid.NewGuid().ToString(), Uid, DateTimeOffset.UtcNow);
+        item.CaptureNote = "kitchen renovation quote";
+        item.Photos.Add(new ItemPhoto { Id = Guid.NewGuid(), MediaPath = k1, Order = 0, CreatedAt = DateTimeOffset.UtcNow });
+        await using (var seed = fx.NewDbContext()) { seed.Items.Add(item); await seed.SaveChangesAsync(); }
+
+        var reader = new FakeImageReader { Respond = _ => "line items: tiles, labor" };
+        var llm = new FakeLlmClient();
+
+        await using (var db = fx.NewDbContext())
+            await new ItemProcessor(db, llm, new FakeTranscriber(), reader, media,
+                new Mathom.Web.Glossary.GlossaryService(db), NullLogger<ItemProcessor>.Instance)
+                .ProcessAsync(item.Id, CancellationToken.None);
+
+        await using (var verify = fx.NewDbContext())
+        {
+            var loaded = await verify.Items.SingleAsync(i => i.Id == item.Id);
+            Assert.Equal("kitchen renovation quote", reader.LastContext);
+            Assert.Equal("kitchen renovation quote\n\nline items: tiles, labor", loaded.RawText);
+        }
+    }
+
+    [Fact]
     public async Task ProcessAsync_Photo_EmptyRead_SetsFailed()
     {
         var u = "photo-empty-user";
