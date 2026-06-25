@@ -52,4 +52,45 @@ public class NotePageTests(PostgresFixture fx)
         var resp = await app.CreateClient().GetAsync($"/Note/{Guid.NewGuid()}");
         Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
     }
+
+    [Fact]
+    public async Task NoteDetail_RendersLanguageToggle_WhenTranslationsExist()
+    {
+        using var app = await CreateAppAsync();
+
+        var id = Guid.NewGuid();
+        await using (var db = fx.NewDbContext())
+        {
+            var item = new Item
+            {
+                Id = id,
+                Status = ItemStatus.Ready,
+                SourceType = SourceType.Text,
+                RawText = "x",
+                CleanText = "Inhalt",
+                Title = "Titel",
+                SourceLanguage = "de-CH",
+                ItemType = ItemType.Note,
+                CreatedAt = DateTimeOffset.UtcNow,
+                ProcessedAt = DateTimeOffset.UtcNow,
+                IdempotencyKey = Guid.NewGuid().ToString(),
+                UserId = TestUsers.AliceId,
+            };
+            item.Translations.Add(new ItemTranslation
+            {
+                Id = Guid.NewGuid(),
+                ItemId = id,
+                Locale = "en",
+                Title = "Title",
+                CleanText = "Content",
+            });
+            db.Items.Add(item);
+            await db.SaveChangesAsync();
+        }
+
+        var html = await app.CreateClient().GetStringAsync($"/Note/{id}");
+        Assert.Contains("German (Switzerland)", html);   // toggle pill for source locale
+        Assert.Contains("English", html);                // toggle pill for translation
+        Assert.Contains("Content", html);                // translated body present in DOM
+    }
 }
