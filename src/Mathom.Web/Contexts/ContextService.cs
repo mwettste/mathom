@@ -63,7 +63,15 @@ public class ContextService(MathomDbContext db)
             return false;
 
         ctx.Name = name;
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException) // unique index race
+        {
+            db.ChangeTracker.Clear();
+            return false;
+        }
         return true;
     }
 

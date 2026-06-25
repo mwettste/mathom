@@ -20,14 +20,12 @@ public class NoteModel(SearchService search, NoteService notes, Mathom.Web.Conte
     public ItemDetail? Item { get; private set; }
 
     public IReadOnlyList<Mathom.Web.Contexts.ContextView> Contexts { get; private set; } = new List<Mathom.Web.Contexts.ContextView>();
-    public Guid? CurrentContextId { get; private set; }
 
     public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct)
     {
         Item = await search.GetAsync(UserId, id, ct);
         if (Item is null) return NotFound();
         Contexts = await contexts.ListAsync(UserId, ct);
-        CurrentContextId = await contexts.GetCurrentAsync(UserId, ct);
         return Page();
     }
 
