@@ -1,0 +1,17 @@
+@page
+@model Mathom.Web.Pages.ContextsModel
+@{
+    ViewData["Title"] = "Contexts";
+}
+<h1 class="text-xl font-semibold mb-4">Contexts</h1>
+
+<form method="post" asp-page-handler="Create" hx-post="/Contexts?handler=Create"
+      hx-target="#context-list" hx-swap="innerHTML" class="flex items-center gap-2 mb-6">
+    @Html.AntiForgeryToken()
+    <input type="text" name="name" placeholder="New context name" class="input input-bordered input-sm w-full max-w-xs" />
+    <button type="submit" class="btn btn-primary btn-sm">Add</button>
+</form>
+
+<div id="context-list">
+    <partial name="Shared/_ContextList" model="Model" />
+</div>

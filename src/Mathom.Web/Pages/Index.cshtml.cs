@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,11 +13,13 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 namespace Mathom.Web.Pages;
 
 [Authorize]
-public class IndexModel(SearchService search) : PageModel
+public class IndexModel(SearchService search, Mathom.Web.Contexts.ContextService contexts) : PageModel
 {
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
     public IReadOnlyList<ItemSummary> Items { get; private set; } = new List<ItemSummary>();
+
+    public string CurrentContextName { get; private set; } = "Inbox";
 
     public string? Q { get; private set; }
     public string? Tag { get; private set; }
@@ -52,7 +55,8 @@ public class IndexModel(SearchService search) : PageModel
     // Polled by HTMX while in-flight items exist — always the full, unfiltered timeline.
     public async Task<IActionResult> OnGetTimelineAsync(CancellationToken ct)
     {
-        Items = await search.TimelineAsync(UserId, null, 50, ct);
+        var ctxId = await contexts.GetCurrentAsync(UserId, ct);
+        Items = await search.TimelineAsync(UserId, ctxId, 50, ct);
         return Partial("Shared/_ItemList", Items);
     }
 
@@ -63,6 +67,10 @@ public class IndexModel(SearchService search) : PageModel
         Type = Enum.TryParse<ItemType>(type, ignoreCase: true, out var t) ? t : null;
         Actionable = actionable;
 
-        Items = await search.QueryAsync(UserId, null, Q, new SearchFilters(Type, Actionable, Tag), 50, ct);
+        var ctxId = await contexts.GetCurrentAsync(UserId, ct);
+        var list = await contexts.ListAsync(UserId, ct);
+        CurrentContextName = ctxId is null ? "Inbox" : list.FirstOrDefault(c => c.Id == ctxId)?.Name ?? "Inbox";
+
+        Items = await search.QueryAsync(UserId, ctxId, Q, new SearchFilters(Type, Actionable, Tag), 50, ct);
     }
 }
