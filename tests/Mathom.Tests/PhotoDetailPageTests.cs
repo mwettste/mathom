@@ -26,17 +26,20 @@ public class PhotoDetailPageTests(PostgresFixture fx)
         await app.SeedUsersAsync();
 
         string key; using (var a = new MemoryStream(new byte[] { 1 })) key = await media.SaveAsync(a, ".jpg", CancellationToken.None);
-        var photoId = Guid.NewGuid();
+        var photoExternalId = "test-ext-id-abc";
         var item = Item.CreatePending(SourceType.Photo, "list: milk", Guid.NewGuid().ToString(), TestUsers.AliceId, DateTimeOffset.UtcNow);
         item.Status = ItemStatus.Ready;
         item.CleanText = "list: milk";
-        item.Photos.Add(new ItemPhoto { Id = photoId, MediaPath = key, Order = 0, CreatedAt = DateTimeOffset.UtcNow });
+        item.Photos.Add(new ItemPhoto { Id = Guid.NewGuid(), ExternalId = photoExternalId, MediaPath = key, Order = 0, CreatedAt = DateTimeOffset.UtcNow });
         await using (var db = fx.NewDbContext()) { db.Items.Add(item); await db.SaveChangesAsync(); }
 
         var client = app.CreateClient();
         client.DefaultRequestHeaders.Add(TestUsers.Header, TestUsers.AliceId);
         var html = await client.GetStringAsync($"/Note/{item.Id}");
 
-        Assert.Contains($"/media/{photoId}", html);
+        Assert.Contains($"/media/{photoExternalId}?variant=display", html);
+        // Tapping a thumbnail opens an Alpine lightbox showing the enlarged variant.
+        Assert.Contains("cursor-zoom-in", html);
+        Assert.Contains("x-bind:src=\"zoom\"", html);
     }
 }

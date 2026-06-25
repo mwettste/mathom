@@ -98,6 +98,8 @@ builder.Services.AddControllers();
 
 builder.Services.AddScoped<ItemProcessor>();
 builder.Services.AddSingleton<IMediaStore, LocalDiskMediaStore>();
+builder.Services.AddSingleton<ImageVariantProcessor>();
+builder.Services.AddScoped<PhotoVariantService>();
 builder.Services.AddHttpClient<InfomaniakLlmClient>();
 builder.Services.AddHttpClient<OpenRouterLlmClient>();
 builder.Services.AddHttpClient<InfomaniakTranscriber>();

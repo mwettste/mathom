@@ -18,6 +18,7 @@ public class ItemProcessor(
     ITranscriber transcriber,
     IImageReader imageReader,
     IMediaStore media,
+    Mathom.Web.Media.PhotoVariantService variants,
     Mathom.Web.Glossary.GlossaryService glossary,
     ILogger<ItemProcessor> logger)
 {
@@ -75,9 +76,10 @@ public class ItemProcessor(
                     var images = new List<ImageData>();
                     foreach (var p in item.Photos.OrderBy(p => p.Order))
                     {
-                        var s = await media.OpenReadAsync(p.MediaPath, ct);
+                        var displayKey = await variants.EnsureDisplayAsync(p, ct);
+                        var s = await media.OpenReadAsync(displayKey, ct);
                         streams.Add(s);
-                        images.Add(new ImageData(s, p.MediaPath));
+                        images.Add(new ImageData(s, displayKey));
                     }
                     var read = await imageReader.ExtractAsync(images, terms, ct);
                     if (string.IsNullOrWhiteSpace(read))

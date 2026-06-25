@@ -75,6 +75,7 @@ public class NoteService(MathomDbContext db, IMediaStore media)
         var mediaKeys = new List<string>();
         if (!string.IsNullOrEmpty(item.MediaPath)) mediaKeys.Add(item.MediaPath);
         mediaKeys.AddRange(item.Photos.Where(p => !string.IsNullOrEmpty(p.MediaPath)).Select(p => p.MediaPath));
+        mediaKeys.AddRange(item.Photos.Where(p => !string.IsNullOrEmpty(p.DisplayPath)).Select(p => p.DisplayPath!));
 
         db.Items.Remove(item);                 // cascades ItemTags + ItemPhoto rows
         await db.SaveChangesAsync(ct);
