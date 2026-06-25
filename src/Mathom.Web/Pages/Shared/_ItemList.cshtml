@@ -26,9 +26,9 @@ else
                 foreach (var tr in item.Translations)
                     variants.Add(new { locale = tr.Locale, name = Locales.DisplayName(tr.Locale), title = tr.Title, body = tr.CleanText });
                 var variantsJson = System.Text.Json.JsonSerializer.Serialize(variants);
-                itemXData = $"x-data='{{\"v\":{variantsJson},\"i\":0}}'";
+                itemXData = $"{{\"v\":{variantsJson},\"i\":0}}";
             }
-            <li class="py-4" @(multi ? Html.Raw(itemXData!) : null)>
+            <li class="py-4" x-data="@itemXData">
                 <div class="flex items-baseline justify-between gap-3">
                     @if (multi)
                     {

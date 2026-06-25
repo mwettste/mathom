@@ -21,7 +21,7 @@
         foreach (var tr in Model.Translations)
             variants.Add(new { locale = tr.Locale, name = Locales.DisplayName(tr.Locale), title = tr.Title, body = tr.CleanText });
         var variantsJson = System.Text.Json.JsonSerializer.Serialize(variants);
-        xDataAttr = $"x-data='{{\"v\":{variantsJson},\"i\":0}}'";
+        xDataAttr = $"{{\"v\":{variantsJson},\"i\":0}}";
     }
 }
 <header class="mb-4">
@@ -45,7 +45,7 @@
     </div>
     @if (multi)
     {
-        <div @Html.Raw(xDataAttr!)>
+        <div x-data="@xDataAttr">
             <h1 class="font-display text-2xl font-medium leading-snug" x-text="v[i].title">@title</h1>
             @if (!string.IsNullOrEmpty(Model.CleanText))
             {
