@@ -87,31 +87,54 @@ function voiceCapture() {
 
 function photoCapture() {
   return {
-    files: [],
+    bag: new DataTransfer(),
+    previews: [],
     count: 0,
+    photoContext: '',
     busy: false,
     status: '',
     done: false,
     pick(e) {
-      this.files = Array.from(e.target.files || []);
-      this.count = this.files.length;
+      const incoming = Array.from(e.target.files || []);
+      for (const f of incoming) {
+        if (this.bag.files.length >= 8) { this.status = 'At most 8 images.'; break; }
+        this.bag.items.add(f);
+        this.previews.push({ url: URL.createObjectURL(f) });
+      }
+      this.count = this.bag.files.length;
       this.done = false;
-      this.status = '';
+      if (this.bag.files.length <= 8) this.status = '';
+      e.target.value = '';
+    },
+    remove(i) {
+      URL.revokeObjectURL(this.previews[i].url);
+      this.previews.splice(i, 1);
+      const dt = new DataTransfer();
+      for (let j = 0; j < this.bag.files.length; j++) if (j !== i) dt.items.add(this.bag.files[j]);
+      this.bag = dt;
+      this.count = this.bag.files.length;
+    },
+    reset() {
+      for (const p of this.previews) URL.revokeObjectURL(p.url);
+      this.previews = [];
+      this.bag = new DataTransfer();
+      this.count = 0;
+      this.photoContext = '';
     },
     async submit() {
-      if (!this.files.length) { this.status = 'Choose a photo first.'; return; }
-      if (this.files.length > 8) { this.status = 'At most 8 images.'; return; }
+      if (!this.count) { this.status = 'Choose a photo first.'; return; }
+      if (this.count > 8) { this.status = 'At most 8 images.'; return; }
       this.busy = true;
       try {
         const form = new FormData();
-        for (const f of this.files) form.append('images', f, f.name || 'photo.jpg');
+        for (const f of this.bag.files) form.append('images', f, f.name || 'photo.jpg');
+        if (this.photoContext.trim()) form.append('context', this.photoContext.trim());
         form.append('idempotencyKey', crypto.randomUUID());
         const res = await fetch('/capture/photo', { method: 'POST', body: form });
         if (res.ok) {
           this.status = 'Sent.';
           this.done = true;
-          this.files = [];
-          this.count = 0;
+          this.reset();
         } else {
           let msg = 'Upload failed.';
           try { msg = (await res.json()).error || msg; } catch {}
