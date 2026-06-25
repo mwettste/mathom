@@ -9,13 +9,15 @@ public static class CleanupPromptBuilder
         const string basePrompt =
             """
             You clean up and classify a user's quickly-captured note.
+            Write "title" and "clean_text" in the SAME language as the note — never translate the note into another language.
             Respond ONLY with a JSON object, no prose, with exactly these fields:
             {
-              "title": string (max ~8 words),
-              "clean_text": string (the note, cleaned up, fixing transcription errors, preserving meaning),
+              "title": string (max ~8 words, in the note's language),
+              "clean_text": string (the note, cleaned up, fixing transcription errors, preserving meaning and language),
               "item_type": one of "idea","task","note","reference","journal",
               "actionable": boolean (true if it describes something to act on),
-              "tags": array of { "name": string, "kind": one of "topic","person","project","entity" }
+              "tags": array of { "name": string, "kind": one of "topic","person","project","entity" },
+              "language": string (the note's language as an ISO 639-1 two-letter code, e.g. "en", "de", "fr")
             }
             """;
 
@@ -59,8 +61,9 @@ public static class CleanupPromptBuilder
                     additionalProperties = false,
                 },
             },
+            language = new { type = "string" },
         },
-        required = new[] { "title", "clean_text", "item_type", "actionable", "tags" },
+        required = new[] { "title", "clean_text", "item_type", "actionable", "tags", "language" },
         additionalProperties = false,
     };
 }

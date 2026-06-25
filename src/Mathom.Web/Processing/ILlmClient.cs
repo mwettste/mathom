@@ -12,7 +12,8 @@ public record CleanupResult(
     string CleanText,
     ItemType ItemType,
     bool Actionable,
-    IReadOnlyList<CleanupTag> Tags);
+    IReadOnlyList<CleanupTag> Tags,
+    string? Language = null);
 
 public interface ILlmClient
 {
