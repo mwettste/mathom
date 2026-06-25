@@ -32,18 +32,20 @@
         </div>
     </div>
 
-    <div class="card" x-data="photoCapture()" data-endpoint="/capture/photo">
-        <h2 class="card__title">Photo</h2>
-        <input class="field" type="file" accept="image/jpeg,image/png,image/webp"
-               capture="environment" multiple x-on:change="pick($event)" />
-        <div class="card__actions">
-            <button class="btn btn--primary" type="button" @@click="submit()"
-                    x-bind:disabled="busy || !count" x-text="busy ? 'Uploading…' : 'Capture'"></button>
-            <span class="hint" x-text="status"></span>
-        </div>
-        <div class="hint capture__done" x-show="done" x-cloak>
-            <span class="pill processing"><span class="dot"></span>reading in the background</span>
-            <a href="/">View timeline →</a>
+    <div class="card bg-base-200" x-data="photoCapture()" data-endpoint="/capture/photo">
+        <div class="card-body gap-3">
+            <h2 class="font-display text-base font-medium text-base-content/60">Photo</h2>
+            <input class="file-input w-full" type="file" accept="image/jpeg,image/png,image/webp"
+                   capture="environment" multiple x-on:change="pick($event)" />
+            <div class="flex items-center gap-3">
+                <button class="btn btn-primary" type="button" @@click="submit()"
+                        x-bind:disabled="busy || !count" x-text="busy ? 'Uploading…' : 'Capture'"></button>
+                <span class="text-xs text-base-content/50" x-text="status"></span>
+            </div>
+            <div class="flex flex-col items-start gap-2 text-xs" x-show="done" x-cloak>
+                <span class="badge badge-info">reading in the background</span>
+                <a class="link link-primary" href="/">View timeline →</a>
+            </div>
         </div>
     </div>
 </section>
