@@ -16,7 +16,10 @@ function textCapture() {
         text: this.text,
       });
       this.status = res.status;
-      if (res.ok || res.queued) this.text = '';
+      if (res.ok || res.queued) {
+        this.text = '';
+        if (window.toast) toast(res.queued ? 'Saved offline — will sync when online' : 'Captured — processing in the background', res.queued ? 'info' : 'success');
+      }
       this.busy = false;
     },
   };
@@ -76,6 +79,7 @@ function voiceCapture() {
       });
       this.status = res.status;
       this.done = res.ok; // only show the "transcribing in the background" pulse when actually sent
+      if (window.toast && (res.ok || res.queued)) toast(res.queued ? 'Saved offline — will sync when online' : 'Captured — transcribing in the background', res.queued ? 'info' : 'success');
       this.uploading = false;
     },
   };

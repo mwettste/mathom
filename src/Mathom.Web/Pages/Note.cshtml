@@ -4,7 +4,7 @@
 
 <p class="mb-4"><a class="link link-hover font-mono text-xs uppercase tracking-wider text-base-content/50" href="/">← Timeline</a></p>
 
-<article id="note-content">
+<article id="note-content" aria-live="polite">
     <partial name="Shared/_NoteContent" model="Model.Item" />
 </article>
 <span id="glossary-token" data-note-id="@Model.Item?.Id" hidden>@Html.AntiForgeryToken()</span>

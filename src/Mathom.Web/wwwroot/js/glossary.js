@@ -92,6 +92,7 @@
       window.getSelection().removeAllRanges();
       done.className = 'text-sm mt-3 text-success';
       done.textContent = '✓ "' + term + '" added.';
+      if (window.toast) toast('Added "' + term + '" to glossary');
       var id = noteId();
       if (id) {
         var rb = document.createElement('button');

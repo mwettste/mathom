@@ -37,12 +37,13 @@
         @if (Model.Status == ItemStatus.Ready)
         {
             <button class="btn btn-ghost btn-sm" type="button"
-                    hx-get="@($"/Note/{Model.Id}?handler=Edit")" hx-target="#note-content" hx-swap="innerHTML">Edit</button>
+                    hx-get="@($"/Note/{Model.Id}?handler=Edit")" hx-target="#note-content" hx-swap="innerHTML"><span class="htmx-indicator loading loading-spinner loading-xs"></span>Edit</button>
         }
         <form method="post"
-              hx-post="@($"/Note/{Model.Id}?handler=Reprocess")" hx-target="#note-content" hx-swap="innerHTML">
+              hx-post="@($"/Note/{Model.Id}?handler=Reprocess")" hx-target="#note-content" hx-swap="innerHTML"
+              hx-on::after-request="if (event.detail.successful) window.toast &amp;&amp; toast('Re-processing…', 'info')">
             @Html.AntiForgeryToken()
-            <button class="btn btn-ghost btn-sm" type="submit">Re-process</button>
+            <button class="btn btn-ghost btn-sm" type="submit"><span class="htmx-indicator loading loading-spinner loading-xs"></span>Re-process</button>
         </form>
         @if (Model.Status == ItemStatus.Ready)
         {
