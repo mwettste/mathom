@@ -78,12 +78,12 @@ else if (inflight)
     </section>
 }
 
-@if (Model.PhotoIds.Count > 0)
+@if (Model.PhotoExternalIds.Count > 0)
 {
     <section class="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-        @foreach (var pid in Model.PhotoIds)
+        @foreach (var pid in Model.PhotoExternalIds)
         {
-            <img class="h-32 w-full rounded-box border border-base-300 object-cover" src="@($"/media/{pid}")" alt="Captured photo" loading="lazy" />
+            <img class="h-32 w-full rounded-box border border-base-300 object-cover" src="@($"/media/{pid}?variant=display")" alt="Captured photo" loading="lazy" />
         }
     </section>
 }

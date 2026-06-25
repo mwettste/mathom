@@ -35,7 +35,7 @@ public record ItemDetail(
     DateTimeOffset? ProcessedAt,
     string? Error,
     IReadOnlyList<string> Tags,
-    IReadOnlyList<Guid> PhotoIds);
+    IReadOnlyList<string> PhotoExternalIds);
 
 public class SearchService(MathomDbContext db)
 {
@@ -48,7 +48,7 @@ public class SearchService(MathomDbContext db)
                 i.Id, i.Title, i.CleanText, i.RawText, i.ItemType, i.SourceType,
                 i.Status, i.Actionable, i.CreatedAt, i.ProcessedAt, i.Error,
                 i.ItemTags.Select(it => it.Tag.Name).ToList(),
-                i.Photos.OrderBy(p => p.Order).Select(p => p.Id).ToList()))
+                i.Photos.OrderBy(p => p.Order).Select(p => p.ExternalId).ToList()))
             .FirstOrDefaultAsync(ct);
     }
 

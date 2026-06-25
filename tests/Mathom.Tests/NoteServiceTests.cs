@@ -233,6 +233,33 @@ public class NoteServiceTests(PostgresFixture fx)
     }
 
     [Fact]
+    public async Task Purge_DeletesBothOriginalAndDisplayVariantFiles()
+    {
+        var media = new FakeMediaStore();
+        string orig, disp;
+        using (var a = new System.IO.MemoryStream(new byte[] { 1, 2, 3 })) orig = await media.SaveAsync(a, ".jpg", CancellationToken.None);
+        using (var b = new System.IO.MemoryStream(new byte[] { 4, 5, 6 })) disp = await media.SaveAsync(b, ".jpg", CancellationToken.None);
+
+        var u = "purge-display-variant-user";
+        await fx.EnsureUserAsync(u, u + "@example.com");
+        var item = Item.CreatePending(SourceType.Photo, "", Guid.NewGuid().ToString(), u, DateTimeOffset.UtcNow);
+        item.DeletedAt = DateTimeOffset.UtcNow;
+        item.Photos.Add(new ItemPhoto { MediaPath = orig, DisplayPath = disp, Order = 0, CreatedAt = DateTimeOffset.UtcNow });
+        Guid id;
+        await using (var db = fx.NewDbContext()) { db.Items.Add(item); await db.SaveChangesAsync(); id = item.Id; }
+
+        await using (var db = fx.NewDbContext())
+        {
+            var svc = new NoteService(db, media);
+            var ok = await svc.PurgeAsync(u, id, CancellationToken.None);
+            Assert.True(ok);
+        }
+
+        Assert.False(media.Has(orig));
+        Assert.False(media.Has(disp));
+    }
+
+    [Fact]
     public async Task Mutations_AreUserScoped()
     {
         var owner = "ns-owner";
