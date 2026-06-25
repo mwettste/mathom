@@ -10,12 +10,6 @@ namespace Mathom.Tests;
 [Collection("postgres")]
 public class UserLanguageServiceTests(PostgresFixture fx)
 {
-    private static UserLanguageService Svc(PostgresFixture fx, out Mathom.Web.Data.MathomDbContext db)
-    {
-        db = fx.NewDbContext();
-        return new UserLanguageService(db);
-    }
-
     [Fact]
     public async Task FirstAdded_BecomesPrimary_AndDefaultsAreSafeWhenEmpty()
     {
@@ -67,7 +61,7 @@ public class UserLanguageServiceTests(PostgresFixture fx)
         {
             var svc = new UserLanguageService(verify);
             var views = await svc.GetViewsAsync(u, CancellationToken.None);
-            Assert.Single(views.Where(v => v.IsPrimary));
+            Assert.Single(views, v => v.IsPrimary);
             Assert.Equal("de-DE", views.Single(v => v.IsPrimary).Locale);
         }
     }
