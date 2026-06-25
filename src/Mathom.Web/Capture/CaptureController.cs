@@ -25,6 +25,7 @@ public class CaptureController(MathomDbContext db, IMediaStore media) : Controll
     private const long MaxVoiceBytes = 25 * 1024 * 1024; // 25 MB audio
     private const int MaxPhotoCount = 8;
     private const long MaxPhotoBytes = 15 * 1024 * 1024; // 15 MB per image
+    private const int MaxCaptureNoteLength = 4_000;
 
     [HttpPost]
     public async Task<IActionResult> Post([FromBody] CaptureRequest req, CancellationToken ct)
@@ -113,6 +114,7 @@ public class CaptureController(MathomDbContext db, IMediaStore media) : Controll
     public async Task<IActionResult> PostPhoto(
         [FromForm] List<IFormFile>? images,
         [FromForm] string? idempotencyKey,
+        [FromForm] string? context,
         CancellationToken ct)
     {
         if (images is null || images.Count == 0)
@@ -134,6 +136,10 @@ public class CaptureController(MathomDbContext db, IMediaStore media) : Controll
             exts[i] = ext;
         }
 
+        var note = string.IsNullOrWhiteSpace(context) ? null : context.Trim();
+        if (note is { Length: > MaxCaptureNoteLength })
+            return BadRequest(new { error = "Context is too long." });
+
         var key = string.IsNullOrWhiteSpace(idempotencyKey) ? Guid.NewGuid().ToString() : idempotencyKey;
 
         var existing = await db.Items.IgnoreQueryFilters().FirstOrDefaultAsync(i => i.IdempotencyKey == key, ct);
@@ -142,6 +148,7 @@ public class CaptureController(MathomDbContext db, IMediaStore media) : Controll
 
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         var item = Item.CreatePending(SourceType.Photo, "", key, userId, DateTimeOffset.UtcNow);
+        item.CaptureNote = note;
         for (var i = 0; i < images.Count; i++)
         {
             string mediaPath;

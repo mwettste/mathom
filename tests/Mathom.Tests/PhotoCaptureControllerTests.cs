@@ -27,7 +27,7 @@ public class PhotoCaptureControllerTests(PostgresFixture fx)
     }
 
     private static MultipartFormDataContent Payload(string idempotencyKey, int count, string contentType = "image/jpeg",
-        string fileName = "p.jpg", int bytesEach = 3)
+        string fileName = "p.jpg", int bytesEach = 3, string? context = null)
     {
         var form = new MultipartFormDataContent();
         for (var i = 0; i < count; i++)
@@ -37,6 +37,7 @@ public class PhotoCaptureControllerTests(PostgresFixture fx)
             form.Add(file, "images", fileName);
         }
         form.Add(new StringContent(idempotencyKey), "idempotencyKey");
+        if (context is not null) form.Add(new StringContent(context), "context");
         return form;
     }
 
@@ -114,5 +115,45 @@ public class PhotoCaptureControllerTests(PostgresFixture fx)
 
         await using var db = fx.NewDbContext();
         Assert.False(await db.Items.IgnoreQueryFilters().AnyAsync(i => i.IdempotencyKey == "photo-heic"));
+    }
+
+    [Fact]
+    public async Task Post_Photo_StoresCaptureNote()
+    {
+        var media = new FakeMediaStore();
+        using var app = await CreateAppAsync(media);
+        var client = app.CreateClient();
+
+        var resp = await client.PostAsync("/capture/photo", Payload("photo-ctx", 1, context: "  invoice from acme  "));
+        Assert.Equal(HttpStatusCode.Created, resp.StatusCode);
+
+        await using var db = fx.NewDbContext();
+        var item = await db.Items.SingleAsync(i => i.IdempotencyKey == "photo-ctx");
+        Assert.Equal("invoice from acme", item.CaptureNote);
+    }
+
+    [Fact]
+    public async Task Post_Photo_BlankContext_StoresNull()
+    {
+        var media = new FakeMediaStore();
+        using var app = await CreateAppAsync(media);
+        var client = app.CreateClient();
+
+        await client.PostAsync("/capture/photo", Payload("photo-blank", 1, context: "   "));
+
+        await using var db = fx.NewDbContext();
+        var item = await db.Items.SingleAsync(i => i.IdempotencyKey == "photo-blank");
+        Assert.Null(item.CaptureNote);
+    }
+
+    [Fact]
+    public async Task Post_Photo_RejectsOverlongContext()
+    {
+        var media = new FakeMediaStore();
+        using var app = await CreateAppAsync(media);
+        var client = app.CreateClient();
+
+        var resp = await client.PostAsync("/capture/photo", Payload("photo-long", 1, context: new string('x', 4001)));
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
     }
 }
