@@ -25,6 +25,7 @@ public class MathomDbContext(DbContextOptions<MathomDbContext> options) : Identi
             e.HasQueryFilter(x => x.DeletedAt == null);
 
             e.Property(x => x.RawText).IsRequired();
+            e.Property(x => x.CaptureNote).HasMaxLength(4000);
             e.Property(x => x.IdempotencyKey).IsRequired();
             e.HasIndex(x => x.IdempotencyKey).IsUnique();
             e.HasIndex(x => x.Status);

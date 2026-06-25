@@ -13,6 +13,11 @@ public class Item
     public ItemStatus Status { get; set; }
     public SourceType SourceType { get; set; }
     public string RawText { get; set; } = string.Empty;
+
+    // Optional user-typed context captured alongside photos. Steers vision extraction and is
+    // preserved into RawText during processing. Distinct from ContextId (the grouping FK).
+    public string? CaptureNote { get; set; }
+
     public string? CleanText { get; set; }
     public string? Title { get; set; }
     public ItemType? ItemType { get; set; }
