@@ -20,6 +20,7 @@ public class ItemProcessor(
     IMediaStore media,
     Mathom.Web.Media.PhotoVariantService variants,
     Mathom.Web.Glossary.GlossaryService glossary,
+    Mathom.Web.Languages.UserLanguageService userLanguages,
     ILogger<ItemProcessor> logger)
 {
     public async Task ProcessAsync(Guid itemId, CancellationToken ct)
@@ -96,11 +97,43 @@ public class ItemProcessor(
             var result = await llm.CleanupAsync(item.RawText, cleanupGlossary, ct);
             result = GlossaryCorrector.Apply(result, variantToTerm);
 
+            var primaryLocale = await userLanguages.GetPrimaryLocaleAsync(item.UserId, ct);
+            var activeLocales = await userLanguages.GetActiveLocalesAsync(item.UserId, ct);
+            var sourceLocale = Mathom.Web.Languages.Locales.ResolveSourceLocale(result.Language, primaryLocale, activeLocales);
+
+            item.SourceLanguage = sourceLocale;
             item.Title = result.Title;
             item.CleanText = result.CleanText;
             item.ItemType = result.ItemType;
             item.Actionable = result.Actionable;
             item.Error = null;
+
+            // Re-translate from scratch so re-processing stays clean and picks up current languages.
+            var staleTranslations = await db.ItemTranslations.Where(t => t.ItemId == item.Id).ToListAsync(ct);
+            db.ItemTranslations.RemoveRange(staleTranslations);
+
+            foreach (var locale in activeLocales.Where(l => l != sourceLocale))
+            {
+                try
+                {
+                    var tr = await llm.TranslateAsync(
+                        result.Title, result.CleanText, locale,
+                        Mathom.Web.Languages.Locales.StyleHint(locale), terms, ct);
+                    db.ItemTranslations.Add(new ItemTranslation
+                    {
+                        Id = Guid.NewGuid(),
+                        ItemId = item.Id,
+                        Locale = locale,
+                        Title = tr.Title,
+                        CleanText = tr.CleanText,
+                    });
+                }
+                catch (Exception tex)
+                {
+                    // Best-effort: a failed language is simply absent; the note still goes Ready.
+                    logger.LogWarning(tex, "Translation to {Locale} failed for item {ItemId}", locale, item.Id);
+                }
+            }
 
             var desiredTagIds = new List<int>();
             foreach (var t in result.Tags)
