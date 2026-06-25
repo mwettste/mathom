@@ -28,6 +28,7 @@ public record SearchFilters(ItemType? ItemType = null, bool? Actionable = null, 
 
 public record ItemDetail(
     Guid Id,
+    Guid? ContextId,
     string? Title,
     string? CleanText,
     string RawText,
@@ -51,7 +52,7 @@ public class SearchService(MathomDbContext db)
         return await db.Items
             .Where(i => i.Id == id && i.UserId == userId)
             .Select(i => new ItemDetail(
-                i.Id, i.Title, i.CleanText, i.RawText, i.ItemType, i.SourceType,
+                i.Id, i.ContextId, i.Title, i.CleanText, i.RawText, i.ItemType, i.SourceType,
                 i.Status, i.Actionable, i.CreatedAt, i.ProcessedAt, i.Error,
                 i.ItemTags.Select(it => it.Tag.Name).ToList(),
                 i.Photos.OrderBy(p => p.Order).Select(p => p.ExternalId).ToList(),
