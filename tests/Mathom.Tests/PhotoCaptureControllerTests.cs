@@ -13,14 +13,11 @@ using Xunit;
 namespace Mathom.Tests;
 
 [Collection("postgres")]
-public class PhotoCaptureControllerTests
+public class PhotoCaptureControllerTests(PostgresFixture fx)
 {
-    private readonly PostgresFixture _fx;
-    public PhotoCaptureControllerTests(PostgresFixture fx) => _fx = fx;
-
     private async Task<TestWebAppFactory> CreateAppAsync(FakeMediaStore media)
     {
-        var app = new TestWebAppFactory(_fx.ConnectionString, s =>
+        var app = new TestWebAppFactory(fx.ConnectionString, s =>
         {
             s.RemoveAll(typeof(IMediaStore));
             s.AddSingleton<IMediaStore>(media);
@@ -53,7 +50,7 @@ public class PhotoCaptureControllerTests
         var resp = await client.PostAsync("/capture/photo", Payload("photo-1", count: 2));
         Assert.Equal(HttpStatusCode.Created, resp.StatusCode);
 
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         var item = await db.Items.Include(i => i.Photos).SingleAsync(i => i.IdempotencyKey == "photo-1");
         Assert.Equal(SourceType.Photo, item.SourceType);
         Assert.Equal(ItemStatus.Pending, item.Status);
@@ -74,7 +71,7 @@ public class PhotoCaptureControllerTests
         var second = await client.PostAsync("/capture/photo", Payload("photo-dup", 1));
         Assert.Equal(HttpStatusCode.OK, second.StatusCode);
 
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         Assert.Equal(1, await db.Items.CountAsync(i => i.IdempotencyKey == "photo-dup"));
     }
 
@@ -100,7 +97,7 @@ public class PhotoCaptureControllerTests
         var resp = await client.PostAsync("/capture/photo", Payload("photo-many", count: 9));
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
 
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         Assert.False(await db.Items.IgnoreQueryFilters().AnyAsync(i => i.IdempotencyKey == "photo-many"));
     }
 
@@ -115,7 +112,7 @@ public class PhotoCaptureControllerTests
             Payload("photo-heic", count: 1, contentType: "image/heic", fileName: "p.heic"));
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
 
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         Assert.False(await db.Items.IgnoreQueryFilters().AnyAsync(i => i.IdempotencyKey == "photo-heic"));
     }
 }

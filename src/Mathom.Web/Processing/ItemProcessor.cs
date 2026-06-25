@@ -12,37 +12,18 @@ using Microsoft.Extensions.Logging;
 
 namespace Mathom.Web.Processing;
 
-public class ItemProcessor
+public class ItemProcessor(
+    MathomDbContext db,
+    ILlmClient llm,
+    ITranscriber transcriber,
+    IImageReader imageReader,
+    IMediaStore media,
+    Mathom.Web.Glossary.GlossaryService glossary,
+    ILogger<ItemProcessor> logger)
 {
-    private readonly MathomDbContext _db;
-    private readonly ILlmClient _llm;
-    private readonly ITranscriber _transcriber;
-    private readonly IImageReader _imageReader;
-    private readonly IMediaStore _media;
-    private readonly Mathom.Web.Glossary.GlossaryService _glossary;
-    private readonly ILogger<ItemProcessor> _logger;
-
-    public ItemProcessor(
-        MathomDbContext db,
-        ILlmClient llm,
-        ITranscriber transcriber,
-        IImageReader imageReader,
-        IMediaStore media,
-        Mathom.Web.Glossary.GlossaryService glossary,
-        ILogger<ItemProcessor> logger)
-    {
-        _db = db;
-        _llm = llm;
-        _transcriber = transcriber;
-        _imageReader = imageReader;
-        _media = media;
-        _glossary = glossary;
-        _logger = logger;
-    }
-
     public async Task ProcessAsync(Guid itemId, CancellationToken ct)
     {
-        var item = await _db.Items
+        var item = await db.Items
             .Include(i => i.ItemTags)
             .Include(i => i.Photos)
             .FirstOrDefaultAsync(i => i.Id == itemId, ct);
@@ -50,14 +31,14 @@ public class ItemProcessor
         if (item.Status is not (ItemStatus.Pending or ItemStatus.Failed or ItemStatus.Processing)) return;
 
         item.Status = ItemStatus.Processing;
-        await _db.SaveChangesAsync(ct);
+        await db.SaveChangesAsync(ct);
 
         try
         {
-            var entries = await _glossary.GetEntriesAsync(item.UserId, ct);
+            var entries = await glossary.GetEntriesAsync(item.UserId, ct);
             if (entries.Count > 100)
             {
-                _logger.LogInformation("Glossary for user {User} has {Count} entries; injecting first 100.", item.UserId, entries.Count);
+                logger.LogInformation("Glossary for user {User} has {Count} entries; injecting first 100.", item.UserId, entries.Count);
                 entries = entries.Take(100).ToList();
             }
             var terms = entries.Select(e => e.Term).ToList();                       // Whisper bias
@@ -80,9 +61,9 @@ public class ItemProcessor
             // Voice items have no text yet — transcribe the stored audio first.
             if (item.SourceType == SourceType.Voice && string.IsNullOrEmpty(item.RawText) && item.MediaPath is not null)
             {
-                await using var audio = await _media.OpenReadAsync(item.MediaPath, ct);
-                item.RawText = await _transcriber.TranscribeAsync(audio, item.MediaPath, terms, ct);
-                await _db.SaveChangesAsync(ct);
+                await using var audio = await media.OpenReadAsync(item.MediaPath, ct);
+                item.RawText = await transcriber.TranscribeAsync(audio, item.MediaPath, terms, ct);
+                await db.SaveChangesAsync(ct);
             }
 
             // Photo items have no text yet — read the stored image(s) with the vision model.
@@ -94,15 +75,15 @@ public class ItemProcessor
                     var images = new List<ImageData>();
                     foreach (var p in item.Photos.OrderBy(p => p.Order))
                     {
-                        var s = await _media.OpenReadAsync(p.MediaPath, ct);
+                        var s = await media.OpenReadAsync(p.MediaPath, ct);
                         streams.Add(s);
                         images.Add(new ImageData(s, p.MediaPath));
                     }
-                    var read = await _imageReader.ExtractAsync(images, terms, ct);
+                    var read = await imageReader.ExtractAsync(images, terms, ct);
                     if (string.IsNullOrWhiteSpace(read))
                         throw new InvalidOperationException("No readable content found in the photo(s).");
                     item.RawText = read;
-                    await _db.SaveChangesAsync(ct);
+                    await db.SaveChangesAsync(ct);
                 }
                 finally
                 {
@@ -110,7 +91,7 @@ public class ItemProcessor
                 }
             }
 
-            var result = await _llm.CleanupAsync(item.RawText, cleanupGlossary, ct);
+            var result = await llm.CleanupAsync(item.RawText, cleanupGlossary, ct);
             result = GlossaryCorrector.Apply(result, variantToTerm);
 
             item.Title = result.Title;
@@ -122,12 +103,12 @@ public class ItemProcessor
             var desiredTagIds = new List<int>();
             foreach (var t in result.Tags)
             {
-                var tag = await _db.Tags.FirstOrDefaultAsync(x => x.Name == t.Name && x.Kind == t.Kind, ct);
+                var tag = await db.Tags.FirstOrDefaultAsync(x => x.Name == t.Name && x.Kind == t.Kind, ct);
                 if (tag is null)
                 {
                     tag = new Tag { Name = t.Name, Kind = t.Kind };
-                    _db.Tags.Add(tag);
-                    await _db.SaveChangesAsync(ct);
+                    db.Tags.Add(tag);
+                    await db.SaveChangesAsync(ct);
                 }
                 desiredTagIds.Add(tag.Id);
                 if (!item.ItemTags.Any(it => it.TagId == tag.Id))
@@ -138,14 +119,14 @@ public class ItemProcessor
 
             item.ProcessedAt = DateTimeOffset.UtcNow;
             item.Status = ItemStatus.Ready;
-            await _db.SaveChangesAsync(ct);
+            await db.SaveChangesAsync(ct);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Processing failed for item {ItemId}", itemId);
+            logger.LogError(ex, "Processing failed for item {ItemId}", itemId);
             item.Status = ItemStatus.Failed;
             item.Error = ex.Message;
-            await _db.SaveChangesAsync(ct);
+            await db.SaveChangesAsync(ct);
         }
     }
 }

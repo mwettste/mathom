@@ -4,10 +4,8 @@ using Mathom.Web.Domain;
 
 namespace Mathom.Web.Data;
 
-public class MathomDbContext : IdentityDbContext<ApplicationUser>
+public class MathomDbContext(DbContextOptions<MathomDbContext> options) : IdentityDbContext<ApplicationUser>(options)
 {
-    public MathomDbContext(DbContextOptions<MathomDbContext> options) : base(options) { }
-
     public DbSet<Item> Items => Set<Item>()!;
     public DbSet<Tag> Tags => Set<Tag>()!;
     public DbSet<ItemTag> ItemTags => Set<ItemTag>()!;

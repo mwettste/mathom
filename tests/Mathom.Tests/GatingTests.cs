@@ -6,14 +6,11 @@ using Xunit;
 namespace Mathom.Tests;
 
 [Collection("postgres")]
-public class GatingTests
+public class GatingTests(PostgresFixture fx)
 {
-    private readonly PostgresFixture _fx;
-    public GatingTests(PostgresFixture fx) => _fx = fx;
-
     private async Task<TestWebAppFactory> AppAsync()
     {
-        var app = new TestWebAppFactory(_fx.ConnectionString);
+        var app = new TestWebAppFactory(fx.ConnectionString);
         await app.SeedUsersAsync();
         return app;
     }

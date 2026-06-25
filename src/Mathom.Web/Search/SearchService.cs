@@ -37,15 +37,12 @@ public record ItemDetail(
     IReadOnlyList<string> Tags,
     IReadOnlyList<Guid> PhotoIds);
 
-public class SearchService
+public class SearchService(MathomDbContext db)
 {
-    private readonly MathomDbContext _db;
-    public SearchService(MathomDbContext db) => _db = db;
-
     // Full single item for the detail page (includes the raw transcript and any error).
     public async Task<ItemDetail?> GetAsync(string userId, Guid id, CancellationToken ct)
     {
-        return await _db.Items
+        return await db.Items
             .Where(i => i.Id == id && i.UserId == userId)
             .Select(i => new ItemDetail(
                 i.Id, i.Title, i.CleanText, i.RawText, i.ItemType, i.SourceType,
@@ -60,7 +57,7 @@ public class SearchService
     // and settle into Ready as the background worker finishes.
     public async Task<IReadOnlyList<ItemSummary>> TimelineAsync(string userId, int take, CancellationToken ct)
     {
-        return await _db.Items
+        return await db.Items
             .Where(i => i.UserId == userId)
             .OrderByDescending(i => i.CreatedAt)
             .Take(take)
@@ -82,7 +79,7 @@ public class SearchService
     public async Task<IReadOnlyList<ItemSummary>> QueryAsync(
         string userId, string? q, SearchFilters filters, int take, CancellationToken ct)
     {
-        var items = _db.Items.Where(i => i.UserId == userId);
+        var items = db.Items.Where(i => i.UserId == userId);
 
         var hasQuery = !string.IsNullOrWhiteSpace(q);
         if (hasQuery)

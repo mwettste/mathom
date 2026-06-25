@@ -12,11 +12,8 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 namespace Mathom.Web.Pages;
 
 [Authorize]
-public class IndexModel : PageModel
+public class IndexModel(SearchService search) : PageModel
 {
-    private readonly SearchService _search;
-    public IndexModel(SearchService search) => _search = search;
-
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
     public IReadOnlyList<ItemSummary> Items { get; private set; } = new List<ItemSummary>();
@@ -55,7 +52,7 @@ public class IndexModel : PageModel
     // Polled by HTMX while in-flight items exist — always the full, unfiltered timeline.
     public async Task<IActionResult> OnGetTimelineAsync(CancellationToken ct)
     {
-        Items = await _search.TimelineAsync(UserId, 50, ct);
+        Items = await search.TimelineAsync(UserId, 50, ct);
         return Partial("Shared/_ItemList", Items);
     }
 
@@ -66,6 +63,6 @@ public class IndexModel : PageModel
         Type = Enum.TryParse<ItemType>(type, ignoreCase: true, out var t) ? t : null;
         Actionable = actionable;
 
-        Items = await _search.QueryAsync(UserId, Q, new SearchFilters(Type, Actionable, Tag), 50, ct);
+        Items = await search.QueryAsync(UserId, Q, new SearchFilters(Type, Actionable, Tag), 50, ct);
     }
 }

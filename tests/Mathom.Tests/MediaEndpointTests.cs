@@ -13,14 +13,11 @@ using Xunit;
 namespace Mathom.Tests;
 
 [Collection("postgres")]
-public class MediaEndpointTests
+public class MediaEndpointTests(PostgresFixture fx)
 {
-    private readonly PostgresFixture _fx;
-    public MediaEndpointTests(PostgresFixture fx) => _fx = fx;
-
     private async Task<TestWebAppFactory> CreateAppAsync(FakeMediaStore media)
     {
-        var app = new TestWebAppFactory(_fx.ConnectionString, s =>
+        var app = new TestWebAppFactory(fx.ConnectionString, s =>
         {
             s.RemoveAll(typeof(IMediaStore));
             s.AddSingleton<IMediaStore>(media);
@@ -37,7 +34,7 @@ public class MediaEndpointTests
         var item = Item.CreatePending(SourceType.Photo, "", Guid.NewGuid().ToString(), ownerId, DateTimeOffset.UtcNow);
         if (deleted) item.DeletedAt = DateTimeOffset.UtcNow;
         item.Photos.Add(new ItemPhoto { Id = photoId, MediaPath = key, Order = 0, CreatedAt = DateTimeOffset.UtcNow });
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         db.Items.Add(item);
         await db.SaveChangesAsync();
         return photoId;

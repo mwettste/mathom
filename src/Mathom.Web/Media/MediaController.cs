@@ -14,16 +14,8 @@ namespace Mathom.Web.Media;
 [ApiController]
 [Route("media")]
 [Authorize]
-public class MediaController : ControllerBase
+public class MediaController(MathomDbContext db, IMediaStore media) : ControllerBase
 {
-    private readonly MathomDbContext _db;
-    private readonly IMediaStore _media;
-    public MediaController(MathomDbContext db, IMediaStore media)
-    {
-        _db = db;
-        _media = media;
-    }
-
     [HttpGet("{photoId:guid}")]
     public async Task<IActionResult> Get(Guid photoId, CancellationToken ct)
     {
@@ -31,7 +23,7 @@ public class MediaController : ControllerBase
 
         // Reach the photo only through the user-scoped Items query: the global query filter
         // excludes soft-deleted items, and the UserId predicate enforces ownership.
-        var mediaPath = await _db.Items
+        var mediaPath = await db.Items
             .Where(i => i.UserId == userId)
             .SelectMany(i => i.Photos)
             .Where(p => p.Id == photoId)
@@ -40,7 +32,7 @@ public class MediaController : ControllerBase
 
         if (mediaPath is null) return NotFound();
 
-        var stream = await _media.OpenReadAsync(mediaPath, ct);
+        var stream = await media.OpenReadAsync(mediaPath, ct);
         return File(stream, ContentTypeFor(mediaPath));
     }
 

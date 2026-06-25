@@ -7,11 +7,9 @@ using Microsoft.AspNetCore.Http;
 namespace Mathom.Web.Auth;
 
 // Redirects authenticated-but-unapproved users to /Pending for any non-allowlisted path.
-public class ApprovalGateMiddleware
+public class ApprovalGateMiddleware(RequestDelegate next)
 {
     private static readonly string[] Allowlist = { "/Pending", "/Login", "/Register", "/Logout", "/healthz" };
-    private readonly RequestDelegate _next;
-    public ApprovalGateMiddleware(RequestDelegate next) => _next = next;
 
     public async Task InvokeAsync(HttpContext ctx, UserAdminService userAdmin)
     {
@@ -24,7 +22,7 @@ public class ApprovalGateMiddleware
                 return;
             }
         }
-        await _next(ctx);
+        await next(ctx);
     }
 
     private static bool IsAllowed(PathString path)

@@ -10,15 +10,12 @@ using Xunit;
 namespace Mathom.Tests;
 
 [Collection("postgres")]
-public class UserAdminServiceTests
+public class UserAdminServiceTests(PostgresFixture fx)
 {
-    private readonly PostgresFixture _fx;
-    public UserAdminServiceTests(PostgresFixture fx) => _fx = fx;
-
     private async Task<string> SeedUserAsync(string suffix, bool approved)
     {
         var id = "ua-" + suffix + "-" + Guid.NewGuid().ToString("N");
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         db.Users.Add(new ApplicationUser { Id = id, UserName = id + "@example.com", Email = id + "@example.com", IsApproved = approved });
         await db.SaveChangesAsync();
         return id;
@@ -28,7 +25,7 @@ public class UserAdminServiceTests
     public async Task Approve_Revoke_And_IsApproved()
     {
         var pending = await SeedUserAsync("p", approved: false);
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         var svc = new UserAdminService(db);
 
         Assert.False(await svc.IsApprovedAsync(pending, CancellationToken.None));
@@ -45,7 +42,7 @@ public class UserAdminServiceTests
     public async Task Revoke_Self_IsRejected()
     {
         var admin = await SeedUserAsync("self", approved: true);
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         var svc = new UserAdminService(db);
 
         Assert.False(await svc.RevokeAsync(admin, admin, CancellationToken.None));   // acting == target
@@ -57,7 +54,7 @@ public class UserAdminServiceTests
     {
         var approved = await SeedUserAsync("aaa-approved", approved: true);
         var pending = await SeedUserAsync("zzz-pending", approved: false);
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         var rows = await new UserAdminService(db).ListUsersAsync(CancellationToken.None);
 
         var iPending = rows.ToList().FindIndex(r => r.Id == pending);

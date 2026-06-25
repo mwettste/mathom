@@ -16,11 +16,8 @@ using Xunit;
 namespace Mathom.Tests;
 
 [Collection("postgres")]
-public class VoiceEndToEndTests
+public class VoiceEndToEndTests(PostgresFixture fx)
 {
-    private readonly PostgresFixture _fx;
-    public VoiceEndToEndTests(PostgresFixture fx) => _fx = fx;
-
     private record IdResponse(Guid Id);
 
     [Fact]
@@ -34,7 +31,7 @@ public class VoiceEndToEndTests
                 new[] { new CleanupTag("garden", TagKind.Topic) })
         };
 
-        using var app = new TestWebAppFactory(_fx.ConnectionString, s =>
+        using var app = new TestWebAppFactory(fx.ConnectionString, s =>
         {
             s.RemoveAll(typeof(IMediaStore));
             s.AddSingleton<IMediaStore>(media);
@@ -64,14 +61,14 @@ public class VoiceEndToEndTests
         while (DateTimeOffset.UtcNow < deadline)
         {
             await Task.Delay(250);
-            await using var db = _fx.NewDbContext();
+            await using var db = fx.NewDbContext();
             var item = await db.Items.FirstOrDefaultAsync(i => i.Id == id);
             if (item is not null) { status = item.Status; if (status is ItemStatus.Ready or ItemStatus.Failed) break; }
         }
 
         Assert.Equal(ItemStatus.Ready, status);
 
-        await using var verify = _fx.NewDbContext();
+        await using var verify = fx.NewDbContext();
         var stored = await verify.Items.SingleAsync(i => i.Id == id);
         Assert.Equal("remember to water the basil", stored.RawText); // transcript preserved
         var results = await new SearchService(verify).SearchAsync(TestUsers.AliceId, "basil", new SearchFilters(null, null), 50, CancellationToken.None);

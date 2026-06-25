@@ -8,25 +8,12 @@ using Microsoft.Extensions.Configuration;
 
 namespace Mathom.Web.Pages.Account;
 
-public class RegisterModel : PageModel
+public class RegisterModel(
+    UserManager<ApplicationUser> users,
+    SignInManager<ApplicationUser> signIn,
+    RoleManager<IdentityRole> roles,
+    IConfiguration config) : PageModel
 {
-    private readonly UserManager<ApplicationUser> _users;
-    private readonly SignInManager<ApplicationUser> _signIn;
-    private readonly RoleManager<IdentityRole> _roles;
-    private readonly IConfiguration _config;
-
-    public RegisterModel(
-        UserManager<ApplicationUser> users,
-        SignInManager<ApplicationUser> signIn,
-        RoleManager<IdentityRole> roles,
-        IConfiguration config)
-    {
-        _users = users;
-        _signIn = signIn;
-        _roles = roles;
-        _config = config;
-    }
-
     [BindProperty] public InputModel Input { get; set; } = new();
 
     public class InputModel
@@ -42,15 +29,15 @@ public class RegisterModel : PageModel
         if (!ModelState.IsValid) return Page();
 
         var user = new ApplicationUser { UserName = Input.Email, Email = Input.Email };
-        var result = await _users.CreateAsync(user, Input.Password);
+        var result = await users.CreateAsync(user, Input.Password);
         if (!result.Succeeded)
         {
             foreach (var e in result.Errors) ModelState.AddModelError(string.Empty, e.Description);
             return Page();
         }
 
-        await Mathom.Web.Admin.AdminBootstrap.EnsureRoleAndPromoteAsync(_roles, _users, _config["AdminEmail"]);
-        await _signIn.SignInAsync(user, isPersistent: true);
+        await Mathom.Web.Admin.AdminBootstrap.EnsureRoleAndPromoteAsync(roles, users, config["AdminEmail"]);
+        await signIn.SignInAsync(user, isPersistent: true);
         return Redirect("/");
     }
 }

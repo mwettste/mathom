@@ -12,21 +12,18 @@ using Xunit;
 namespace Mathom.Tests;
 
 [Collection("postgres")]
-public class EditDeleteTests
+public class EditDeleteTests(PostgresFixture fx)
 {
-    private readonly PostgresFixture _fx;
-    public EditDeleteTests(PostgresFixture fx) => _fx = fx;
-
     private async Task<TestWebAppFactory> AppAsync()
     {
-        var app = new TestWebAppFactory(_fx.ConnectionString);
+        var app = new TestWebAppFactory(fx.ConnectionString);
         await app.SeedUsersAsync();
         return app;
     }
 
     private async Task<Guid> SeedReadyAsync(string title)
     {
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         var item = new Item
         {
             Id = Guid.NewGuid(), Status = ItemStatus.Ready, SourceType = SourceType.Text,
@@ -65,7 +62,7 @@ public class EditDeleteTests
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
         Assert.Contains("after-edit", await resp.Content.ReadAsStringAsync());
 
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         var saved = await db.Items.Include(i => i.ItemTags).ThenInclude(t => t.Tag).FirstAsync(i => i.Id == id);
         Assert.Equal("after-edit", saved.Title);
         Assert.Equal(ItemType.Task, saved.ItemType);
@@ -94,7 +91,7 @@ public class EditDeleteTests
         var timeline = await client.GetStringAsync("/");
         Assert.DoesNotContain("delete-me", timeline);
 
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         Assert.NotNull((await db.Items.IgnoreQueryFilters().FirstAsync(i => i.Id == id)).DeletedAt);
     }
 
@@ -176,7 +173,7 @@ public class EditDeleteTests
         }));
         Assert.Equal(HttpStatusCode.OK, restoreResp.StatusCode);
 
-        await using var db = _fx.NewDbContext();
+        await using var db = fx.NewDbContext();
         Assert.Null((await db.Items.IgnoreQueryFilters().FirstAsync(i => i.Id == id)).DeletedAt);  // live again
     }
 }

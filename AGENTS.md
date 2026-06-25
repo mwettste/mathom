@@ -70,6 +70,11 @@ Search (`Search/SearchService.cs`) uses a generated Postgres `tsvector` column o
   initial migration; add a new additive migration for schema changes. The schema is applied
   automatically on startup (`Database.Migrate()` in `Program.cs`), not via manual `dotnet ef`.
 - File-scoped namespaces, `async` + `CancellationToken` throughout, EF Core for data access.
+- **Primary constructors are the default.** Inject dependencies via a primary constructor and reference
+  the parameters directly (`db`, not a `_db` field) — don't write a separate constructor that just
+  assigns `private readonly` fields. Fall back to an explicit constructor only when it does real
+  initialization work beyond field assignment (e.g. `OpenRouterImageReader` parses config and mutates
+  its `HttpClient`).
 - HTMX + server-rendered Razor partials (`Pages/Shared/_*.cshtml`) for interactivity — prefer returning
   a partial over client-side JS for live updates.
 - Config comes from `.env` (gitignored) using `__` as the nested-key separator (e.g.

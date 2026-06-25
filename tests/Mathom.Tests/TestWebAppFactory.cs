@@ -12,21 +12,13 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Mathom.Tests;
 
-public class TestWebAppFactory : WebApplicationFactory<Program>
+public class TestWebAppFactory(string connectionString, Action<IServiceCollection>? configureServices = null)
+    : WebApplicationFactory<Program>
 {
-    private readonly string _connectionString;
-    private readonly Action<IServiceCollection>? _configureServices;
-
-    public TestWebAppFactory(string connectionString, Action<IServiceCollection>? configureServices = null)
-    {
-        _connectionString = connectionString;
-        _configureServices = configureServices;
-    }
-
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
-        builder.UseSetting("ConnectionStrings:Mathom", _connectionString);
+        builder.UseSetting("ConnectionStrings:Mathom", connectionString);
         builder.UseSetting("AdminEmail", TestUsers.AdminEmail);
 
         builder.ConfigureTestServices(services =>
@@ -48,7 +40,7 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
                     .RequireAuthenticatedUser().Build();
             });
 
-            _configureServices?.Invoke(services);
+            configureServices?.Invoke(services);
         });
     }
 

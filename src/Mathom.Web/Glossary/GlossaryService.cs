@@ -15,20 +15,17 @@ public record GlossaryTermView(Guid Id, string Term, IReadOnlyList<GlossaryVaria
 public record GlossaryDescription(Guid Id, string? Description);
 
 // User-scoped per-user glossary of correct domain terms.
-public class GlossaryService
+public class GlossaryService(MathomDbContext db)
 {
-    private readonly MathomDbContext _db;
-    public GlossaryService(MathomDbContext db) => _db = db;
-
     public async Task<IReadOnlyList<string>> GetTermsAsync(string userId, CancellationToken ct)
-        => await _db.GlossaryTerms
+        => await db.GlossaryTerms
             .Where(g => g.UserId == userId)
             .OrderBy(g => g.CreatedAt)
             .Select(g => g.Term)
             .ToListAsync(ct);
 
     public async Task<IReadOnlyList<(Guid Id, string Term)>> GetTermRowsAsync(string userId, CancellationToken ct)
-        => await _db.GlossaryTerms
+        => await db.GlossaryTerms
             .Where(g => g.UserId == userId)
             .OrderBy(g => g.CreatedAt)
             .Select(g => new ValueTuple<Guid, string>(g.Id, g.Term))
@@ -40,12 +37,12 @@ public class GlossaryService
         if (term.Length == 0) return false;
 
         var lower = term.ToLowerInvariant();
-        var existing = await _db.GlossaryTerms.FirstOrDefaultAsync(g => g.UserId == userId && g.Term.ToLower() == lower, ct);
+        var existing = await db.GlossaryTerms.FirstOrDefaultAsync(g => g.UserId == userId && g.Term.ToLower() == lower, ct);
         var changed = false;
         if (existing is null)
         {
             existing = new GlossaryTerm { Id = Guid.NewGuid(), UserId = userId, Term = term, CreatedAt = DateTimeOffset.UtcNow };
-            _db.GlossaryTerms.Add(existing);
+            db.GlossaryTerms.Add(existing);
             changed = true;
         }
 
@@ -53,11 +50,11 @@ public class GlossaryService
         if (v.Length > 0 && !string.Equals(v, existing.Term, StringComparison.OrdinalIgnoreCase))
         {
             var vlower = v.ToLowerInvariant();
-            var hasVariant = await _db.GlossaryVariants
+            var hasVariant = await db.GlossaryVariants
                 .AnyAsync(x => x.GlossaryTermId == existing.Id && x.Text.ToLower() == vlower, ct);
             if (!hasVariant)
             {
-                _db.GlossaryVariants.Add(new GlossaryVariant
+                db.GlossaryVariants.Add(new GlossaryVariant
                 {
                     Id = Guid.NewGuid(), GlossaryTermId = existing.Id, Text = v, CreatedAt = DateTimeOffset.UtcNow,
                 });
@@ -68,18 +65,18 @@ public class GlossaryService
         if (!changed) return false;
         try
         {
-            await _db.SaveChangesAsync(ct);
+            await db.SaveChangesAsync(ct);
             return true;
         }
         catch (DbUpdateException)
         {
-            _db.ChangeTracker.Clear();
+            db.ChangeTracker.Clear();
             return false;
         }
     }
 
     public async Task<IReadOnlyList<GlossaryEntry>> GetEntriesAsync(string userId, CancellationToken ct)
-        => await _db.GlossaryTerms
+        => await db.GlossaryTerms
             .Where(g => g.UserId == userId)
             .OrderBy(g => g.CreatedAt)
             .Select(g => new GlossaryEntry(
@@ -89,7 +86,7 @@ public class GlossaryService
             .ToListAsync(ct);
 
     public async Task<IReadOnlyList<GlossaryTermView>> GetTermViewsAsync(string userId, CancellationToken ct)
-        => await _db.GlossaryTerms
+        => await db.GlossaryTerms
             .Where(g => g.UserId == userId)
             .OrderBy(g => g.CreatedAt)
             .Select(g => new GlossaryTermView(
@@ -99,40 +96,40 @@ public class GlossaryService
             .ToListAsync(ct);
 
     public async Task<GlossaryDescription?> GetDescriptionAsync(string userId, Guid termId, CancellationToken ct)
-        => await _db.GlossaryTerms
+        => await db.GlossaryTerms
             .Where(g => g.Id == termId && g.UserId == userId)
             .Select(g => new GlossaryDescription(g.Id, g.Description))
             .FirstOrDefaultAsync(ct);
 
     public async Task<bool> SetDescriptionAsync(string userId, Guid termId, string? description, CancellationToken ct)
     {
-        var term = await _db.GlossaryTerms.FirstOrDefaultAsync(g => g.Id == termId && g.UserId == userId, ct);
+        var term = await db.GlossaryTerms.FirstOrDefaultAsync(g => g.Id == termId && g.UserId == userId, ct);
         if (term is null) return false;
         var d = (description ?? string.Empty).Trim();
         if (d.Length > 500) d = d.Substring(0, 500);
         term.Description = d.Length == 0 ? null : d;
-        await _db.SaveChangesAsync(ct);
+        await db.SaveChangesAsync(ct);
         return true;
     }
 
     public async Task<bool> RemoveVariantAsync(string userId, Guid variantId, CancellationToken ct)
     {
-        var v = await _db.GlossaryVariants
+        var v = await db.GlossaryVariants
             .Where(x => x.Id == variantId)
-            .Where(x => _db.GlossaryTerms.Any(t => t.Id == x.GlossaryTermId && t.UserId == userId))
+            .Where(x => db.GlossaryTerms.Any(t => t.Id == x.GlossaryTermId && t.UserId == userId))
             .FirstOrDefaultAsync(ct);
         if (v is null) return false;
-        _db.GlossaryVariants.Remove(v);
-        await _db.SaveChangesAsync(ct);
+        db.GlossaryVariants.Remove(v);
+        await db.SaveChangesAsync(ct);
         return true;
     }
 
     public async Task<bool> RemoveAsync(string userId, Guid id, CancellationToken ct)
     {
-        var t = await _db.GlossaryTerms.FirstOrDefaultAsync(g => g.Id == id && g.UserId == userId, ct);
+        var t = await db.GlossaryTerms.FirstOrDefaultAsync(g => g.Id == id && g.UserId == userId, ct);
         if (t is null) return false;
-        _db.GlossaryTerms.Remove(t);
-        await _db.SaveChangesAsync(ct);
+        db.GlossaryTerms.Remove(t);
+        await db.SaveChangesAsync(ct);
         return true;
     }
 }

@@ -6,16 +6,13 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Mathom.Web.Pages.Account;
 
-public class LogoutModel : PageModel
+public class LogoutModel(SignInManager<ApplicationUser> signIn) : PageModel
 {
-    private readonly SignInManager<ApplicationUser> _signIn;
-    public LogoutModel(SignInManager<ApplicationUser> signIn) => _signIn = signIn;
-
     public IActionResult OnGet() => Redirect("/");
 
     public async Task<IActionResult> OnPostAsync()
     {
-        await _signIn.SignOutAsync();
+        await signIn.SignOutAsync();
         return Redirect("/Login");
     }
 }
