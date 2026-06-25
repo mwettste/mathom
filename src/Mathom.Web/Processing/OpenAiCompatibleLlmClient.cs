@@ -69,7 +69,7 @@ public abstract class OpenAiCompatibleLlmClient : ILlmClient
         var payload = new
         {
             model = _model,
-            response_format = new { type = "json_object" },
+            response_format = BuildTranslateResponseFormat(),
             messages = new object[]
             {
                 new { role = "system", content = TranslatePromptBuilder.BuildSystemPrompt(targetLocale, styleHint, glossaryTerms) },
@@ -90,4 +90,10 @@ public abstract class OpenAiCompatibleLlmClient : ILlmClient
     /// providers, e.g. OpenRouter); a provider can override to require a JSON schema.
     /// </summary>
     protected virtual object BuildResponseFormat() => new { type = "json_object" };
+
+    /// <summary>
+    /// The OpenAI <c>response_format</c> for the translation call. Defaults to
+    /// <c>json_object</c>; a provider can override to require a JSON schema.
+    /// </summary>
+    protected virtual object BuildTranslateResponseFormat() => new { type = "json_object" };
 }
