@@ -3,6 +3,7 @@ bin/
 obj/
 *.user
 .vs/
+.idea/
 
 # Secrets / local config
 appsettings.Development.json
