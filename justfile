@@ -27,9 +27,14 @@ db:
 run: db
     ASPNETCORE_ENVIRONMENT=Development dotnet watch --project src/Mathom.Web
 
+# A blocking one-shot CSS build runs FIRST so wwwroot/css/app.css is always fully populated
+# before the app serves — `--watch` alone races startup and can leave an empty app.css
+# (= no styling) if interrupted before its first build completes.
+#
 # Run the app with hot reload AND Tailwind --watch (CSS rebuilds on class changes).
 # Ctrl-C stops both. Use this for UI work; `just run` is backend-only.
 dev: db
+    npx tailwindcss -i src/Mathom.Web/Styles/app.css -o src/Mathom.Web/wwwroot/css/app.css
     npx tailwindcss -i src/Mathom.Web/Styles/app.css -o src/Mathom.Web/wwwroot/css/app.css --watch &
     ASPNETCORE_ENVIRONMENT=Development dotnet watch --project src/Mathom.Web
 
