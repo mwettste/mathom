@@ -25,7 +25,9 @@ public abstract class OpenAiCompatibleEmbeddingClient : IEmbeddingClient
         _providerName = configSection;
         var section = config.GetSection(configSection);
         _model = section["Model"] ?? string.Empty;
-        _http.BaseAddress ??= new Uri(section["BaseUrl"] ?? defaultBaseUrl);
+        var baseUrl = section["BaseUrl"];
+        if (string.IsNullOrWhiteSpace(baseUrl)) baseUrl = defaultBaseUrl;
+        _http.BaseAddress ??= new Uri(baseUrl);
         var key = section["ApiKey"];
         if (!string.IsNullOrEmpty(key))
             _http.DefaultRequestHeaders.Authorization = new("Bearer", key);

@@ -125,6 +125,7 @@ public class ItemProcessor(
                 logger.LogWarning(eex, "Embedding failed for item {ItemId}", item.Id);
                 item.Embedding = null;
                 item.EmbeddingModel = null;
+                item.EmbeddedAt = null;
             }
 
             // Re-translate from scratch so re-processing stays clean and picks up current languages.
