@@ -11,6 +11,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Xunit;
 
+using Microsoft.Extensions.Logging.Abstractions;
+
 namespace Mathom.Tests;
 
 [Collection("postgres")]
@@ -66,7 +68,7 @@ public class EndToEndTests(PostgresFixture fx)
         Assert.Equal(ItemStatus.Ready, status);
 
         await using var verify = fx.NewDbContext();
-        var results = await new SearchService(verify)
+        var results = await new SearchService(verify, new FakeEmbeddingClient(), NullLogger<SearchService>.Instance)
             .SearchAsync(TestUsers.AliceId, null, "tomatoes", new SearchFilters(null, null), 50, CancellationToken.None);
         Assert.Contains(results, r => r.Id == id);
     }
