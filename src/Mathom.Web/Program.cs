@@ -131,7 +131,10 @@ builder.Services.AddScoped<IEmbeddingClient>(sp => new FallbackEmbeddingClient(
     sp.GetRequiredService<ILogger<FallbackEmbeddingClient>>()));
 
 if (!builder.Environment.IsEnvironment("Testing"))
+{
     builder.Services.AddHostedService<ProcessingWorker>();
+    builder.Services.AddHostedService<EmbeddingBackfillWorker>();
+}
 
 var app = builder.Build();
 
