@@ -1,6 +1,8 @@
 using Mathom.Web.Data;
 using Mathom.Web.Domain;
+using Mathom.Web.Embeddings;
 using Mathom.Web.Media;
+using Pgvector.Npgsql;
 using Mathom.Web.Processing;
 using Mathom.Web.Search;
 using Microsoft.AspNetCore.DataProtection;
@@ -12,8 +14,10 @@ using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var mathomConnectionString = builder.Configuration.GetConnectionString("Mathom")!;
+var mathomDataSource = BuildMathomDataSource(mathomConnectionString);
 builder.Services.AddDbContext<MathomDbContext>(o =>
-    o.UseNpgsql(builder.Configuration.GetConnectionString("Mathom")));
+    o.UseNpgsql(mathomDataSource, npgsql => npgsql.UseVector()));
 
 // Persist Data Protection keys to a configured directory (a mounted volume in
 // Docker) so auth cookies and anti-forgery tokens survive container recreation.
@@ -116,6 +120,16 @@ builder.Services.AddScoped<ILlmClient>(sp => new FallbackLlmClient(
     },
     sp.GetRequiredService<ILogger<FallbackLlmClient>>()));
 
+builder.Services.AddHttpClient<InfomaniakEmbeddingClient>();
+builder.Services.AddHttpClient<OpenRouterEmbeddingClient>();
+builder.Services.AddScoped<IEmbeddingClient>(sp => new FallbackEmbeddingClient(
+    new IEmbeddingClient[]
+    {
+        sp.GetRequiredService<InfomaniakEmbeddingClient>(),
+        sp.GetRequiredService<OpenRouterEmbeddingClient>(),
+    },
+    sp.GetRequiredService<ILogger<FallbackEmbeddingClient>>()));
+
 if (!builder.Environment.IsEnvironment("Testing"))
     builder.Services.AddHostedService<ProcessingWorker>();
 
@@ -127,6 +141,16 @@ if (!app.Environment.IsEnvironment("Testing"))
 {
     using var scope = app.Services.CreateScope();
     var sp = scope.ServiceProvider;
+    // pgvector's type mapping resolves the `vector` type when a connection first opens.
+    // On a fresh DB the extension may not exist yet, so create it on a plain (unmapped)
+    // connection first. Idempotent; the migration also declares it.
+    using (var bootstrap = new Npgsql.NpgsqlConnection(mathomConnectionString))
+    {
+        bootstrap.Open();
+        using var cmd = bootstrap.CreateCommand();
+        cmd.CommandText = "CREATE EXTENSION IF NOT EXISTS vector";
+        cmd.ExecuteNonQuery();
+    }
     sp.GetRequiredService<MathomDbContext>().Database.Migrate();
     await Mathom.Web.Admin.AdminBootstrap.EnsureRoleAndPromoteAsync(
         sp.GetRequiredService<RoleManager<IdentityRole>>(),
@@ -152,6 +176,20 @@ app.MapControllers();
 app.MapRazorPages();
 
 app.Run();
+
+// Builds an Npgsql data source with the pgvector type mapping enabled. Building the
+// data source does NOT open a connection, so this is safe at EF design time. The `vector`
+// extension is created at startup (below) before the first real query runs.
+// Note: Pgvector 0.3.x uses AddTypeInfoResolverFactory for Npgsql 10.x compatibility
+// (UseVector(NpgsqlDataSourceBuilder) targets the older INpgsqlTypeMapper API).
+static Npgsql.NpgsqlDataSource BuildMathomDataSource(string connectionString)
+{
+    var dsb = new Npgsql.NpgsqlDataSourceBuilder(connectionString);
+#pragma warning disable NPG9001 // Internal Npgsql API; Pgvector uses this pattern with Npgsql 10.x
+    dsb.AddTypeInfoResolverFactory(new Pgvector.Npgsql.VectorTypeInfoResolverFactory());
+#pragma warning restore NPG9001
+    return dsb.Build();
+}
 
 // Exposed so WebApplicationFactory<Program> can boot the app in tests.
 public partial class Program { }
