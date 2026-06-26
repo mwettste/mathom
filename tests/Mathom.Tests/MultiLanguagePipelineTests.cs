@@ -18,6 +18,7 @@ public class MultiLanguagePipelineTests(PostgresFixture fx)
         => new(db, llm, new FakeTranscriber(), new FakeImageReader(), new FakeMediaStore(),
                new Mathom.Web.Media.PhotoVariantService(db, new FakeMediaStore(), new Mathom.Web.Media.ImageVariantProcessor()),
                new Mathom.Web.Glossary.GlossaryService(db), new UserLanguageService(db),
+               new FakeEmbeddingClient(),
                NullLogger<ItemProcessor>.Instance);
 
     [Fact]
