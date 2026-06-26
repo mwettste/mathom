@@ -1,0 +1,23 @@
+@page
+@model SettingsModel
+@using Mathom.Web.Languages
+@{ ViewData["Title"] = "Settings"; }
+
+<p class="mb-4"><a class="link link-hover font-mono text-xs uppercase tracking-wider text-base-content/50" href="/">← Timeline</a></p>
+<h1 class="font-display text-2xl font-medium leading-snug">Working languages</h1>
+<p class="text-sm text-base-content/60">Notes are kept in the language you write them in and translated into your other languages. The primary language is your default view.</p>
+
+<form class="mt-4 flex gap-2" method="post" hx-post="/Settings?handler=Add" hx-target="#language-list" hx-swap="innerHTML">
+    @Html.AntiForgeryToken()
+    <select class="select flex-1" name="locale">
+        @foreach (var l in Model.Catalog)
+        {
+            <option value="@l.Code">@l.DisplayName</option>
+        }
+    </select>
+    <button class="btn btn-primary" type="submit">Add</button>
+</form>
+
+<div id="language-list" class="mt-6">
+    <partial name="Shared/_LanguageList" model="Model.Languages" />
+</div>

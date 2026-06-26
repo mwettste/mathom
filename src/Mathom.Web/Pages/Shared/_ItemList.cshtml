@@ -1,4 +1,5 @@
 @using Mathom.Web.Domain
+@using Mathom.Web.Languages
 @model IReadOnlyList<Mathom.Web.Search.ItemSummary>
 
 @if (Model.Count == 0)
@@ -14,12 +15,41 @@ else
             var (pillCss, pillLabel) = StatusView.Pill(item.Status, item.SourceType);
             var title = item.Title
                 ?? (item.SourceType == SourceType.Voice ? "Voice note" : "Quick note");
-            <li class="py-4">
+            var multi = item.Translations.Count > 0 && item.SourceLanguage is not null;
+            string? itemXData = null;
+            if (multi)
+            {
+                var variants = new System.Collections.Generic.List<object>
+                {
+                    new { locale = item.SourceLanguage!, name = Locales.DisplayName(item.SourceLanguage!), title = title, body = item.CleanText ?? "" }
+                };
+                foreach (var tr in item.Translations)
+                    variants.Add(new { locale = tr.Locale, name = Locales.DisplayName(tr.Locale), title = tr.Title, body = tr.CleanText });
+                var variantsJson = System.Text.Json.JsonSerializer.Serialize(variants);
+                itemXData = $"{{\"v\":{variantsJson},\"i\":0}}";
+            }
+            <li class="py-4" x-data="@itemXData">
                 <div class="flex items-baseline justify-between gap-3">
-                    <a class="font-display text-base font-medium leading-snug hover:text-primary transition-colors @(inflight ? "text-base-content/60" : "")" href="/Note/@item.Id">@title</a>
+                    @if (multi)
+                    {
+                        <a class="font-display text-base font-medium leading-snug hover:text-primary transition-colors @(inflight ? "text-base-content/60" : "")" href="/Note/@item.Id" x-text="v[i].title">@title</a>
+                    }
+                    else
+                    {
+                        <a class="font-display text-base font-medium leading-snug hover:text-primary transition-colors @(inflight ? "text-base-content/60" : "")" href="/Note/@item.Id">@title</a>
+                    }
                     <span class="shrink-0 font-mono text-xs text-base-content/40">@RelativeTime.Ago(item.CreatedAt)</span>
                 </div>
-                @if (!string.IsNullOrEmpty(item.CleanText))
+                @if (multi)
+                {
+                    <p class="mt-1 text-sm leading-relaxed text-base-content/70 line-clamp-3" x-text="v[i].body">@item.CleanText</p>
+                    <div class="mt-2 flex flex-wrap gap-1">
+                        <template x-for="(opt, idx) in v" :key="opt.locale">
+                            <button type="button" class="badge badge-sm" :class="i === idx ? 'badge-primary' : 'badge-ghost'" x-text="opt.name" @@click="i = idx"></button>
+                        </template>
+                    </div>
+                }
+                else if (!string.IsNullOrEmpty(item.CleanText))
                 {
                     <p class="mt-1 text-sm leading-relaxed text-base-content/70 line-clamp-3">@item.CleanText</p>
                 }

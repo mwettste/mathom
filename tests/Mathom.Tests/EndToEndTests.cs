@@ -67,7 +67,7 @@ public class EndToEndTests(PostgresFixture fx)
 
         await using var verify = fx.NewDbContext();
         var results = await new SearchService(verify)
-            .SearchAsync(TestUsers.AliceId, "tomatoes", new SearchFilters(null, null), 50, CancellationToken.None);
+            .SearchAsync(TestUsers.AliceId, null, "tomatoes", new SearchFilters(null, null), 50, CancellationToken.None);
         Assert.Contains(results, r => r.Id == id);
     }
 }

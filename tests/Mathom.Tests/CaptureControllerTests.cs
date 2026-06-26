@@ -1,3 +1,4 @@
+using System;
 using System.Net;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
@@ -78,6 +79,33 @@ public class CaptureControllerTests(PostgresFixture fx)
 
         await using var db = fx.NewDbContext();
         Assert.False(await db.Items.IgnoreQueryFilters().AnyAsync(i => i.IdempotencyKey == "idem-huge"));
+    }
+
+    [Fact]
+    public async Task Post_Capture_StampsCurrentContext()
+    {
+        using var app = await CreateAppAsync();
+        var client = app.CreateClient();
+
+        // Make a context for Alice and set it current.
+        var ctxId = Guid.NewGuid();
+        await using (var seed = fx.NewDbContext())
+        {
+            seed.Contexts.Add(new Mathom.Web.Domain.Context
+            {
+                Id = ctxId, UserId = TestUsers.AliceId, Name = "Work", CreatedAt = DateTimeOffset.UtcNow,
+            });
+            var alice = await seed.Users.SingleAsync(u => u.Id == TestUsers.AliceId);
+            alice.CurrentContextId = ctxId;
+            await seed.SaveChangesAsync();
+        }
+
+        var resp = await client.PostAsJsonAsync("/capture", new CaptureRequest("scoped idea", "idem-ctx-1"));
+        Assert.Equal(HttpStatusCode.Created, resp.StatusCode);
+
+        await using var db = fx.NewDbContext();
+        var item = await db.Items.SingleAsync(i => i.IdempotencyKey == "idem-ctx-1");
+        Assert.Equal(ctxId, item.ContextId);
     }
 
     [Fact]

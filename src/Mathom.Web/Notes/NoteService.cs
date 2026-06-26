@@ -27,6 +27,23 @@ public class NoteService(MathomDbContext db, IMediaStore media)
         return true;
     }
 
+    public async Task<bool> MoveAsync(string userId, Guid id, Guid? contextId, CancellationToken ct)
+    {
+        // Target context (if any) must belong to the user.
+        if (contextId is { } cid && !await db.Contexts.AnyAsync(c => c.Id == cid && c.UserId == userId, ct))
+            return false;
+
+        var item = await db.Items.FirstOrDefaultAsync(i => i.Id == id && i.UserId == userId, ct);
+        if (item is null) return false;
+
+        item.ContextId = contextId;
+        // Re-clean with the destination context's glossary (no re-transcribe; raw text is kept).
+        item.Status = ItemStatus.Pending;
+        item.Error = null;
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+
     public async Task<bool> UpdateAsync(string userId, Guid id, string? title, string? body,
         ItemType? type, bool actionable, IReadOnlyList<string> tagNames, CancellationToken ct)
     {
@@ -75,6 +92,7 @@ public class NoteService(MathomDbContext db, IMediaStore media)
         var mediaKeys = new List<string>();
         if (!string.IsNullOrEmpty(item.MediaPath)) mediaKeys.Add(item.MediaPath);
         mediaKeys.AddRange(item.Photos.Where(p => !string.IsNullOrEmpty(p.MediaPath)).Select(p => p.MediaPath));
+        mediaKeys.AddRange(item.Photos.Where(p => !string.IsNullOrEmpty(p.DisplayPath)).Select(p => p.DisplayPath!));
 
         db.Items.Remove(item);                 // cascades ItemTags + ItemPhoto rows
         await db.SaveChangesAsync(ct);
@@ -100,7 +118,9 @@ public class NoteService(MathomDbContext db, IMediaStore media)
             .Select(i => new ItemSummary(
                 i.Id, i.Title, i.CleanText, i.ItemType, i.CreatedAt,
                 i.Status, i.SourceType, i.Actionable,
-                i.ItemTags.Select(it => it.Tag.Name).ToList()))
+                i.ItemTags.Select(it => it.Tag.Name).ToList(),
+                i.SourceLanguage,
+                i.Translations.Select(t => new TranslationSummary(t.Locale, t.Title, t.CleanText)).ToList()))
             .ToListAsync(ct);
     }
 

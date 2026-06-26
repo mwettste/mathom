@@ -21,4 +21,15 @@ public class InfomaniakLlmClient(HttpClient http, IConfiguration config)
             schema = CleanupPromptBuilder.ResponseSchema(),
         },
     };
+
+    protected override object BuildTranslateResponseFormat() => new
+    {
+        type = "json_schema",
+        json_schema = new
+        {
+            name = "translation",
+            strict = true,
+            schema = TranslatePromptBuilder.ResponseSchema(),
+        },
+    };
 }

@@ -1,4 +1,5 @@
 @using Mathom.Web.Domain
+@using Mathom.Web.Languages
 @model Mathom.Web.Search.ItemDetail
 @{
     var (pillCss, pillLabel) = StatusView.Pill(Model.Status, Model.SourceType);
@@ -8,6 +9,20 @@
         SourceType.Photo => "Photo note",
         _ => "Quick note"
     });
+
+    var multi = Model.Translations.Count > 0 && Model.SourceLanguage is not null;
+    string? xDataAttr = null;
+    if (multi)
+    {
+        var variants = new System.Collections.Generic.List<object>
+        {
+            new { locale = Model.SourceLanguage!, name = Locales.DisplayName(Model.SourceLanguage!), title = title, body = Model.CleanText ?? "" }
+        };
+        foreach (var tr in Model.Translations)
+            variants.Add(new { locale = tr.Locale, name = Locales.DisplayName(tr.Locale), title = tr.Title, body = tr.CleanText });
+        var variantsJson = System.Text.Json.JsonSerializer.Serialize(variants);
+        xDataAttr = $"{{\"v\":{variantsJson},\"i\":0}}";
+    }
 }
 <header class="mb-4">
     <div class="flex items-center gap-2 mb-1">
@@ -28,7 +43,29 @@
         }
         <span class="font-mono text-xs text-base-content/40 ml-auto">@RelativeTime.Ago(Model.CreatedAt)</span>
     </div>
-    <h1 class="font-display text-2xl font-medium leading-snug">@title</h1>
+    @if (multi)
+    {
+        <div x-data="@xDataAttr">
+            <h1 class="font-display text-2xl font-medium leading-snug" x-text="v[i].title">@title</h1>
+            @if (!string.IsNullOrEmpty(Model.CleanText))
+            {
+                <div class="text-base leading-relaxed whitespace-pre-wrap max-w-prose mb-4" data-glossary-source x-text="v[i].body">@Model.CleanText</div>
+            }
+            else if (inflight)
+            {
+                <p class="text-base-content/50 mb-4">Working on it…</p>
+            }
+            <div class="mt-2 flex flex-wrap gap-1 mb-4">
+                <template x-for="(opt, idx) in v" :key="opt.locale">
+                    <button type="button" class="badge badge-sm" :class="i === idx ? 'badge-primary' : 'badge-ghost'" x-text="opt.name" @@click="i = idx"></button>
+                </template>
+            </div>
+        </div>
+    }
+    else
+    {
+        <h1 class="font-display text-2xl font-medium leading-snug">@title</h1>
+    }
 </header>
 
 @if (Model.Status == ItemStatus.Ready || Model.Status == ItemStatus.Failed)
@@ -61,13 +98,16 @@
     <div class="alert alert-error mb-4">Couldn't process this note. <span>@Model.Error</span></div>
 }
 
-@if (!string.IsNullOrEmpty(Model.CleanText))
+@if (!multi)
 {
-    <div class="text-base leading-relaxed whitespace-pre-wrap max-w-prose mb-4" data-glossary-source>@Model.CleanText</div>
-}
-else if (inflight)
-{
-    <p class="text-base-content/50 mb-4">Working on it…</p>
+    @if (!string.IsNullOrEmpty(Model.CleanText))
+    {
+        <div class="text-base leading-relaxed whitespace-pre-wrap max-w-prose mb-4" data-glossary-source>@Model.CleanText</div>
+    }
+    else if (inflight)
+    {
+        <p class="text-base-content/50 mb-4">Working on it…</p>
+    }
 }
 
 @if (Model.SourceType == SourceType.Voice && !string.IsNullOrEmpty(Model.RawText) && Model.RawText != Model.CleanText)
@@ -78,13 +118,20 @@ else if (inflight)
     </section>
 }
 
-@if (Model.PhotoIds.Count > 0)
+@if (Model.PhotoExternalIds.Count > 0)
 {
-    <section class="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-        @foreach (var pid in Model.PhotoIds)
+    <section class="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3" x-data="{ zoom: null }">
+        @foreach (var pid in Model.PhotoExternalIds)
         {
-            <img class="h-32 w-full rounded-box border border-base-300 object-cover" src="@($"/media/{pid}")" alt="Captured photo" loading="lazy" />
+            <img class="h-32 w-full rounded-box border border-base-300 object-cover cursor-zoom-in"
+                 src="@($"/media/{pid}?variant=display")" alt="Captured photo" loading="lazy"
+                 x-on:click="zoom = $el.currentSrc || $el.src" />
         }
+        <div x-show="zoom" x-cloak
+             x-on:click="zoom = null" x-on:keydown.escape.window="zoom = null"
+             class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 cursor-zoom-out">
+            <img x-bind:src="zoom" alt="Captured photo, enlarged" class="max-h-full max-w-full rounded-box" />
+        </div>
     </section>
 }
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Mathom.Web.Processing;
@@ -14,6 +15,7 @@ public class FakeImageReader : IImageReader
     public Func<IReadOnlyList<ImageData>, string> Respond { get; set; } = imgs => $"read of {imgs.Count} image(s)";
     public IReadOnlyList<string> LastGlossary { get; private set; } = Array.Empty<string>();
     public string? LastContext { get; private set; }
+    public IReadOnlyList<byte[]> LastImages { get; private set; } = Array.Empty<byte[]>();
 
     public Task<string> ExtractAsync(IReadOnlyList<ImageData> images, IReadOnlyList<string> glossary, string? context, CancellationToken ct)
     {

@@ -43,4 +43,21 @@ public class ItemPhotoTests(PostgresFixture fx)
             Assert.False(await verify.Set<ItemPhoto>().AnyAsync(p => p.ItemId == item.Id));
         }
     }
+
+    [Fact]
+    public async Task ItemPhoto_AutoAssignsExternalId_AndRoundTripsDisplayPath()
+    {
+        await fx.EnsureUserAsync("user-1", "user-1@example.com");
+        var item = Item.CreatePending(SourceType.Photo, "", Guid.NewGuid().ToString(), "user-1", DateTimeOffset.UtcNow);
+        var photo = new ItemPhoto { MediaPath = "orig.jpg", DisplayPath = "disp.jpg", Order = 0, CreatedAt = DateTimeOffset.UtcNow };
+        item.Photos.Add(photo);
+        await using (var db = fx.NewDbContext()) { db.Items.Add(item); await db.SaveChangesAsync(); }
+
+        await using (var db = fx.NewDbContext())
+        {
+            var reloaded = await db.ItemPhotos.IgnoreQueryFilters().FirstAsync(p => p.Id == photo.Id);
+            Assert.False(string.IsNullOrWhiteSpace(reloaded.ExternalId));
+            Assert.Equal("disp.jpg", reloaded.DisplayPath);
+        }
+    }
 }

@@ -7,6 +7,25 @@
 <article id="note-content" aria-live="polite">
     <partial name="Shared/_NoteContent" model="Model.Item" />
 </article>
+
+@* Move dropdown lives OUTSIDE #note-content so it survives content swaps (poll/edit/move). *@
+@if (Model.Item is not null)
+{
+    <form method="post" asp-page-handler="Move" class="flex items-center gap-2 mt-4">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="id" value="@Model.Item.Id" />
+        <label class="text-xs text-base-content/60">Context</label>
+        <select name="contextId" class="select select-sm select-bordered"
+                hx-post="/Note/@Model.Item.Id?handler=Move" hx-target="#note-content" hx-swap="innerHTML"
+                hx-trigger="change" hx-include="closest form">
+            <option value="" selected="@(Model.Item.ContextId is null)">Inbox</option>
+            @foreach (var c in Model.Contexts)
+            {
+                <option value="@c.Id" selected="@(Model.Item.ContextId == c.Id)">@c.Name</option>
+            }
+        </select>
+    </form>
+}
 <span id="glossary-token" data-note-id="@Model.Item?.Id" hidden>@Html.AntiForgeryToken()</span>
 
 @* Add-to-glossary dialog: bottom sheet on mobile, centered on desktop. Opened by glossary.js. *@

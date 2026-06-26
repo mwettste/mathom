@@ -8,6 +8,9 @@ using Mathom.Web.Media;
 using Mathom.Web.Processing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.PixelFormats;
 using Xunit;
 
 namespace Mathom.Tests;
@@ -37,7 +40,8 @@ public class ItemProcessorTests(PostgresFixture fx)
         await using (var db = fx.NewDbContext())
         {
             var processor = new ItemProcessor(db, fake, new FakeTranscriber(), new FakeImageReader(), new FakeMediaStore(),
-                new Mathom.Web.Glossary.GlossaryService(db), NullLogger<ItemProcessor>.Instance);
+                new Mathom.Web.Media.PhotoVariantService(db, new FakeMediaStore(), new Mathom.Web.Media.ImageVariantProcessor()),
+                new Mathom.Web.Glossary.GlossaryService(db), new Mathom.Web.Languages.UserLanguageService(db), NullLogger<ItemProcessor>.Instance);
             await processor.ProcessAsync(item.Id, CancellationToken.None);
         }
 
@@ -68,7 +72,8 @@ public class ItemProcessorTests(PostgresFixture fx)
         await using (var db = fx.NewDbContext())
         {
             var processor = new ItemProcessor(db, new FakeLlmClient { Throw = true }, new FakeTranscriber(), new FakeImageReader(), new FakeMediaStore(),
-                new Mathom.Web.Glossary.GlossaryService(db), NullLogger<ItemProcessor>.Instance);
+                new Mathom.Web.Media.PhotoVariantService(db, new FakeMediaStore(), new Mathom.Web.Media.ImageVariantProcessor()),
+                new Mathom.Web.Glossary.GlossaryService(db), new Mathom.Web.Languages.UserLanguageService(db), NullLogger<ItemProcessor>.Instance);
             await processor.ProcessAsync(item.Id, CancellationToken.None);
         }
 
@@ -101,10 +106,12 @@ public class ItemProcessorTests(PostgresFixture fx)
 
         await using (var db = fx.NewDbContext())
             await new ItemProcessor(db, fake, new FakeTranscriber(), new FakeImageReader(), new FakeMediaStore(),
-                new Mathom.Web.Glossary.GlossaryService(db), NullLogger<ItemProcessor>.Instance).ProcessAsync(a.Id, CancellationToken.None);
+                new Mathom.Web.Media.PhotoVariantService(db, new FakeMediaStore(), new Mathom.Web.Media.ImageVariantProcessor()),
+                new Mathom.Web.Glossary.GlossaryService(db), new Mathom.Web.Languages.UserLanguageService(db), NullLogger<ItemProcessor>.Instance).ProcessAsync(a.Id, CancellationToken.None);
         await using (var db = fx.NewDbContext())
             await new ItemProcessor(db, fake, new FakeTranscriber(), new FakeImageReader(), new FakeMediaStore(),
-                new Mathom.Web.Glossary.GlossaryService(db), NullLogger<ItemProcessor>.Instance).ProcessAsync(b.Id, CancellationToken.None);
+                new Mathom.Web.Media.PhotoVariantService(db, new FakeMediaStore(), new Mathom.Web.Media.ImageVariantProcessor()),
+                new Mathom.Web.Glossary.GlossaryService(db), new Mathom.Web.Languages.UserLanguageService(db), NullLogger<ItemProcessor>.Instance).ProcessAsync(b.Id, CancellationToken.None);
 
         await using (var verify = fx.NewDbContext())
             Assert.Equal(1, await verify.Tags.CountAsync(t => t.Name == "shared"));
@@ -141,7 +148,8 @@ public class ItemProcessorTests(PostgresFixture fx)
 
         await using (var db = fx.NewDbContext())
             await new ItemProcessor(db, llm, transcriber, new FakeImageReader(), media,
-                new Mathom.Web.Glossary.GlossaryService(db), NullLogger<ItemProcessor>.Instance)
+                new Mathom.Web.Media.PhotoVariantService(db, media, new Mathom.Web.Media.ImageVariantProcessor()),
+                new Mathom.Web.Glossary.GlossaryService(db), new Mathom.Web.Languages.UserLanguageService(db), NullLogger<ItemProcessor>.Instance)
                 .ProcessAsync(item.Id, CancellationToken.None);
 
         await using (var verify = fx.NewDbContext())
@@ -179,7 +187,8 @@ public class ItemProcessorTests(PostgresFixture fx)
 
         await using (var db = fx.NewDbContext())
             await new ItemProcessor(db, new FakeLlmClient(), new FakeTranscriber { Throw = true }, new FakeImageReader(), media,
-                new Mathom.Web.Glossary.GlossaryService(db), NullLogger<ItemProcessor>.Instance).ProcessAsync(item.Id, CancellationToken.None);
+                new Mathom.Web.Media.PhotoVariantService(db, media, new Mathom.Web.Media.ImageVariantProcessor()),
+                new Mathom.Web.Glossary.GlossaryService(db), new Mathom.Web.Languages.UserLanguageService(db), NullLogger<ItemProcessor>.Instance).ProcessAsync(item.Id, CancellationToken.None);
 
         await using (var verify = fx.NewDbContext())
         {
@@ -221,8 +230,9 @@ public class ItemProcessorTests(PostgresFixture fx)
 
         await using var db = fx.NewDbContext();
         var processor = new ItemProcessor(db, llm, new FakeTranscriber(), new FakeImageReader(), new FakeMediaStore(),
+            new Mathom.Web.Media.PhotoVariantService(db, new FakeMediaStore(), new Mathom.Web.Media.ImageVariantProcessor()),
             new Mathom.Web.Glossary.GlossaryService(db),
-            NullLogger<ItemProcessor>.Instance);
+            new Mathom.Web.Languages.UserLanguageService(db), NullLogger<ItemProcessor>.Instance);
 
         await processor.ProcessAsync(itemId, System.Threading.CancellationToken.None);
 
@@ -260,7 +270,9 @@ public class ItemProcessorTests(PostgresFixture fx)
 
         await using var db = fx.NewDbContext();
         var processor = new Mathom.Web.Processing.ItemProcessor(db, llm, new FakeTranscriber(), new FakeImageReader(), new FakeMediaStore(),
+            new Mathom.Web.Media.PhotoVariantService(db, new FakeMediaStore(), new Mathom.Web.Media.ImageVariantProcessor()),
             new Mathom.Web.Glossary.GlossaryService(db),
+            new Mathom.Web.Languages.UserLanguageService(db),
             Microsoft.Extensions.Logging.Abstractions.NullLogger<Mathom.Web.Processing.ItemProcessor>.Instance);
 
         await processor.ProcessAsync(itemId, System.Threading.CancellationToken.None);
@@ -295,7 +307,9 @@ public class ItemProcessorTests(PostgresFixture fx)
         await using var db = fx.NewDbContext();
         var processor = new Mathom.Web.Processing.ItemProcessor(
             db, llm, new FakeTranscriber(), new FakeImageReader(), new FakeMediaStore(),
+            new Mathom.Web.Media.PhotoVariantService(db, new FakeMediaStore(), new Mathom.Web.Media.ImageVariantProcessor()),
             new Mathom.Web.Glossary.GlossaryService(db),
+            new Mathom.Web.Languages.UserLanguageService(db),
             Microsoft.Extensions.Logging.Abstractions.NullLogger<Mathom.Web.Processing.ItemProcessor>.Instance);
 
         await processor.ProcessAsync(itemId, CancellationToken.None);
@@ -327,7 +341,9 @@ public class ItemProcessorTests(PostgresFixture fx)
         var llm = new FakeLlmClient { Respond = raw => new Mathom.Web.Processing.CleanupResult(raw, raw, Mathom.Web.Domain.ItemType.Note, false, new System.Collections.Generic.List<Mathom.Web.Processing.CleanupTag>()) };
         await using var db = fx.NewDbContext();
         var processor = new Mathom.Web.Processing.ItemProcessor(db, llm, new FakeTranscriber(), new FakeImageReader(), new FakeMediaStore(),
+            new Mathom.Web.Media.PhotoVariantService(db, new FakeMediaStore(), new Mathom.Web.Media.ImageVariantProcessor()),
             new Mathom.Web.Glossary.GlossaryService(db),
+            new Mathom.Web.Languages.UserLanguageService(db),
             Microsoft.Extensions.Logging.Abstractions.NullLogger<Mathom.Web.Processing.ItemProcessor>.Instance);
 
         await processor.ProcessAsync(itemId, System.Threading.CancellationToken.None);
@@ -340,9 +356,10 @@ public class ItemProcessorTests(PostgresFixture fx)
     {
         await fx.EnsureUserAsync(Uid, "processor@example.com");
         var media = new FakeMediaStore();
+        var tinyJpeg = await MakeTinyJpegAsync();
         string k1, k2;
-        using (var a = new MemoryStream(new byte[] { 1 })) k1 = await media.SaveAsync(a, ".jpg", CancellationToken.None);
-        using (var b = new MemoryStream(new byte[] { 2 })) k2 = await media.SaveAsync(b, ".png", CancellationToken.None);
+        using (var a = new MemoryStream(tinyJpeg)) k1 = await media.SaveAsync(a, ".jpg", CancellationToken.None);
+        using (var b = new MemoryStream(tinyJpeg)) k2 = await media.SaveAsync(b, ".jpg", CancellationToken.None);
 
         var item = Item.CreatePending(SourceType.Photo, "", Guid.NewGuid().ToString(), Uid, DateTimeOffset.UtcNow);
         item.Photos.Add(new ItemPhoto { Id = Guid.NewGuid(), MediaPath = k1, Order = 0, CreatedAt = DateTimeOffset.UtcNow });
@@ -355,7 +372,8 @@ public class ItemProcessorTests(PostgresFixture fx)
 
         await using (var db = fx.NewDbContext())
             await new ItemProcessor(db, llm, new FakeTranscriber(), reader, media,
-                new Mathom.Web.Glossary.GlossaryService(db), NullLogger<ItemProcessor>.Instance)
+                new Mathom.Web.Media.PhotoVariantService(db, media, new Mathom.Web.Media.ImageVariantProcessor()),
+                new Mathom.Web.Glossary.GlossaryService(db), new Mathom.Web.Languages.UserLanguageService(db), NullLogger<ItemProcessor>.Instance)
                 .ProcessAsync(item.Id, CancellationToken.None);
 
         await using (var verify = fx.NewDbContext())
@@ -371,12 +389,56 @@ public class ItemProcessorTests(PostgresFixture fx)
     }
 
     [Fact]
+    public async Task ProcessAsync_Photo_GeneratesVariant_AndFeedsItToReader()
+    {
+        await fx.EnsureUserAsync(Uid, "processor@example.com");
+        var media = new FakeMediaStore();
+        byte[] originalBytes;
+        using (var img = new SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(3000, 2000))
+        {
+            using var ms = new MemoryStream();
+            await img.SaveAsync(ms, new SixLabors.ImageSharp.Formats.Png.PngEncoder());
+            originalBytes = ms.ToArray();
+        }
+        string originalKey;
+        using (var s = new MemoryStream(originalBytes)) originalKey = await media.SaveAsync(s, ".png", CancellationToken.None);
+
+        var item = Item.CreatePending(SourceType.Photo, "", Guid.NewGuid().ToString(), Uid, DateTimeOffset.UtcNow);
+        item.Photos.Add(new ItemPhoto { MediaPath = originalKey, Order = 0, CreatedAt = DateTimeOffset.UtcNow });
+
+        var reader = new FakeImageReader();
+        Guid itemId;
+        await using (var db = fx.NewDbContext()) { db.Items.Add(item); await db.SaveChangesAsync(); itemId = item.Id; }
+
+        await using (var db = fx.NewDbContext())
+        {
+            var variants = new Mathom.Web.Media.PhotoVariantService(db, media, new Mathom.Web.Media.ImageVariantProcessor());
+            await new ItemProcessor(db, new FakeLlmClient(), new FakeTranscriber(), reader, media, variants,
+                new Mathom.Web.Glossary.GlossaryService(db), new Mathom.Web.Languages.UserLanguageService(db), NullLogger<ItemProcessor>.Instance)
+                .ProcessAsync(itemId, CancellationToken.None);
+        }
+
+        await using (var db = fx.NewDbContext())
+        {
+            var photo = await db.ItemPhotos.IgnoreQueryFilters().FirstAsync(p => p.ItemId == itemId);
+            Assert.False(string.IsNullOrEmpty(photo.DisplayPath));
+            // The reader got the variant, not the original.
+            using var variantStream = await media.OpenReadAsync(photo.DisplayPath!, CancellationToken.None);
+            using var vms = new MemoryStream(); await variantStream.CopyToAsync(vms);
+            Assert.Single(reader.LastImages);
+            Assert.Equal(vms.ToArray(), reader.LastImages[0]);
+            Assert.NotEqual(originalBytes.Length, reader.LastImages[0].Length);
+        }
+    }
+
+    [Fact]
     public async Task ProcessAsync_Photo_PassesGlossaryToReader()
     {
         var u = "photo-glossary-user";
         await fx.EnsureUserAsync(u, u + "@example.com");
         var media = new FakeMediaStore();
-        string k; using (var a = new MemoryStream(new byte[] { 1 })) k = await media.SaveAsync(a, ".jpg", CancellationToken.None);
+        var tinyJpeg = await MakeTinyJpegAsync();
+        string k; using (var a = new MemoryStream(tinyJpeg)) k = await media.SaveAsync(a, ".jpg", CancellationToken.None);
 
         var item = Item.CreatePending(SourceType.Photo, "", Guid.NewGuid().ToString(), u, DateTimeOffset.UtcNow);
         item.Photos.Add(new ItemPhoto { Id = Guid.NewGuid(), MediaPath = k, Order = 0, CreatedAt = DateTimeOffset.UtcNow });
@@ -390,10 +452,52 @@ public class ItemProcessorTests(PostgresFixture fx)
         var reader = new FakeImageReader();
         await using (var db = fx.NewDbContext())
             await new ItemProcessor(db, new FakeLlmClient(), new FakeTranscriber(), reader, media,
-                new Mathom.Web.Glossary.GlossaryService(db), NullLogger<ItemProcessor>.Instance)
+                new Mathom.Web.Media.PhotoVariantService(db, media, new Mathom.Web.Media.ImageVariantProcessor()),
+                new Mathom.Web.Glossary.GlossaryService(db), new Mathom.Web.Languages.UserLanguageService(db), NullLogger<ItemProcessor>.Instance)
                 .ProcessAsync(item.Id, CancellationToken.None);
 
         Assert.Contains("Obersaxen", reader.LastGlossary);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_UsesContextScopedGlossary()
+    {
+        var u = "processor-context-user";
+        await fx.EnsureUserAsync(u, u + "@example.com");
+
+        var ctxId = Guid.NewGuid();
+        var item = Item.CreatePending(SourceType.Text, "meeting about acme", Guid.NewGuid().ToString(), u, DateTimeOffset.UtcNow);
+        item.ContextId = ctxId;
+        await using (var seed = fx.NewDbContext())
+        {
+            seed.Contexts.Add(new Context { Id = ctxId, UserId = u, Name = "Biz", CreatedAt = DateTimeOffset.UtcNow });
+            // Variant "acme" -> term "Acme Corp", defined ONLY in this context.
+            var term = new GlossaryTerm { Id = Guid.NewGuid(), UserId = u, ContextId = ctxId, Term = "Acme Corp", CreatedAt = DateTimeOffset.UtcNow };
+            term.Variants.Add(new GlossaryVariant { Id = Guid.NewGuid(), GlossaryTermId = term.Id, Text = "acme", CreatedAt = DateTimeOffset.UtcNow });
+            seed.GlossaryTerms.Add(term);
+            seed.Items.Add(item);
+            await seed.SaveChangesAsync();
+        }
+
+        // Cleanup echoes the raw text so the deterministic corrector can act on it.
+        var fake = new FakeLlmClient
+        {
+            Respond = raw => new CleanupResult("Meeting", raw, ItemType.Note, false, System.Array.Empty<CleanupTag>())
+        };
+
+        await using (var db = fx.NewDbContext())
+        {
+            var processor = new ItemProcessor(db, fake, new FakeTranscriber(), new FakeImageReader(), new FakeMediaStore(),
+                new Mathom.Web.Media.PhotoVariantService(db, new FakeMediaStore(), new Mathom.Web.Media.ImageVariantProcessor()),
+                new Mathom.Web.Glossary.GlossaryService(db), new Mathom.Web.Languages.UserLanguageService(db), NullLogger<ItemProcessor>.Instance);
+            await processor.ProcessAsync(item.Id, CancellationToken.None);
+        }
+
+        await using (var verify = fx.NewDbContext())
+        {
+            var loaded = await verify.Items.SingleAsync(i => i.Id == item.Id);
+            Assert.Contains("Acme Corp", loaded.CleanText); // variant corrected via the context glossary
+        }
     }
 
     [Fact]
@@ -423,14 +527,16 @@ public class ItemProcessorTests(PostgresFixture fx)
             Assert.Equal("kitchen renovation quote\n\nline items: tiles, labor", loaded.RawText);
         }
     }
-
+  
+  
     [Fact]
     public async Task ProcessAsync_Photo_EmptyRead_SetsFailed()
     {
         var u = "photo-empty-user";
         await fx.EnsureUserAsync(u, u + "@example.com");
         var media = new FakeMediaStore();
-        string k; using (var a = new MemoryStream(new byte[] { 1 })) k = await media.SaveAsync(a, ".jpg", CancellationToken.None);
+        var tinyJpeg = await MakeTinyJpegAsync();
+        string k; using (var a = new MemoryStream(tinyJpeg)) k = await media.SaveAsync(a, ".jpg", CancellationToken.None);
 
         var item = Item.CreatePending(SourceType.Photo, "", Guid.NewGuid().ToString(), u, DateTimeOffset.UtcNow);
         item.Photos.Add(new ItemPhoto { Id = Guid.NewGuid(), MediaPath = k, Order = 0, CreatedAt = DateTimeOffset.UtcNow });
@@ -440,7 +546,8 @@ public class ItemProcessorTests(PostgresFixture fx)
         var llm = new FakeLlmClient();
         await using (var db = fx.NewDbContext())
             await new ItemProcessor(db, llm, new FakeTranscriber(), reader, media,
-                new Mathom.Web.Glossary.GlossaryService(db), NullLogger<ItemProcessor>.Instance)
+                new Mathom.Web.Media.PhotoVariantService(db, media, new Mathom.Web.Media.ImageVariantProcessor()),
+                new Mathom.Web.Glossary.GlossaryService(db), new Mathom.Web.Languages.UserLanguageService(db), NullLogger<ItemProcessor>.Instance)
                 .ProcessAsync(item.Id, CancellationToken.None);
 
         await using (var verify = fx.NewDbContext())
@@ -450,5 +557,14 @@ public class ItemProcessorTests(PostgresFixture fx)
             Assert.Contains("No readable content", loaded.Error);
         }
         Assert.Equal(0, llm.Calls);  // cleanup never ran on empty input
+    }
+
+    /// <summary>Returns bytes of a valid 1x1 JPEG so ImageVariantProcessor can decode it.</summary>
+    private static async Task<byte[]> MakeTinyJpegAsync()
+    {
+        using var img = new Image<Rgb24>(1, 1);
+        using var ms = new MemoryStream();
+        await img.SaveAsync(ms, new JpegEncoder());
+        return ms.ToArray();
     }
 }

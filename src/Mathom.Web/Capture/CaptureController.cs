@@ -18,7 +18,7 @@ namespace Mathom.Web.Capture;
 [ApiController]
 [Route("capture")]
 [Authorize]
-public class CaptureController(MathomDbContext db, IMediaStore media) : ControllerBase
+public class CaptureController(MathomDbContext db, IMediaStore media, Mathom.Web.Contexts.ContextService contexts) : ControllerBase
 {
     // Upper bounds to keep a single capture from being unbounded (DoS / disk fill).
     private const int MaxTextLength = 100_000;          // ~100 KB of text
@@ -45,6 +45,7 @@ public class CaptureController(MathomDbContext db, IMediaStore media) : Controll
 
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         var item = Item.CreatePending(SourceType.Text, req.Text, key, userId, DateTimeOffset.UtcNow);
+        item.ContextId = await contexts.GetCurrentAsync(userId, ct);
         db.Items.Add(item);
         try
         {
@@ -94,6 +95,7 @@ public class CaptureController(MathomDbContext db, IMediaStore media) : Controll
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         var item = Item.CreatePending(SourceType.Voice, "", key, userId, DateTimeOffset.UtcNow);
         item.MediaPath = mediaPath;
+        item.ContextId = await contexts.GetCurrentAsync(userId, ct);
         db.Items.Add(item);
         try
         {
@@ -149,6 +151,7 @@ public class CaptureController(MathomDbContext db, IMediaStore media) : Controll
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         var item = Item.CreatePending(SourceType.Photo, "", key, userId, DateTimeOffset.UtcNow);
         item.CaptureNote = note;
+        item.ContextId = await contexts.GetCurrentAsync(userId, ct);
         for (var i = 0; i < images.Count; i++)
         {
             string mediaPath;

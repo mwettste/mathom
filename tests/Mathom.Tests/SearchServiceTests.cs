@@ -73,7 +73,7 @@ public class SearchServiceTests(PostgresFixture fx)
         await using (var seed = fx.NewDbContext()) { seed.Items.AddRange(older, newer); await seed.SaveChangesAsync(); }
 
         await using var db = fx.NewDbContext();
-        var result = await new SearchService(db).TimelineAsync(Uid, 50, CancellationToken.None);
+        var result = await new SearchService(db).TimelineAsync(Uid, null, 50, CancellationToken.None);
 
         var ids = result.Select(r => r.Id).ToList();
         Assert.True(ids.IndexOf(newer.Id) < ids.IndexOf(older.Id));
@@ -96,7 +96,7 @@ public class SearchServiceTests(PostgresFixture fx)
         await using (var seed = fx.NewDbContext()) { seed.Items.Add(pending); await seed.SaveChangesAsync(); }
 
         await using var db = fx.NewDbContext();
-        var result = await new SearchService(db).TimelineAsync(Uid, 50, CancellationToken.None);
+        var result = await new SearchService(db).TimelineAsync(Uid, null, 50, CancellationToken.None);
 
         var found = result.Single(r => r.Id == pending.Id);
         Assert.Equal(ItemStatus.Pending, found.Status);
@@ -112,7 +112,7 @@ public class SearchServiceTests(PostgresFixture fx)
         await using (var seed = fx.NewDbContext()) { seed.Items.AddRange(match, noMatch); await seed.SaveChangesAsync(); }
 
         await using var db = fx.NewDbContext();
-        var result = await new SearchService(db).SearchAsync(Uid, "sourdough", new SearchFilters(null, null), 50, CancellationToken.None);
+        var result = await new SearchService(db).SearchAsync(Uid, null, "sourdough", new SearchFilters(null, null), 50, CancellationToken.None);
 
         Assert.Contains(result, r => r.Id == match.Id);
         Assert.DoesNotContain(result, r => r.Id == noMatch.Id);
@@ -127,7 +127,7 @@ public class SearchServiceTests(PostgresFixture fx)
         await using (var seed = fx.NewDbContext()) { seed.Items.AddRange(idea, note); await seed.SaveChangesAsync(); }
 
         await using var db = fx.NewDbContext();
-        var result = await new SearchService(db).SearchAsync(Uid, "alpha", new SearchFilters(ItemType.Idea, null), 50, CancellationToken.None);
+        var result = await new SearchService(db).SearchAsync(Uid, null, "alpha", new SearchFilters(ItemType.Idea, null), 50, CancellationToken.None);
 
         Assert.Contains(result, r => r.Id == idea.Id);
         Assert.DoesNotContain(result, r => r.Id == note.Id);
@@ -142,7 +142,7 @@ public class SearchServiceTests(PostgresFixture fx)
 
         await using var db = fx.NewDbContext();
         var result = await new SearchService(db)
-            .QueryAsync(u, null, new SearchFilters(Tag: "work"), 50, CancellationToken.None);
+            .QueryAsync(u, null, null, new SearchFilters(Tag: "work"), 50, CancellationToken.None);
 
         Assert.Contains(result, r => r.Id == match.Id);
         Assert.Single(result);
@@ -158,7 +158,7 @@ public class SearchServiceTests(PostgresFixture fx)
 
         await using var db = fx.NewDbContext();
         var result = await new SearchService(db)
-            .QueryAsync(a, null, new SearchFilters(Tag: "work"), 50, CancellationToken.None);
+            .QueryAsync(a, null, null, new SearchFilters(Tag: "work"), 50, CancellationToken.None);
 
         Assert.All(result, r => Assert.Equal(aItem.Id, r.Id)); // only A's item
         Assert.Single(result);
@@ -173,7 +173,7 @@ public class SearchServiceTests(PostgresFixture fx)
 
         await using var db = fx.NewDbContext();
         var result = await new SearchService(db)
-            .QueryAsync(u, null, new SearchFilters(ItemType.Task, null, "work"), 50, CancellationToken.None);
+            .QueryAsync(u, null, null, new SearchFilters(ItemType.Task, null, "work"), 50, CancellationToken.None);
 
         Assert.Single(result);
         Assert.Equal(want.Id, result[0].Id);
@@ -191,7 +191,7 @@ public class SearchServiceTests(PostgresFixture fx)
 
         await using var db = fx.NewDbContext();
         var result = await new SearchService(db)
-            .QueryAsync(u, null, new SearchFilters(), 50, CancellationToken.None);
+            .QueryAsync(u, null, null, new SearchFilters(), 50, CancellationToken.None);
 
         var ids = result.Select(r => r.Id).ToList();
         Assert.True(ids.IndexOf(newer.Id) < ids.IndexOf(older.Id));
@@ -210,9 +210,100 @@ public class SearchServiceTests(PostgresFixture fx)
         await using (var seed = fx.NewDbContext()) { seed.Items.AddRange(live, trashed); await seed.SaveChangesAsync(); }
 
         await using var db = fx.NewDbContext();
-        var result = await new SearchService(db).TimelineAsync(u, 50, CancellationToken.None);
+        var result = await new SearchService(db).TimelineAsync(u, null, 50, CancellationToken.None);
 
         Assert.Contains(result, r => r.Id == live.Id);
         Assert.DoesNotContain(result, r => r.Id == trashed.Id);
+    }
+
+    [Fact]
+    public async Task Search_FindsNote_ByTranslatedText()
+    {
+        var u = "search-translated-user";
+        await fx.EnsureUserAsync(u, u + "@example.com");
+        var id = Guid.NewGuid();
+        await using (var db = fx.NewDbContext())
+        {
+            var item = new Item
+            {
+                Id = id, Status = ItemStatus.Ready, SourceType = SourceType.Text,
+                RawText = "Hallo", CleanText = "Hallo Welt", Title = "Begruessung",
+                SourceLanguage = "de-DE", ItemType = ItemType.Note,
+                CreatedAt = DateTimeOffset.UtcNow, ProcessedAt = DateTimeOffset.UtcNow,
+                IdempotencyKey = Guid.NewGuid().ToString(), UserId = u,
+            };
+            item.Translations.Add(new ItemTranslation
+            {
+                Id = Guid.NewGuid(), ItemId = id, Locale = "en", Title = "Greeting", CleanText = "Hello world",
+            });
+            db.Items.Add(item);
+            await db.SaveChangesAsync();
+        }
+
+        var svc = new SearchService(fx.NewDbContext());
+        var hits = await svc.SearchAsync(u, null, "hello", new SearchFilters(), 50, CancellationToken.None);
+        Assert.Contains(hits, h => h.Id == id);          // matched via English translation
+    }
+
+    [Fact]
+    public async Task Summary_CarriesSourceLanguage_AndTranslations()
+    {
+        var u = "search-variants-user";
+        await fx.EnsureUserAsync(u, u + "@example.com");
+        var id = Guid.NewGuid();
+        await using (var db = fx.NewDbContext())
+        {
+            var item = new Item
+            {
+                Id = id, Status = ItemStatus.Ready, SourceType = SourceType.Text,
+                RawText = "x", CleanText = "Inhalt", Title = "Titel", SourceLanguage = "de-CH",
+                ItemType = ItemType.Note, CreatedAt = DateTimeOffset.UtcNow, ProcessedAt = DateTimeOffset.UtcNow,
+                IdempotencyKey = Guid.NewGuid().ToString(), UserId = u,
+            };
+            item.Translations.Add(new ItemTranslation { Id = Guid.NewGuid(), ItemId = id, Locale = "en", Title = "Title", CleanText = "Content" });
+            db.Items.Add(item);
+            await db.SaveChangesAsync();
+        }
+        var svc = new SearchService(fx.NewDbContext());
+        var list = await svc.TimelineAsync(u, null, 50, CancellationToken.None);
+        var summary = list.Single(i => i.Id == id);
+        Assert.Equal("de-CH", summary.SourceLanguage);
+        Assert.Equal("en", Assert.Single(summary.Translations).Locale);
+    }
+
+    [Fact]
+    public async Task Timeline_ScopesToContext_AndInbox()
+    {
+        var u = "search-context-user";
+        await fx.EnsureUserAsync(u, u + "@example.com");
+        var ctxId = Guid.NewGuid();
+        await using (var seed = fx.NewDbContext())
+        {
+            seed.Contexts.Add(new Mathom.Web.Domain.Context { Id = ctxId, UserId = u, Name = "Biz", CreatedAt = DateTimeOffset.UtcNow });
+            seed.Items.Add(new Item
+            {
+                Id = Guid.NewGuid(), Status = ItemStatus.Ready, SourceType = SourceType.Text,
+                RawText = "in biz", CleanText = "in biz", Title = "BizItem", ItemType = ItemType.Note,
+                CreatedAt = DateTimeOffset.UtcNow, IdempotencyKey = Guid.NewGuid().ToString(),
+                UserId = u, ContextId = ctxId,
+            });
+            seed.Items.Add(new Item
+            {
+                Id = Guid.NewGuid(), Status = ItemStatus.Ready, SourceType = SourceType.Text,
+                RawText = "in inbox", CleanText = "in inbox", Title = "InboxItem", ItemType = ItemType.Note,
+                CreatedAt = DateTimeOffset.UtcNow, IdempotencyKey = Guid.NewGuid().ToString(),
+                UserId = u, ContextId = null,
+            });
+            await seed.SaveChangesAsync();
+        }
+
+        await using var db = fx.NewDbContext();
+        var svc = new SearchService(db);
+
+        var biz = await svc.TimelineAsync(u, ctxId, 50, CancellationToken.None);
+        Assert.Equal(new[] { "BizItem" }, biz.Select(i => i.Title).ToArray());
+
+        var inbox = await svc.TimelineAsync(u, null, 50, CancellationToken.None);
+        Assert.Equal(new[] { "InboxItem" }, inbox.Select(i => i.Title).ToArray());
     }
 }

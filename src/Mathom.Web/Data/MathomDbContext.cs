@@ -6,12 +6,15 @@ namespace Mathom.Web.Data;
 
 public class MathomDbContext(DbContextOptions<MathomDbContext> options) : IdentityDbContext<ApplicationUser>(options)
 {
+    public DbSet<Context> Contexts => Set<Context>()!;
     public DbSet<Item> Items => Set<Item>()!;
     public DbSet<Tag> Tags => Set<Tag>()!;
     public DbSet<ItemTag> ItemTags => Set<ItemTag>()!;
     public DbSet<ItemPhoto> ItemPhotos => Set<ItemPhoto>()!;
+    public DbSet<ItemTranslation> ItemTranslations => Set<ItemTranslation>()!;
     public DbSet<GlossaryTerm> GlossaryTerms => Set<GlossaryTerm>()!;
     public DbSet<GlossaryVariant> GlossaryVariants => Set<GlossaryVariant>()!;
+    public DbSet<UserLanguage> UserLanguages => Set<UserLanguage>()!;
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -34,6 +37,11 @@ public class MathomDbContext(DbContextOptions<MathomDbContext> options) : Identi
                 .WithMany()
                 .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+            // Deleting a context reassigns its items to Inbox.
+            e.HasOne<Context>()
+                .WithMany()
+                .HasForeignKey(x => x.ContextId)
+                .OnDelete(DeleteBehavior.SetNull);
             // Per-user timeline ordering.
             e.HasIndex(x => new { x.UserId, x.CreatedAt });
 
@@ -41,7 +49,7 @@ public class MathomDbContext(DbContextOptions<MathomDbContext> options) : Identi
 #pragma warning disable CS8603
             e.HasGeneratedTsVectorColumn(
                     x => x.SearchVector,
-                    "english",
+                    "simple",
                     x => new { x.Title, x.CleanText })
                 .HasIndex(x => x.SearchVector)
                 .HasMethod("GIN");
@@ -66,11 +74,59 @@ public class MathomDbContext(DbContextOptions<MathomDbContext> options) : Identi
         {
             e.HasKey(x => x.Id);
             e.Property(x => x.MediaPath).IsRequired();
+            e.Property(x => x.ExternalId).IsRequired();
             e.HasOne(x => x.Item)
                 .WithMany(i => i.Photos)
                 .HasForeignKey(x => x.ItemId)
                 .OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => x.ItemId);
+            e.HasIndex(x => x.ExternalId).IsUnique();
+        });
+
+        b.Entity<ItemTranslation>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Locale).IsRequired();
+            e.Property(x => x.Title).IsRequired();
+            e.Property(x => x.CleanText).IsRequired();
+            e.HasOne(x => x.Item)
+                .WithMany(i => i.Translations)
+                .HasForeignKey(x => x.ItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.ItemId, x.Locale }).IsUnique();
+
+            // Per-locale generated tsvector for full-text search across translations.
+#pragma warning disable CS8603
+            e.HasGeneratedTsVectorColumn(
+                    x => x.SearchVector,
+                    "simple",
+                    x => new { x.Title, x.CleanText })
+                .HasIndex(x => x.SearchVector)
+                .HasMethod("GIN");
+#pragma warning restore CS8603
+        });
+
+        b.Entity<Context>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.UserId).IsRequired();
+            e.Property(x => x.Name).IsRequired();
+            e.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            // Per-user name uniqueness (exact match). Case-insensitive dup rejection
+            // is enforced in ContextService, mirroring the Glossary pattern.
+            e.HasIndex(x => new { x.UserId, x.Name }).IsUnique();
+        });
+
+        b.Entity<ApplicationUser>(e =>
+        {
+            // Deleting the current context drops the user back to Inbox.
+            e.HasOne<Context>()
+                .WithMany()
+                .HasForeignKey(x => x.CurrentContextId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         b.Entity<GlossaryTerm>(e =>
@@ -82,7 +138,12 @@ public class MathomDbContext(DbContextOptions<MathomDbContext> options) : Identi
                 .WithMany()
                 .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
-            e.HasIndex(x => new { x.UserId, x.Term }).IsUnique();
+            // A context's glossary terms are deleted with it; Inbox terms (null) survive.
+            e.HasOne<Context>()
+                .WithMany()
+                .HasForeignKey(x => x.ContextId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.UserId, x.ContextId, x.Term }).IsUnique();
             e.Property(x => x.Description).HasMaxLength(500);
         });
 
@@ -95,6 +156,18 @@ public class MathomDbContext(DbContextOptions<MathomDbContext> options) : Identi
                 .HasForeignKey(x => x.GlossaryTermId)
                 .OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => new { x.GlossaryTermId, x.Text }).IsUnique();
+        });
+
+        b.Entity<UserLanguage>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.UserId).IsRequired();
+            e.Property(x => x.Locale).IsRequired();
+            e.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.UserId, x.Locale }).IsUnique();
         });
     }
 }

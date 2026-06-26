@@ -70,7 +70,8 @@
         </div>
         @if (User.Identity?.IsAuthenticated == true && (ViewData["HideAppNav"] as bool?) != true)
         {
-            <div class="navbar-center hidden md:flex">
+            <div class="navbar-center hidden md:flex items-center gap-2">
+                <partial name="Shared/_ContextSwitcher" />
                 <ul class="menu menu-horizontal gap-1 px-0">
                     <partial name="Shared/_AppNavLinks" />
                 </ul>

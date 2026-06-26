@@ -1,0 +1,27 @@
+@model Mathom.Web.Pages.ContextsModel
+<ul class="divide-y divide-base-300">
+    <li class="py-2 flex items-center gap-2">
+        <span class="font-medium">Inbox</span>
+        @if (Model.CurrentContextId is null)
+        {
+            <span class="badge badge-sm badge-primary">current</span>
+        }
+    </li>
+    @foreach (var c in Model.Items)
+    {
+        <li class="py-2 flex items-center gap-2">
+            <span class="font-medium">@c.Name</span>
+            @if (Model.CurrentContextId == c.Id)
+            {
+                <span class="badge badge-sm badge-primary">current</span>
+            }
+            <form method="post" asp-page-handler="Delete" hx-post="/Contexts?handler=Delete"
+                  hx-target="#context-list" hx-swap="innerHTML"
+                  hx-confirm="Delete this context? Its items move to Inbox." class="ml-auto inline">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@c.Id" />
+                <button type="submit" class="btn btn-ghost btn-xs text-error">Delete</button>
+            </form>
+        </li>
+    }
+</ul>

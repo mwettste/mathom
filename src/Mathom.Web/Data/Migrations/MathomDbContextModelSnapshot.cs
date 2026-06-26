@@ -35,6 +35,9 @@ namespace Mathom.Web.Data.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("CurrentContextId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Email")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
@@ -80,6 +83,8 @@ namespace Mathom.Web.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CurrentContextId");
+
                     b.HasIndex("NormalizedEmail")
                         .HasDatabaseName("EmailIndex");
 
@@ -90,10 +95,38 @@ namespace Mathom.Web.Data.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("Mathom.Web.Domain.Context", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("Contexts");
+                });
+
             modelBuilder.Entity("Mathom.Web.Domain.GlossaryTerm", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ContextId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("CreatedAt")
@@ -113,7 +146,9 @@ namespace Mathom.Web.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId", "Term")
+                    b.HasIndex("ContextId");
+
+                    b.HasIndex("UserId", "ContextId", "Term")
                         .IsUnique();
 
                     b.ToTable("GlossaryTerms");
@@ -159,6 +194,9 @@ namespace Mathom.Web.Data.Migrations
                     b.Property<string>("CleanText")
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("ContextId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -188,8 +226,11 @@ namespace Mathom.Web.Data.Migrations
                     b.Property<NpgsqlTsVector>("SearchVector")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("tsvector")
-                        .HasAnnotation("Npgsql:TsVectorConfig", "english")
+                        .HasAnnotation("Npgsql:TsVectorConfig", "simple")
                         .HasAnnotation("Npgsql:TsVectorProperties", new[] { "Title", "CleanText" });
+
+                    b.Property<string>("SourceLanguage")
+                        .HasColumnType("text");
 
                     b.Property<int>("SourceType")
                         .HasColumnType("integer");
@@ -205,6 +246,8 @@ namespace Mathom.Web.Data.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ContextId");
 
                     b.HasIndex("IdempotencyKey")
                         .IsUnique();
@@ -229,6 +272,13 @@ namespace Mathom.Web.Data.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("DisplayPath")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ExternalId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<Guid>("ItemId")
                         .HasColumnType("uuid");
 
@@ -240,6 +290,9 @@ namespace Mathom.Web.Data.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ExternalId")
+                        .IsUnique();
 
                     b.HasIndex("ItemId");
 
@@ -259,6 +312,45 @@ namespace Mathom.Web.Data.Migrations
                     b.HasIndex("TagId");
 
                     b.ToTable("ItemTags");
+                });
+
+            modelBuilder.Entity("Mathom.Web.Domain.ItemTranslation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CleanText")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Locale")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<NpgsqlTsVector>("SearchVector")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("tsvector")
+                        .HasAnnotation("Npgsql:TsVectorConfig", "simple")
+                        .HasAnnotation("Npgsql:TsVectorProperties", new[] { "Title", "CleanText" });
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SearchVector");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SearchVector"), "GIN");
+
+                    b.HasIndex("ItemId", "Locale")
+                        .IsUnique();
+
+                    b.ToTable("ItemTranslations");
                 });
 
             modelBuilder.Entity("Mathom.Web.Domain.Tag", b =>
@@ -282,6 +374,37 @@ namespace Mathom.Web.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("Tags");
+                });
+
+            modelBuilder.Entity("Mathom.Web.Domain.UserLanguage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsPrimary")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Locale")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Locale")
+                        .IsUnique();
+
+                    b.ToTable("UserLanguages");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -416,8 +539,30 @@ namespace Mathom.Web.Data.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Mathom.Web.Domain.ApplicationUser", b =>
+                {
+                    b.HasOne("Mathom.Web.Domain.Context", null)
+                        .WithMany()
+                        .HasForeignKey("CurrentContextId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Mathom.Web.Domain.Context", b =>
+                {
+                    b.HasOne("Mathom.Web.Domain.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Mathom.Web.Domain.GlossaryTerm", b =>
                 {
+                    b.HasOne("Mathom.Web.Domain.Context", null)
+                        .WithMany()
+                        .HasForeignKey("ContextId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
                     b.HasOne("Mathom.Web.Domain.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
@@ -436,6 +581,11 @@ namespace Mathom.Web.Data.Migrations
 
             modelBuilder.Entity("Mathom.Web.Domain.Item", b =>
                 {
+                    b.HasOne("Mathom.Web.Domain.Context", null)
+                        .WithMany()
+                        .HasForeignKey("ContextId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Mathom.Web.Domain.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
@@ -471,6 +621,26 @@ namespace Mathom.Web.Data.Migrations
                     b.Navigation("Item");
 
                     b.Navigation("Tag");
+                });
+
+            modelBuilder.Entity("Mathom.Web.Domain.ItemTranslation", b =>
+                {
+                    b.HasOne("Mathom.Web.Domain.Item", "Item")
+                        .WithMany("Translations")
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Item");
+                });
+
+            modelBuilder.Entity("Mathom.Web.Domain.UserLanguage", b =>
+                {
+                    b.HasOne("Mathom.Web.Domain.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -534,6 +704,8 @@ namespace Mathom.Web.Data.Migrations
                     b.Navigation("ItemTags");
 
                     b.Navigation("Photos");
+
+                    b.Navigation("Translations");
                 });
 
             modelBuilder.Entity("Mathom.Web.Domain.Tag", b =>
