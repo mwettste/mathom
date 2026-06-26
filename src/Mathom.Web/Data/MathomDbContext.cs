@@ -6,6 +6,7 @@ namespace Mathom.Web.Data;
 
 public class MathomDbContext(DbContextOptions<MathomDbContext> options) : IdentityDbContext<ApplicationUser>(options)
 {
+    public DbSet<Context> Contexts => Set<Context>()!;
     public DbSet<Item> Items => Set<Item>()!;
     public DbSet<Tag> Tags => Set<Tag>()!;
     public DbSet<ItemTag> ItemTags => Set<ItemTag>()!;
@@ -35,6 +36,11 @@ public class MathomDbContext(DbContextOptions<MathomDbContext> options) : Identi
                 .WithMany()
                 .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+            // Deleting a context reassigns its items to Inbox.
+            e.HasOne<Context>()
+                .WithMany()
+                .HasForeignKey(x => x.ContextId)
+                .OnDelete(DeleteBehavior.SetNull);
             // Per-user timeline ordering.
             e.HasIndex(x => new { x.UserId, x.CreatedAt });
 
@@ -99,6 +105,29 @@ public class MathomDbContext(DbContextOptions<MathomDbContext> options) : Identi
 #pragma warning restore CS8603
         });
 
+        b.Entity<Context>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.UserId).IsRequired();
+            e.Property(x => x.Name).IsRequired();
+            e.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            // Per-user name uniqueness (exact match). Case-insensitive dup rejection
+            // is enforced in ContextService, mirroring the Glossary pattern.
+            e.HasIndex(x => new { x.UserId, x.Name }).IsUnique();
+        });
+
+        b.Entity<ApplicationUser>(e =>
+        {
+            // Deleting the current context drops the user back to Inbox.
+            e.HasOne<Context>()
+                .WithMany()
+                .HasForeignKey(x => x.CurrentContextId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
         b.Entity<GlossaryTerm>(e =>
         {
             e.HasKey(x => x.Id);
@@ -108,7 +137,12 @@ public class MathomDbContext(DbContextOptions<MathomDbContext> options) : Identi
                 .WithMany()
                 .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
-            e.HasIndex(x => new { x.UserId, x.Term }).IsUnique();
+            // A context's glossary terms are deleted with it; Inbox terms (null) survive.
+            e.HasOne<Context>()
+                .WithMany()
+                .HasForeignKey(x => x.ContextId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.UserId, x.ContextId, x.Term }).IsUnique();
             e.Property(x => x.Description).HasMaxLength(500);
         });
 

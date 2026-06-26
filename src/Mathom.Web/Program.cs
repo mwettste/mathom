@@ -94,6 +94,7 @@ builder.Services.AddScoped<SearchService>();
 builder.Services.AddScoped<Mathom.Web.Notes.NoteService>();
 builder.Services.AddScoped<Mathom.Web.Glossary.GlossaryService>();
 builder.Services.AddScoped<Mathom.Web.Languages.UserLanguageService>();
+builder.Services.AddScoped<Mathom.Web.Contexts.ContextService>();
 builder.Services.AddScoped<Mathom.Web.Admin.UserAdminService>();
 builder.Services.AddControllers();
 

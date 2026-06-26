@@ -1,0 +1,35 @@
+@using System.Security.Claims
+@inject Mathom.Web.Contexts.ContextService Contexts
+@{
+    var uid = User.FindFirstValue(ClaimTypes.NameIdentifier);
+    var ctxItems = uid is null ? new List<Mathom.Web.Contexts.ContextView>() : await Contexts.ListAsync(uid, default);
+    var currentId = uid is null ? (Guid?)null : await Contexts.GetCurrentAsync(uid, default);
+    var currentName = currentId is null ? "Inbox" : ctxItems.FirstOrDefault(c => c.Id == currentId)?.Name ?? "Inbox";
+}
+<div class="dropdown">
+    <button tabindex="0" class="btn btn-ghost btn-sm gap-1" aria-label="Switch context">
+        <span class="text-xs text-base-content/60">Context:</span>
+        <span class="font-medium">@currentName</span>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+    </button>
+    <ul tabindex="0" class="dropdown-content menu bg-base-200 border border-base-300 rounded-box z-50 mt-2 w-52 p-2 shadow-lg">
+        <li>
+            <form method="post" action="/Contexts?handler=SetCurrent" hx-post="/Contexts?handler=SetCurrent">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="@(currentId is null ? "menu-active w-full text-left" : "w-full text-left")">Inbox</button>
+            </form>
+        </li>
+        @foreach (var c in ctxItems)
+        {
+            <li>
+                <form method="post" action="/Contexts?handler=SetCurrent" hx-post="/Contexts?handler=SetCurrent">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="contextId" value="@c.Id" />
+                    <button type="submit" class="@(currentId == c.Id ? "menu-active w-full text-left" : "w-full text-left")">@c.Name</button>
+                </form>
+            </li>
+        }
+        <li class="menu-title text-xs mt-1">Manage</li>
+        <li><a href="/Contexts">Edit contexts…</a></li>
+    </ul>
+</div>

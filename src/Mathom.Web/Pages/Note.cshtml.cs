@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,16 +13,19 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 namespace Mathom.Web.Pages;
 
 [Authorize]
-public class NoteModel(SearchService search, NoteService notes) : PageModel
+public class NoteModel(SearchService search, NoteService notes, Mathom.Web.Contexts.ContextService contexts) : PageModel
 {
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
     public ItemDetail? Item { get; private set; }
 
+    public IReadOnlyList<Mathom.Web.Contexts.ContextView> Contexts { get; private set; } = new List<Mathom.Web.Contexts.ContextView>();
+
     public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct)
     {
         Item = await search.GetAsync(UserId, id, ct);
         if (Item is null) return NotFound();
+        Contexts = await contexts.ListAsync(UserId, ct);
         return Page();
     }
 
@@ -57,6 +61,15 @@ public class NoteModel(SearchService search, NoteService notes) : PageModel
     {
         var ok = await notes.ReprocessAsync(UserId, id, ct);
         if (!ok) return NotFound();
+        Item = await search.GetAsync(UserId, id, ct);
+        return Partial("Shared/_NoteContent", Item!);
+    }
+
+    public async Task<IActionResult> OnPostMoveAsync(Guid id, Guid? contextId, CancellationToken ct)
+    {
+        var ok = await notes.MoveAsync(UserId, id, contextId, ct);
+        if (!ok) return NotFound();
+        // The note is now Pending again; reload the detail and swap the content partial.
         Item = await search.GetAsync(UserId, id, ct);
         return Partial("Shared/_NoteContent", Item!);
     }

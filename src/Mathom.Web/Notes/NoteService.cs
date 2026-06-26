@@ -27,6 +27,23 @@ public class NoteService(MathomDbContext db, IMediaStore media)
         return true;
     }
 
+    public async Task<bool> MoveAsync(string userId, Guid id, Guid? contextId, CancellationToken ct)
+    {
+        // Target context (if any) must belong to the user.
+        if (contextId is { } cid && !await db.Contexts.AnyAsync(c => c.Id == cid && c.UserId == userId, ct))
+            return false;
+
+        var item = await db.Items.FirstOrDefaultAsync(i => i.Id == id && i.UserId == userId, ct);
+        if (item is null) return false;
+
+        item.ContextId = contextId;
+        // Re-clean with the destination context's glossary (no re-transcribe; raw text is kept).
+        item.Status = ItemStatus.Pending;
+        item.Error = null;
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+
     public async Task<bool> UpdateAsync(string userId, Guid id, string? title, string? body,
         ItemType? type, bool actionable, IReadOnlyList<string> tagNames, CancellationToken ct)
     {
