@@ -23,6 +23,14 @@ public class FakeImageReader : IImageReader
         LastImageCount = images.Count;
         LastGlossary = glossary;
         LastContext = context;
+        var captured = new List<byte[]>();
+        foreach (var im in images)
+        {
+            using var ms = new MemoryStream();
+            im.Content.CopyTo(ms);
+            captured.Add(ms.ToArray());
+        }
+        LastImages = captured;
         if (Throw) throw new InvalidOperationException("fake image-read failure");
         return Task.FromResult(Respond(images));
     }
