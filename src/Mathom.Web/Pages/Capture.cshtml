@@ -35,8 +35,25 @@
     <div class="card bg-base-200" x-data="photoCapture()" data-endpoint="/capture/photo">
         <div class="card-body gap-3">
             <h2 class="font-display text-base font-medium text-base-content/60">Photo</h2>
-            <input class="file-input w-full" type="file" accept="image/jpeg,image/png,image/webp"
-                   capture="environment" multiple x-on:change="pick($event)" />
+            <input class="file-input w-full" type="file" accept="image/*,application/octet-stream"
+                   multiple x-on:change="pick($event)" />
+
+            <template x-if="count">
+                <div class="grid grid-cols-3 gap-2">
+                    <template x-for="(p, i) in previews" :key="p.url">
+                        <div class="relative">
+                            <img class="w-full h-24 object-cover rounded-lg" :src="p.url" :alt="'Photo ' + (i + 1)" />
+                            <button type="button"
+                                    class="absolute -top-2 -right-2 btn btn-circle btn-xs btn-error"
+                                    x-on:click="remove(i)" aria-label="Remove photo">✕</button>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <textarea class="textarea textarea-bordered w-full" rows="2" name="context"
+                      x-model="photoContext" placeholder="Add context (optional)"></textarea>
+
             <div class="flex items-center gap-3">
                 <button class="btn btn-primary" type="button" @@click="submit()"
                         x-bind:disabled="busy || !count" x-text="busy ? 'Uploading…' : 'Capture'"></button>

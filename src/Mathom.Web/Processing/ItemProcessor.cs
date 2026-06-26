@@ -82,10 +82,12 @@ public class ItemProcessor(
                         streams.Add(s);
                         images.Add(new ImageData(s, displayKey));
                     }
-                    var read = await imageReader.ExtractAsync(images, terms, ct);
+                    var read = await imageReader.ExtractAsync(images, terms, item.CaptureNote, ct);
                     if (string.IsNullOrWhiteSpace(read))
                         throw new InvalidOperationException("No readable content found in the photo(s).");
-                    item.RawText = read;
+                    item.RawText = string.IsNullOrWhiteSpace(item.CaptureNote)
+                        ? read
+                        : item.CaptureNote.Trim() + "\n\n" + read;
                     await db.SaveChangesAsync(ct);
                 }
                 finally

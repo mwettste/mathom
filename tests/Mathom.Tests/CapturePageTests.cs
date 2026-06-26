@@ -31,4 +31,17 @@ public class CapturePageTests(PostgresFixture fx)
         Assert.Contains("photoCapture()", html);        // Alpine component wired up
         Assert.Contains("/capture/photo", html);        // upload target referenced in markup
     }
+
+    [Fact]
+    public async Task CapturePage_PhotoInput_AllowsGalleryAndContext()
+    {
+        using var app = new TestWebAppFactory(fx.ConnectionString);
+        await app.SeedUsersAsync();
+        var client = app.CreateClient();
+        var html = await (await client.GetAsync("/Capture")).Content.ReadAsStringAsync();
+
+        Assert.Contains("image/*,application/octet-stream", html);   // forces legacy Camera/Gallery/Files chooser
+        Assert.DoesNotContain("capture=\"environment\"", html);       // no camera-only lock
+        Assert.Contains("photoContext", html);                        // x-model name for the context textarea
+    }
 }

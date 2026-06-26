@@ -37,7 +37,7 @@ public class OpenRouterImageReader : IImageReader
             _http.DefaultRequestHeaders.Authorization = new("Bearer", key);
     }
 
-    public async Task<string> ExtractAsync(IReadOnlyList<ImageData> images, IReadOnlyList<string> glossary, CancellationToken ct)
+    public async Task<string> ExtractAsync(IReadOnlyList<ImageData> images, IReadOnlyList<string> glossary, string? context, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(_model))
             throw new InvalidOperationException(
@@ -45,9 +45,11 @@ public class OpenRouterImageReader : IImageReader
                 "Vision:OpenRouter:ApiKey via configuration — e.g. appsettings.Development.json, or the " +
                 "Vision__OpenRouter__Model environment variable.");
 
-        var text = glossary is { Count: > 0 }
-            ? Instruction + " Known terms / likely spellings: " + string.Join(", ", glossary) + "."
-            : Instruction;
+        var text = Instruction;
+        if (glossary is { Count: > 0 })
+            text += " Known terms / likely spellings: " + string.Join(", ", glossary) + ".";
+        if (!string.IsNullOrWhiteSpace(context))
+            text += " User-supplied context for these images: " + context.Trim();
 
         var content = new List<object> { new { type = "text", text } };
         foreach (var img in images)

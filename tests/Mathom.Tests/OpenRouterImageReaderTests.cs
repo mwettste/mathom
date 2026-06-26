@@ -42,7 +42,7 @@ public class OpenRouterImageReaderTests
     public async Task Reads_Content_From_ChatCompletion()
     {
         var h = new StubHandler();
-        var text = await Build(h).ExtractAsync(new[] { Jpeg() }, Array.Empty<string>(), CancellationToken.None);
+        var text = await Build(h).ExtractAsync(new[] { Jpeg() }, Array.Empty<string>(), null, CancellationToken.None);
         Assert.Equal("shopping list: milk, eggs", text);
     }
 
@@ -50,11 +50,12 @@ public class OpenRouterImageReaderTests
     public async Task Sends_Model_ImageDataUrl_And_Glossary()
     {
         var h = new StubHandler();
-        await Build(h).ExtractAsync(new[] { Jpeg() }, new List<string> { "Obersaxen" }, CancellationToken.None);
+        await Build(h).ExtractAsync(new[] { Jpeg() }, new List<string> { "Obersaxen" }, "ticket #42", CancellationToken.None);
         Assert.Contains("some/vision-model", h.Body);
         Assert.Contains("image_url", h.Body);
         Assert.Contains("data:image/jpeg;base64,", h.Body);
         Assert.Contains("Obersaxen", h.Body);
+        Assert.Contains("ticket #42", h.Body);
     }
 
     [Fact]
@@ -64,6 +65,6 @@ public class OpenRouterImageReaderTests
         var config = new ConfigurationBuilder().Build();
         var reader = new OpenRouterImageReader(http, config);
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => reader.ExtractAsync(new[] { Jpeg() }, Array.Empty<string>(), CancellationToken.None));
+            () => reader.ExtractAsync(new[] { Jpeg() }, Array.Empty<string>(), null, CancellationToken.None));
     }
 }

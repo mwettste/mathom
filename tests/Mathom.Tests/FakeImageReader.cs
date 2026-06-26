@@ -14,13 +14,15 @@ public class FakeImageReader : IImageReader
     public int LastImageCount { get; private set; }
     public Func<IReadOnlyList<ImageData>, string> Respond { get; set; } = imgs => $"read of {imgs.Count} image(s)";
     public IReadOnlyList<string> LastGlossary { get; private set; } = Array.Empty<string>();
+    public string? LastContext { get; private set; }
     public IReadOnlyList<byte[]> LastImages { get; private set; } = Array.Empty<byte[]>();
 
-    public Task<string> ExtractAsync(IReadOnlyList<ImageData> images, IReadOnlyList<string> glossary, CancellationToken ct)
+    public Task<string> ExtractAsync(IReadOnlyList<ImageData> images, IReadOnlyList<string> glossary, string? context, CancellationToken ct)
     {
         Calls++;
         LastImageCount = images.Count;
         LastGlossary = glossary;
+        LastContext = context;
         var captured = new List<byte[]>();
         foreach (var im in images)
         {
