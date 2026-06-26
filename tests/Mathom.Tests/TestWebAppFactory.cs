@@ -66,11 +66,13 @@ public class TestWebAppFactory(string connectionString, Action<IServiceCollectio
         var existing = await users.FindByIdAsync(id);
         if (existing is not null)
         {
-            if (existing.IsApproved != isApproved)
-            {
-                existing.IsApproved = isApproved;
-                await users.UpdateAsync(existing);
-            }
+            // The DB is shared across the whole assembly run; other tests may have mutated
+            // per-user state (e.g. set a current context). Reset it so every test starts from
+            // a clean baseline — seeded users approved-or-not as asked and back in the Inbox.
+            var dirty = false;
+            if (existing.IsApproved != isApproved) { existing.IsApproved = isApproved; dirty = true; }
+            if (existing.CurrentContextId is not null) { existing.CurrentContextId = null; dirty = true; }
+            if (dirty) await users.UpdateAsync(existing);
             return;
         }
         var user = new ApplicationUser { Id = id, UserName = email, Email = email, IsApproved = isApproved };
