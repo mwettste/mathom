@@ -13,22 +13,7 @@
         <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
     </button>
     <ul tabindex="0" class="dropdown-content menu bg-base-200 border border-base-300 rounded-box z-50 mt-2 w-52 p-2 shadow-lg">
-        <li>
-            <form method="post" action="/Contexts?handler=SetCurrent" hx-post="/Contexts?handler=SetCurrent">
-                @Html.AntiForgeryToken()
-                <button type="submit" class="@(currentId is null ? "menu-active w-full text-left" : "w-full text-left")">Inbox</button>
-            </form>
-        </li>
-        @foreach (var c in ctxItems)
-        {
-            <li>
-                <form method="post" action="/Contexts?handler=SetCurrent" hx-post="/Contexts?handler=SetCurrent">
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="contextId" value="@c.Id" />
-                    <button type="submit" class="@(currentId == c.Id ? "menu-active w-full text-left" : "w-full text-left")">@c.Name</button>
-                </form>
-            </li>
-        }
+        <partial name="Shared/_ContextSwitchItems" />
         <li class="menu-title text-xs mt-1">Manage</li>
         <li><a href="/Contexts">Edit contexts…</a></li>
     </ul>

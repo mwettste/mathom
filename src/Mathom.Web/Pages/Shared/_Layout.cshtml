@@ -61,7 +61,10 @@
                     <button tabindex="0" class="btn btn-ghost btn-sm px-2" aria-label="Open menu">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
                     </button>
-                    <ul tabindex="0" class="dropdown-content menu bg-base-200 border border-base-300 rounded-box z-50 mt-2 w-44 p-2 shadow-lg">
+                    <ul tabindex="0" class="dropdown-content menu bg-base-200 border border-base-300 rounded-box z-50 mt-2 w-52 p-2 shadow-lg">
+                        <li class="menu-title text-xs">Context</li>
+                        <partial name="Shared/_ContextSwitchItems" />
+                        <li class="menu-title text-xs mt-1">Menu</li>
                         <partial name="Shared/_AppNavLinks" />
                     </ul>
                 </div>
