@@ -43,6 +43,8 @@ while IFS=$'\t' read -r num title branch; do
     [[ -n "$branch" ]] || continue
     path="$(worktree_path_for_branch "$branch")"
     [[ -n "$path" ]] || continue
+    # Skip the main checkout — this script launches dedicated worktrees only.
+    [[ "$path" -ef "$REPO_ROOT" ]] && continue
     PR_NUM+=("$num")
     PR_TITLE+=("$title")
     PR_BRANCH+=("$branch")
