@@ -157,6 +157,13 @@ record.
 - **Isolation is by compose project name** (`mathom-pr-<N>`). Docker namespaces the
   containers and the three named volumes per project, so each preview has its own
   Postgres, media and Data Protection keys. No production data is touched.
+- **Image from the PR, compose from `main`.** The image is built from the PR's HEAD (so
+  the preview runs the PR's code), but the `deploy` job ships `docker-compose.preview.yml`
+  from `main`, not from the PR. So any PR can be previewed without carrying the compose
+  file on its branch — including PRs branched before previews existed — and a PR cannot
+  rewrite the preview compose (e.g. to mount host paths or run privileged) on the server.
+  The trade-off: changes to `docker-compose.preview.yml` itself are only exercised once
+  merged to `main`, not from a PR preview.
 - **Secrets never enter the workflow.** The deploy step copies the existing
   `/opt/apps/mathom/.env` into the preview dir, reusing the LLM keys and `AdminEmail`.
   The DB stays isolated regardless (separate container + namespaced volume), so reusing

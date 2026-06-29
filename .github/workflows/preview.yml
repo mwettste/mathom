@@ -105,10 +105,12 @@ jobs:
       contents: read
       pull-requests: write   # best-effort PR comment with the preview URL
     steps:
-      # Use the PR's compose file (so the preview reflects compose changes in the PR).
+      # Check out THIS workflow's ref (main), NOT the PR — the preview compose file is
+      # reviewed infrastructure that ships from main. This means any PR can be previewed
+      # without carrying docker-compose.preview.yml on its branch, and a PR cannot alter
+      # the compose (e.g. to mount host paths or run privileged) on the server. The PR's
+      # actual code is still what runs: build-and-push builds the image from the PR HEAD.
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          ref: refs/pull/${{ github.event.inputs.pr_number }}/head
 
       - name: Connect to Tailscale
         uses: tailscale/github-action@306e68a486fd2350f2bfc3b19fcd143891a4a2d8 # v4
