@@ -76,3 +76,15 @@ test:
 # Create a worktree first with: git worktree add worktrees/<name> <branch>
 test-worktree:
     ./test-worktree.sh
+
+# Dispatches the Preview workflow; needs the GitHub CLI (`gh`) and write access. After
+# dispatching, approve the gate run in Actions, then open the URL.
+# Spin up an ephemeral preview env for a PR at https://mathom-pr-<PR>.wettsti.ch (own image, DB & volumes)
+preview pr:
+    gh workflow run preview.yml -f pr_number={{pr}} -f mode=deploy
+    @echo "Deploy dispatched for PR #{{pr}} → approve the gate in Actions, then https://mathom-pr-{{pr}}.wettsti.ch"
+
+# Tear down a PR preview (stack, volumes, deploy dir, DNS record); no approval needed
+preview-destroy pr:
+    gh workflow run preview.yml -f pr_number={{pr}} -f mode=destroy
+    @echo "Destroy dispatched for PR #{{pr}}."

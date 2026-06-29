@@ -60,7 +60,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: preview
     steps:
-      - run: echo "Preview deploy for PR #${{ github.event.inputs.pr_number }} approved by ${{ github.actor }}."
+      # NB: no '#' before the PR number — in an unquoted YAML scalar a space-then-#
+      # starts a comment and would truncate this command (unterminated quote at runtime).
+      - run: echo "Preview deploy for PR ${{ github.event.inputs.pr_number }} approved by ${{ github.actor }}."
 
   build-and-push:
     if: ${{ github.event.inputs.mode == 'deploy' }}
