@@ -123,6 +123,7 @@ jobs:
         env:
           SSH_TARGET: ${{ env.DEPLOY_USER }}@${{ env.SERVER_HOST }}
           PR: ${{ github.event.inputs.pr_number }}
+          PREVIEW_ADMIN_EMAILS: ${{ secrets.PREVIEW_ADMIN_EMAILS }}
         run: |
           set -euo pipefail
           PROJECT="mathom-pr-${PR}"
@@ -132,10 +133,17 @@ jobs:
           SSH="ssh -o StrictHostKeyChecking=accept-new $SSH_TARGET"
 
           # Stage the preview dir and reuse production secrets (isolated DB regardless).
+          # Then append the preview-only admin allowlist (PreviewAdminEmails) so registering
+          # on the preview with any of those emails yields an instantly approved admin. This
+          # is written ONLY to the preview copy — never the shared prod .env — so production's
+          # admin set stays { AdminEmail }. Skipped when the secret is unset/empty.
           $SSH "set -e; \
             test -f '$PROD_ENV' || { echo 'production .env missing at $PROD_ENV' >&2; exit 1; }; \
             mkdir -p '$DIR'; \
-            cp '$PROD_ENV' '$DIR/.env'"
+            cp '$PROD_ENV' '$DIR/.env'; \
+            if [ -n '${PREVIEW_ADMIN_EMAILS:-}' ]; then \
+              printf 'PreviewAdminEmails=%s\n' '${PREVIEW_ADMIN_EMAILS:-}' >> '$DIR/.env'; \
+            fi"
 
           scp -o StrictHostKeyChecking=accept-new \
             docker-compose.preview.yml "$SSH_TARGET:$DIR/docker-compose.yml"

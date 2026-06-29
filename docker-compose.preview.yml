@@ -57,6 +57,9 @@ services:
       Media__Root: /app/media
       DataProtection__KeysPath: /keys
     env_file:
+      # Carries the copied prod secrets PLUS the preview-only `PreviewAdminEmails`
+      # (comma-separated admin allowlist), appended by the preview workflow. That key is
+      # never present in the production .env, so prod's admin set stays { AdminEmail }.
       - .env
     volumes:
       - mathom-media:/app/media

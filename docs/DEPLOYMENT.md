@@ -168,6 +168,12 @@ record.
   `/opt/apps/mathom/.env` into the preview dir, reusing the LLM keys and `AdminEmail`.
   The DB stays isolated regardless (separate container + namespaced volume), so reusing
   the same `POSTGRES_*` values just seeds a fresh, empty database.
+- **Painless first login.** A fresh preview DB has no users, and `AdminEmail` only
+  auto-promotes an *existing* matching account. Set the repo secret `PREVIEW_ADMIN_EMAILS`
+  (comma-separated) so registering on a preview with any of those emails — or the prod
+  `AdminEmail` — yields an instantly approved Admin account instead of being parked at
+  `/Pending`. The workflow appends it as `PreviewAdminEmails=…` to the preview's `.env`
+  only; it is never written to the production `.env`, so prod's admin set is unchanged.
 - **TLS needs no infra change.** The platform's Origin CA cert already covers
   `*.wettsti.ch`, so the flat host `mathom-pr-<N>.wettsti.ch` is valid out of the box.
   (A nested host like `pr-<N>.mathom.wettsti.ch` would *not* be covered by the single
@@ -188,7 +194,8 @@ record.
 ### One-time setup
 
 The preview workflow reuses everything the production Deploy already needs (repo
-secrets, `ORIGIN_IP`, the server-side `/opt/apps/mathom/.env`). Two extra steps:
+secrets, `ORIGIN_IP`, the server-side `/opt/apps/mathom/.env`). Two extra steps (plus one
+optional):
 
 - **Create the `preview` environment.** In **Settings → Environments**, add an
   environment named **`preview`** and put yourself under **Required reviewers** (same as
@@ -208,6 +215,12 @@ secrets, `ORIGIN_IP`, the server-side `/opt/apps/mathom/.env`). Two extra steps:
 
   (`install -d -o marco -g marco` just creates the directory owned by `marco:marco` —
   equivalent to `mkdir` + `chown`. Production app dirs under `/opt/apps` are unaffected.)
+
+- **(Optional) Set `PREVIEW_ADMIN_EMAILS` for painless preview logins.** In **Settings →
+  Secrets and variables → Actions**, add a repository secret `PREVIEW_ADMIN_EMAILS` with a
+  comma-separated list of emails. Registering on any preview with one of them (or the prod
+  `AdminEmail`) yields an instantly approved Admin account. Leave it unset to keep the old
+  behavior (only the prod `AdminEmail` auto-promotes).
 
 ### Triggering
 
