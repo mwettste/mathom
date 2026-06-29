@@ -138,6 +138,7 @@ The two relevant files:
 
 ```
 Actions → Preview → Run workflow  (pr_number=12, mode=deploy)
+  → gate: waits for approval on the `preview` environment (required reviewer = you)
   → build-and-push: build the PR's HEAD → ghcr.io/mwettste/mathom:pr-12
   → deploy: Tailscale SSH → /opt/apps/mathom-pr-12
        cp /opt/apps/mathom/.env  (reuse prod secrets; DB is still isolated)
@@ -147,8 +148,9 @@ Actions → Preview → Run workflow  (pr_number=12, mode=deploy)
   caddy-docker-proxy routes  https://mathom-pr-12.wettsti.ch → web:8080
 ```
 
-`mode=destroy` runs `docker compose -p mathom-pr-12 down -v`, removes the deploy dir,
-and deletes the DNS record.
+`mode=destroy` skips the gate (no approval needed) and runs
+`docker compose -p mathom-pr-12 down -v`, removes the deploy dir, and deletes the DNS
+record.
 
 ### Why these choices
 
@@ -169,12 +171,31 @@ and deletes the DNS record.
   every handshake. The edge firewall still limits 80/443 to Cloudflare IPs, which is an
   acceptable posture for a throwaway preview. (To harden a long-lived preview, add its
   host to `var.aop_hostnames`, apply the infra repo, then add the `client_auth` labels.)
+- **Owner-gated like production.** A `gate` job binds to a `preview` GitHub environment
+  with a required reviewer, so a deploy pauses for one approval before it builds — the
+  same pattern as the production `gate` job. `mode=destroy` does not need the gate, so
+  teardown is always frictionless. This reuses the same repository secrets as the
+  production Deploy (`TS_OAUTH_*`, `CLOUDFLARE_*`) and the `ORIGIN_IP` variable — no new
+  secrets to add.
+
+### One-time setup
+
+The preview workflow reuses everything the production Deploy already needs (repo
+secrets, `ORIGIN_IP`, the server-side `/opt/apps/mathom/.env`). The only extra step:
+
+- **Create the `preview` environment.** In **Settings → Environments**, add an
+  environment named **`preview`** and put yourself under **Required reviewers** (same as
+  the `production` environment in step 1 above). Until this environment exists with a
+  reviewer, the `gate` job passes straight through and a deploy runs without pausing.
 
 ### Triggering
 
-- **Actions → Preview → Run workflow**, set `pr_number` and `mode` (or
+- **Deploy:** Actions → Preview → Run workflow, set `pr_number` and `mode=deploy` (or
   `gh workflow run preview.yml -f pr_number=12 -f mode=deploy`). Only users with write
-  access can start it — same owner-gating as the production Deploy.
+  access can start it; the run then waits for approval on the `preview` environment.
+- **Destroy:** same workflow with `mode=destroy` (or
+  `gh workflow run preview.yml -f pr_number=12 -f mode=destroy`). Runs immediately (no
+  approval): tears the stack down, wipes that preview's volumes, deletes the DNS record.
 - Remember to run `mode=destroy` when the PR is closed/merged; nothing tears previews
   down automatically. (Promoting this to a label-gated `pull_request` workflow with a
   `closed`-trigger cleanup is the natural next step — "Option B".)
