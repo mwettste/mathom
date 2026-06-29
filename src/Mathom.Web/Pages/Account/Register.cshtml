@@ -8,7 +8,10 @@
         <div class="card-body">
             <h1 class="font-display text-2xl font-medium leading-snug mb-2">Create your account</h1>
             <form method="post" class="flex flex-col gap-3">
-                <div asp-validation-summary="All" class="alert alert-error text-sm"></div>
+                @if (!ViewData.ModelState.IsValid)
+                {
+                    <div asp-validation-summary="All" class="alert alert-error text-sm"></div>
+                }
                 <div>
                     <label asp-for="Input.Email" class="font-mono text-xs uppercase tracking-wider text-base-content/50">Email</label>
                     <input class="input w-full" asp-for="Input.Email" autocomplete="username" autofocus />
