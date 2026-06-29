@@ -1,0 +1,215 @@
+name: Preview
+
+# Ephemeral PR-preview environments on the wettsti.ch platform (hetzner-vps).
+#
+# Manual & owner-gated by design (this is a public repo): only users with write
+# access can start a run, exactly like the production Deploy workflow. You pass a PR
+# number and a mode:
+#   - mode=deploy  → build the PR's image (pr-<N>), bring up an isolated stack at
+#                    https://mathom-pr-<N>.wettsti.ch with its own Postgres/volumes,
+#                    and upsert the proxied Cloudflare A record.
+#   - mode=destroy → tear the stack down (compose down -v), remove the deploy dir,
+#                    and delete the DNS record.
+#
+# Isolation: each preview runs as compose project `mathom-pr-<N>`, so containers and
+# volumes are namespaced — no shared DB with production or other previews. The stack
+# reuses production's on-server /opt/apps/mathom/.env (LLM keys, AdminEmail); the DB is
+# still isolated because it is a separate container on a namespaced volume.
+#
+# TLS: the flat host mathom-pr-<N>.wettsti.ch is covered by the platform's existing
+# wildcard (*.wettsti.ch) Origin CA cert — no infra change needed. AOP is NOT applied
+# to preview hosts (see docker-compose.preview.yml for why).
+#
+# Optional hardening: add an `environment: preview` block to the jobs and create that
+# environment with required reviewers if you want previews to pause for approval too.
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to preview (e.g. 12)'
+        required: true
+        type: string
+      mode:
+        description: 'deploy or destroy'
+        required: true
+        default: deploy
+        type: choice
+        options:
+          - deploy
+          - destroy
+
+# Serialise runs per PR so a deploy and a destroy can't race.
+concurrency:
+  group: preview-${{ github.event.inputs.pr_number }}
+  cancel-in-progress: false
+
+env:
+  SERVER_HOST: wettsti-edge        # Tailscale SSH host of the edge server
+  DOMAIN: wettsti.ch
+  DEPLOY_USER: marco
+  PROD_ENV: /opt/apps/mathom/.env  # production env reused by previews
+
+jobs:
+  # ---- deploy ---------------------------------------------------------------
+  build-and-push:
+    if: ${{ github.event.inputs.mode == 'deploy' }}
+    runs-on: ubuntu-latest
+    # Gated: pauses for a required reviewer on the `preview` environment before any
+    # build/deploy runs, and lets you scope the platform secrets to that environment.
+    # `destroy` is deliberately left ungated so cleanup is always frictionless.
+    environment: preview
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      # Build the PR's HEAD, not the default branch.
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: refs/pull/${{ github.event.inputs.pr_number }}/head
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository }}:pr-${{ github.event.inputs.pr_number }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    if: ${{ github.event.inputs.mode == 'deploy' }}
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: preview     # gated; lets secrets be scoped to this environment
+    permissions:
+      contents: read
+      pull-requests: write   # best-effort PR comment with the preview URL
+    steps:
+      # Use the PR's compose file (so the preview reflects compose changes in the PR).
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: refs/pull/${{ github.event.inputs.pr_number }}/head
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@306e68a486fd2350f2bfc3b19fcd143891a4a2d8 # v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - name: Deploy preview stack
+        env:
+          SSH_TARGET: ${{ env.DEPLOY_USER }}@${{ env.SERVER_HOST }}
+          PR: ${{ github.event.inputs.pr_number }}
+        run: |
+          set -euo pipefail
+          PROJECT="mathom-pr-${PR}"
+          HOST="mathom-pr-${PR}.${DOMAIN}"
+          DIR="/opt/apps/${PROJECT}"
+          IMAGE_TAG="pr-${PR}"
+          SSH="ssh -o StrictHostKeyChecking=accept-new $SSH_TARGET"
+
+          # Stage the preview dir and reuse production secrets (isolated DB regardless).
+          $SSH "set -e; \
+            test -f '$PROD_ENV' || { echo 'production .env missing at $PROD_ENV' >&2; exit 1; }; \
+            mkdir -p '$DIR'; \
+            cp '$PROD_ENV' '$DIR/.env'"
+
+          scp -o StrictHostKeyChecking=accept-new \
+            docker-compose.preview.yml "$SSH_TARGET:$DIR/docker-compose.yml"
+
+          $SSH "cd '$DIR' && export IMAGE_TAG='$IMAGE_TAG' PREVIEW_HOST='$HOST' && \
+            docker compose -p '$PROJECT' pull && \
+            docker compose -p '$PROJECT' up -d --remove-orphans"
+
+      - name: Upsert proxied Cloudflare DNS record
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ZONE: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          ORIGIN_IP: ${{ vars.ORIGIN_IP }}
+          PR: ${{ github.event.inputs.pr_number }}
+        run: |
+          set -euo pipefail
+          [ -n "$ORIGIN_IP" ] || { echo "::error::ORIGIN_IP repository variable is not set"; exit 1; }
+          FQDN="mathom-pr-${PR}.${DOMAIN}"
+          REC_ID=$(curl -sf -H "Authorization: Bearer $CF_TOKEN" \
+            "https://api.cloudflare.com/client/v4/zones/$CF_ZONE/dns_records?type=A&name=$FQDN" \
+            | jq -r '.result[0].id // empty')
+          PAYLOAD=$(jq -n --arg name "$FQDN" --arg content "$ORIGIN_IP" \
+            '{type:"A",name:$name,content:$content,proxied:true,ttl:1}')
+          if [ -n "$REC_ID" ]; then
+            curl -sf -X PUT -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" \
+              "https://api.cloudflare.com/client/v4/zones/$CF_ZONE/dns_records/$REC_ID" --data "$PAYLOAD" | jq -e '.success'
+          else
+            curl -sf -X POST -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" \
+              "https://api.cloudflare.com/client/v4/zones/$CF_ZONE/dns_records" --data "$PAYLOAD" | jq -e '.success'
+          fi
+
+      - name: Announce preview URL
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.inputs.pr_number }}
+        run: |
+          URL="https://mathom-pr-${PR}.${DOMAIN}"
+          echo "### Preview deployed: [$URL]($URL)" >> "$GITHUB_STEP_SUMMARY"
+          gh pr comment "$PR" --repo "${{ github.repository }}" \
+            --body "🚀 Preview environment deployed: $URL (tear down with the Preview workflow, mode=destroy)" \
+            || echo "PR comment skipped (non-fatal)."
+
+  # ---- destroy --------------------------------------------------------------
+  destroy:
+    if: ${{ github.event.inputs.mode == 'destroy' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@306e68a486fd2350f2bfc3b19fcd143891a4a2d8 # v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - name: Tear down preview stack
+        env:
+          SSH_TARGET: ${{ env.DEPLOY_USER }}@${{ env.SERVER_HOST }}
+          PR: ${{ github.event.inputs.pr_number }}
+        run: |
+          set -euo pipefail
+          PROJECT="mathom-pr-${PR}"
+          DIR="/opt/apps/${PROJECT}"
+          ssh -o StrictHostKeyChecking=accept-new "$SSH_TARGET" "set -e; \
+            if [ -d '$DIR' ]; then cd '$DIR' && docker compose -p '$PROJECT' down -v --remove-orphans || true; fi; \
+            rm -rf '$DIR'"
+
+      - name: Delete Cloudflare DNS record
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ZONE: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          PR: ${{ github.event.inputs.pr_number }}
+        run: |
+          set -euo pipefail
+          FQDN="mathom-pr-${PR}.${DOMAIN}"
+          REC_ID=$(curl -sf -H "Authorization: Bearer $CF_TOKEN" \
+            "https://api.cloudflare.com/client/v4/zones/$CF_ZONE/dns_records?type=A&name=$FQDN" \
+            | jq -r '.result[0].id // empty')
+          if [ -n "$REC_ID" ]; then
+            curl -sf -X DELETE -H "Authorization: Bearer $CF_TOKEN" \
+              "https://api.cloudflare.com/client/v4/zones/$CF_ZONE/dns_records/$REC_ID" | jq -e '.success'
+          else
+            echo "No DNS record for $FQDN; nothing to delete."
+          fi
+
+      - name: Note teardown
+        env:
+          PR: ${{ github.event.inputs.pr_number }}
+        run: echo "Preview mathom-pr-${PR} destroyed (stack, volumes, dir, DNS)." >> "$GITHUB_STEP_SUMMARY"

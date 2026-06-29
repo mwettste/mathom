@@ -120,6 +120,72 @@ re-run the deploy (or `docker compose up -d` on the server) to apply changes.
   with write access can start it. The run waits on the `production` environment until
   a required reviewer approves, then builds and deploys. There is no push trigger.
 
+## Preview deployments (per-PR)
+
+Ephemeral preview environments let you spin up a full, isolated copy of the app for a
+pull request at its own subdomain, then tear it down. They reuse the same platform
+(edge Caddy + Cloudflare + Tailscale) as production.
+
+The two relevant files:
+
+- [`.github/workflows/preview.yml`](../.github/workflows/preview.yml) — manual,
+  owner-gated workflow with a `pr_number` input and a `deploy`/`destroy` mode.
+- [`docker-compose.preview.yml`](../docker-compose.preview.yml) — a near-copy of the
+  production stack, parametrised by `${IMAGE_TAG}` and `${PREVIEW_HOST}`, with the
+  Authenticated Origin Pulls labels removed.
+
+### How it works
+
+```
+Actions → Preview → Run workflow  (pr_number=12, mode=deploy)
+  → build-and-push: build the PR's HEAD → ghcr.io/mwettste/mathom:pr-12
+  → deploy: Tailscale SSH → /opt/apps/mathom-pr-12
+       cp /opt/apps/mathom/.env  (reuse prod secrets; DB is still isolated)
+       scp docker-compose.preview.yml → docker-compose.yml
+       docker compose -p mathom-pr-12 up -d        (own DB + volumes, namespaced)
+       → upsert proxied A record  mathom-pr-12.wettsti.ch → ORIGIN_IP
+  caddy-docker-proxy routes  https://mathom-pr-12.wettsti.ch → web:8080
+```
+
+`mode=destroy` runs `docker compose -p mathom-pr-12 down -v`, removes the deploy dir,
+and deletes the DNS record.
+
+### Why these choices
+
+- **Isolation is by compose project name** (`mathom-pr-<N>`). Docker namespaces the
+  containers and the three named volumes per project, so each preview has its own
+  Postgres, media and Data Protection keys. No production data is touched.
+- **Secrets never enter the workflow.** The deploy step copies the existing
+  `/opt/apps/mathom/.env` into the preview dir, reusing the LLM keys and `AdminEmail`.
+  The DB stays isolated regardless (separate container + namespaced volume), so reusing
+  the same `POSTGRES_*` values just seeds a fresh, empty database.
+- **TLS needs no infra change.** The platform's Origin CA cert already covers
+  `*.wettsti.ch`, so the flat host `mathom-pr-<N>.wettsti.ch` is valid out of the box.
+  (A nested host like `pr-<N>.mathom.wettsti.ch` would *not* be covered by the single
+  wildcard — that's why previews use flat names.)
+- **No Authenticated Origin Pulls on previews.** AOP is enabled per-hostname in the
+  infra repo (`var.aop_hostnames`) and only covers `mathom.wettsti.ch`. Cloudflare does
+  not present the client cert for preview hosts, so requiring it would make Caddy reject
+  every handshake. The edge firewall still limits 80/443 to Cloudflare IPs, which is an
+  acceptable posture for a throwaway preview. (To harden a long-lived preview, add its
+  host to `var.aop_hostnames`, apply the infra repo, then add the `client_auth` labels.)
+
+### Triggering
+
+- **Actions → Preview → Run workflow**, set `pr_number` and `mode` (or
+  `gh workflow run preview.yml -f pr_number=12 -f mode=deploy`). Only users with write
+  access can start it — same owner-gating as the production Deploy.
+- Remember to run `mode=destroy` when the PR is closed/merged; nothing tears previews
+  down automatically. (Promoting this to a label-gated `pull_request` workflow with a
+  `closed`-trigger cleanup is the natural next step — "Option B".)
+
+### Notes / not handled yet
+
+- **GHCR image cleanup.** Each preview leaves a `pr-<N>` image tag in the GHCR package.
+  Delete stale tags periodically (package settings or the `gh api` packages endpoint).
+- **No seed data.** Previews start with an empty DB. Add a `pg_dump`/restore step if you
+  want representative content.
+
 ## Operating notes
 
 - **Data lives in named volumes** on the server: `mathom-pgdata` (Postgres),

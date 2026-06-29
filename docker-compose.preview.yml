@@ -1,0 +1,85 @@
+# Ephemeral PR-preview stack for the wettsti.ch platform (hetzner-vps).
+#
+# One isolated stack per pull request. It is a near-copy of docker-compose.deploy.yml
+# with three deliberate differences:
+#   - the image tag is parametrised (${IMAGE_TAG}) so each PR runs its own build;
+#   - the Caddy host is parametrised (${PREVIEW_HOST}) so each PR gets its own subdomain;
+#   - NO Authenticated Origin Pulls labels. AOP is enabled per-hostname in the infra
+#     repo (var.aop_hostnames) and only covers mathom.wettsti.ch. Cloudflare does not
+#     present the client cert for preview hosts, so require_and_verify here would make
+#     Caddy reject every handshake and the preview would be unreachable. The edge
+#     firewall still restricts 80/443 to Cloudflare IPs, which is acceptable for a
+#     throwaway preview.
+#
+# Isolation is by compose PROJECT NAME (passed as `-p mathom-pr-<N>` by the workflow):
+# containers and the three named volumes below are namespaced per project, so every
+# preview gets its own Postgres, media and Data Protection keys. The wildcard
+# *.wettsti.ch Origin CA cert already on the edge covers the flat preview host with no
+# infra change.
+#
+# The preview workflow copies the PRODUCTION /opt/apps/mathom/.env into the preview
+# dir, so LLM keys / AdminEmail are reused. The DB stays isolated regardless because it
+# is a separate container on a separate (namespaced) volume — reusing the same
+# POSTGRES_* values just seeds a fresh, empty database.
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - mathom-pgdata:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    image: ghcr.io/mwettste/mathom:${IMAGE_TAG}
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      # Behind Caddy: trust X-Forwarded-Proto so the app flags cookies Secure.
+      ForwardedHeaders__Enabled: "true"
+      ConnectionStrings__Mathom: "Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+      Media__Root: /app/media
+      DataProtection__KeysPath: /keys
+    env_file:
+      - .env
+    volumes:
+      - mathom-media:/app/media
+      - mathom-dataprotection:/keys
+    networks:
+      - edge       # reachable by the shared Caddy edge proxy
+      - internal   # reach the db
+    labels:
+      caddy: ${PREVIEW_HOST}
+      caddy.reverse_proxy: "{{upstreams 8080}}"
+      # Serve via the platform's wildcard (*.wettsti.ch) Origin CA cert. Mandatory:
+      # without it Caddy would try ACME and fail on this Cloudflare-proxied origin.
+      caddy.tls: "/certs/origin.pem /certs/origin.key"
+    depends_on:
+      db:
+        condition: service_healthy
+
+networks:
+  edge:
+    external: true
+  internal:
+
+volumes:
+  mathom-pgdata:
+  mathom-media:
+  mathom-dataprotection:
