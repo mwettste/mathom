@@ -140,7 +140,7 @@ The two relevant files:
 Actions → Preview → Run workflow  (pr_number=12, mode=deploy)
   → gate: waits for approval on the `preview` environment (required reviewer = you)
   → build-and-push: build the PR's HEAD → ghcr.io/mwettste/mathom:pr-12
-  → deploy: Tailscale SSH → /opt/apps/mathom-pr-12
+  → deploy: Tailscale SSH → /opt/apps/_previews/mathom-pr-12
        cp /opt/apps/mathom/.env  (reuse prod secrets; DB is still isolated)
        scp docker-compose.preview.yml → docker-compose.yml
        docker compose -p mathom-pr-12 up -d        (own DB + volumes, namespaced)
@@ -181,12 +181,26 @@ record.
 ### One-time setup
 
 The preview workflow reuses everything the production Deploy already needs (repo
-secrets, `ORIGIN_IP`, the server-side `/opt/apps/mathom/.env`). The only extra step:
+secrets, `ORIGIN_IP`, the server-side `/opt/apps/mathom/.env`). Two extra steps:
 
 - **Create the `preview` environment.** In **Settings → Environments**, add an
   environment named **`preview`** and put yourself under **Required reviewers** (same as
   the `production` environment in step 1 above). Until this environment exists with a
   reviewer, the `gate` job passes straight through and a deploy runs without pausing.
+
+- **Create a `marco`-owned previews directory on the server.** Each preview lives in its
+  own dir under `/opt/apps/_previews/`, which the workflow creates and removes
+  automatically. The deploy runs as `marco` over Tailscale SSH, but `/opt/apps` itself is
+  root-owned, so `marco` cannot create subdirs there directly. Make the previews parent
+  `marco`-owned once:
+
+  ```bash
+  ssh marco@wettsti-edge
+  sudo install -d -o marco -g marco /opt/apps/_previews
+  ```
+
+  (`install -d -o marco -g marco` just creates the directory owned by `marco:marco` —
+  equivalent to `mkdir` + `chown`. Production app dirs under `/opt/apps` are unaffected.)
 
 ### Triggering
 

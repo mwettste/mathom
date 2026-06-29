@@ -125,7 +125,7 @@ jobs:
           set -euo pipefail
           PROJECT="mathom-pr-${PR}"
           HOST="mathom-pr-${PR}.${DOMAIN}"
-          DIR="/opt/apps/${PROJECT}"
+          DIR="/opt/apps/_previews/${PROJECT}"
           IMAGE_TAG="pr-${PR}"
           SSH="ssh -o StrictHostKeyChecking=accept-new $SSH_TARGET"
 
@@ -195,7 +195,7 @@ jobs:
         run: |
           set -euo pipefail
           PROJECT="mathom-pr-${PR}"
-          DIR="/opt/apps/${PROJECT}"
+          DIR="/opt/apps/_previews/${PROJECT}"
           ssh -o StrictHostKeyChecking=accept-new "$SSH_TARGET" "set -e; \
             if [ -d '$DIR' ]; then cd '$DIR' && docker compose -p '$PROJECT' down -v --remove-orphans || true; fi; \
             rm -rf '$DIR'"
