@@ -114,8 +114,13 @@
     if (e.key === 'Enter' && e.target && e.target.id === 'glossary-modal__input') { e.preventDefault(); add(); }
   });
 
-  // Show the trigger when text is selected inside a glossary source region.
-  document.addEventListener('mouseup', function () {
+  // Show the trigger when text is selected in a glossary source region. We listen
+  // to `selectionchange` (debounced) rather than `mouseup` so this also works for
+  // touch selection on mobile, where no mouse events fire. The debounce additionally
+  // keeps the chip alive through the brief selection-collapse that happens when the
+  // chip itself is tapped, so its click still lands before we'd otherwise hide it.
+  var selTimer = null;
+  function evaluateSelection() {
     var m = modal();
     if (m && m.open) return;
     var sel = window.getSelection();
@@ -125,7 +130,13 @@
     if (!token()) return;
     lastSelection = text;
     showChip(sel.getRangeAt(0).getBoundingClientRect());
+  }
+  document.addEventListener('selectionchange', function () {
+    if (selTimer) clearTimeout(selTimer);
+    selTimer = setTimeout(evaluateSelection, 250);
   });
+  // Desktop: hide instantly when pressing elsewhere. On touch this is covered by the
+  // debounced selectionchange above (tapping away collapses the selection).
   document.addEventListener('mousedown', function (e) {
     if (chip && chip.style.display !== 'none' && e.target !== chip) hideChip();
   });
