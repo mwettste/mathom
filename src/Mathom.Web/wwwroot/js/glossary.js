@@ -1,8 +1,8 @@
-// Select word(s) in a note's body/transcript -> a small "+ glossary" trigger
-// appears by the selection -> clicking it opens a daisyUI modal (bottom sheet on
-// mobile, centered dialog on desktop) to correct and add the term. Uses event
-// delegation so it survives HTMX swaps of #note-content. No-ops on pages without
-// a note + glossary token + modal.
+// Tap a word (or highlight several) in a note's body/transcript -> a small
+// "+ glossary" trigger appears by the selection -> clicking it opens a daisyUI
+// modal (bottom sheet on mobile, centered dialog on desktop) to correct and add
+// the term. Uses event delegation so it survives HTMX swaps of #note-content.
+// No-ops on pages without a note + glossary token + modal.
 (function () {
   function token() {
     var el = document.querySelector('#glossary-token input[name="__RequestVerificationToken"]');
@@ -114,13 +114,9 @@
     if (e.key === 'Enter' && e.target && e.target.id === 'glossary-modal__input') { e.preventDefault(); add(); }
   });
 
-  // Show the trigger when text is selected in a glossary source region. We listen
-  // to `selectionchange` (debounced) rather than `mouseup` so this also works for
-  // touch selection on mobile, where no mouse events fire. The debounce additionally
-  // keeps the chip alive through the brief selection-collapse that happens when the
-  // chip itself is tapped, so its click still lands before we'd otherwise hide it.
-  var selTimer = null;
-  function evaluateSelection() {
+  // Remember the current selection and anchor the chip under it, if it's a usable
+  // selection inside a glossary source. Shared by the highlight and tap paths.
+  function showForCurrentSelection() {
     var m = modal();
     if (m && m.open) return;
     var sel = window.getSelection();
@@ -131,10 +127,64 @@
     lastSelection = text;
     showChip(sel.getRangeAt(0).getBoundingClientRect());
   }
+
+  // (a) Highlight gesture — drag, double-click, or mobile long-press. We listen to
+  // `selectionchange` (debounced) rather than `mouseup` so it also fires for touch
+  // selection on mobile, where no mouse events fire. The debounce also keeps the chip
+  // alive through the brief selection-collapse when the chip itself is tapped, so its
+  // click still lands before we'd otherwise hide it.
+  var selTimer = null;
   document.addEventListener('selectionchange', function () {
     if (selTimer) clearTimeout(selTimer);
-    selTimer = setTimeout(evaluateSelection, 250);
+    selTimer = setTimeout(showForCurrentSelection, 250);
   });
+
+  // (b) Single tap / click on a word — selects just that word and shows the chip
+  // immediately. A plain click/tap creates no selection on its own, so without this
+  // the feature would require an explicit highlight gesture (the reason it appeared
+  // broken). Works for both desktop clicks and mobile taps (which synthesize a click).
+  function caretNodeOffset(x, y) {
+    if (document.caretPositionFromPoint) {
+      var p = document.caretPositionFromPoint(x, y);
+      return p && { node: p.offsetNode, offset: p.offset };
+    }
+    if (document.caretRangeFromPoint) {
+      var r = document.caretRangeFromPoint(x, y);
+      return r && { node: r.startContainer, offset: r.startOffset };
+    }
+    return null;
+  }
+  function isWordChar(ch) { return !!ch && /[\p{L}\p{N}_'’-]/u.test(ch); }
+  function wordRangeAt(x, y) {
+    var c = caretNodeOffset(x, y);
+    if (!c || !c.node || c.node.nodeType !== 3) return null; // text nodes only
+    var text = c.node.nodeValue || '';
+    var start = c.offset, end = c.offset;
+    while (start > 0 && isWordChar(text[start - 1])) start--;
+    while (end < text.length && isWordChar(text[end])) end++;
+    if (start === end) return null; // tapped whitespace / punctuation, not a word
+    var range = document.createRange();
+    range.setStart(c.node, start);
+    range.setEnd(c.node, end);
+    return range;
+  }
+  document.addEventListener('click', function (e) {
+    var m = modal();
+    if (m && m.open) return;
+    if (!inSelectable(e.target)) return;                 // clicks outside note text
+    if (!e.clientX && !e.clientY) return;                // keyboard-synthesized click
+    var sel = window.getSelection();
+    // Respect an existing multi-word highlight — don't collapse it to one word.
+    if (sel && sel.rangeCount && !sel.isCollapsed && sel.toString().trim()) return;
+    if (!token()) return;
+    var range = wordRangeAt(e.clientX, e.clientY);
+    if (!range) return;
+    sel.removeAllRanges();
+    sel.addRange(range);
+    lastSelection = sel.toString().trim();
+    if (lastSelection) showChip(range.getBoundingClientRect());
+  });
+
   // Desktop: hide instantly when pressing elsewhere. On touch this is covered by the
   // debounced selectionchange above (tapping away collapses the selection).
   document.addEventListener('mousedown', function (e) {
