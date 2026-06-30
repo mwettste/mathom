@@ -153,6 +153,36 @@ public class AuthTests(PostgresFixture fx)
             b.UseSetting("AdminEmail", adminEmail);
         });
 
+    private WebApplicationFactory<Program> CreateAppWithPreviewEmails(string adminEmail, string previewEmails) =>
+        new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
+        {
+            b.UseEnvironment("Testing");
+            b.UseSetting("ConnectionStrings:Mathom", fx.ConnectionString);
+            b.UseSetting("AdminEmail", adminEmail);
+            b.UseSetting("PreviewAdminEmails", previewEmails);
+        });
+
+    [Fact]
+    public async Task Register_WithPreviewAllowlistedEmail_IsApprovedAndInAdminRole()
+    {
+        var previewEmail = "preview-admin-" + System.Guid.NewGuid().ToString("N") + "@example.com";
+        using var app = CreateAppWithPreviewEmails(
+            "some-other-admin@example.com", $"x@noise.test,{previewEmail}");
+        var client = CookieClient(app);
+
+        var resp = await PostFormAsync(client, "/Register",
+            ("Input.Email", previewEmail), ("Input.Password", "password1"));
+
+        Assert.Equal(HttpStatusCode.Redirect, resp.StatusCode);
+
+        using var scope = app.Services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var u = await users.FindByEmailAsync(previewEmail);
+        Assert.NotNull(u);
+        Assert.True(u!.IsApproved);
+        Assert.True(await users.IsInRoleAsync(u, "Admin"));
+    }
+
     [Fact]
     public async Task Register_WithAdminEmail_IsApprovedAndInAdminRole()
     {

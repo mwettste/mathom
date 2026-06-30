@@ -131,7 +131,7 @@ if (!app.Environment.IsEnvironment("Testing"))
     await Mathom.Web.Admin.AdminBootstrap.EnsureRoleAndPromoteAsync(
         sp.GetRequiredService<RoleManager<IdentityRole>>(),
         sp.GetRequiredService<UserManager<ApplicationUser>>(),
-        app.Configuration["AdminEmail"]);
+        Mathom.Web.Admin.AdminBootstrap.AdminEmailsFromConfig(app.Configuration));
 }
 
 // Must run before anything that reads the request scheme (cookie/anti-forgery setup).

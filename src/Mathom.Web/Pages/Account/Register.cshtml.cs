@@ -36,7 +36,8 @@ public class RegisterModel(
             return Page();
         }
 
-        await Mathom.Web.Admin.AdminBootstrap.EnsureRoleAndPromoteAsync(roles, users, config["AdminEmail"]);
+        await Mathom.Web.Admin.AdminBootstrap.EnsureRoleAndPromoteAsync(
+            roles, users, Mathom.Web.Admin.AdminBootstrap.AdminEmailsFromConfig(config));
         await signIn.SignInAsync(user, isPersistent: true);
         return Redirect("/");
     }
