@@ -2,6 +2,33 @@
 // offline.js) so the globals exist at init. Sending is routed through
 // window.mathomOutbox so captures survive being offline.
 
+// Keep the device screen awake while a capture is in progress (recording audio,
+// picking/uploading photos). Uses the Screen Wake Lock API, which works in PWA
+// standalone mode on Android Chrome and iOS Safari 16.4+. The OS auto-releases
+// the lock when the page is hidden, so we re-acquire on visibility change while
+// a capture is still active. Degrades silently where unsupported or denied.
+const screenWake = {
+  _sentinel: null,
+  active: false,
+  async acquire() {
+    this.active = true;
+    if (!('wakeLock' in navigator) || this._sentinel) return;
+    try {
+      this._sentinel = await navigator.wakeLock.request('screen');
+      this._sentinel.addEventListener('release', () => { this._sentinel = null; });
+    } catch { /* denied / low battery — capture still works */ }
+  },
+  async release() {
+    this.active = false;
+    try { await this._sentinel?.release(); } catch {}
+    this._sentinel = null;
+  },
+};
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && screenWake.active) screenWake.acquire();
+});
+
 function textCapture() {
   return {
     text: '',
@@ -58,11 +85,13 @@ function voiceCapture() {
       this._rec.onstop = async () => {
         clearInterval(this._timer);
         this.recording = false;
+        screenWake.release();
         stream.getTracks().forEach((t) => t.stop());
         await this.upload();
       };
       this._rec.start();
       this.recording = true;
+      screenWake.acquire();
       this.elapsed = 0;
       this._timer = setInterval(() => this.elapsed++, 1000);
     },
@@ -106,6 +135,7 @@ function photoCapture() {
       this.done = false;
       if (!capped) this.status = '';
       e.target.value = '';
+      if (this.count) screenWake.acquire();
     },
     remove(i) {
       URL.revokeObjectURL(this.previews[i].url);
@@ -114,6 +144,7 @@ function photoCapture() {
       for (let j = 0; j < this.bag.files.length; j++) if (j !== i) dt.items.add(this.bag.files[j]);
       this.bag = dt;
       this.count = this.bag.files.length;
+      if (!this.count) screenWake.release();
     },
     reset() {
       for (const p of this.previews) URL.revokeObjectURL(p.url);
@@ -121,6 +152,7 @@ function photoCapture() {
       this.bag = new DataTransfer();
       this.count = 0;
       this.photoContext = '';
+      screenWake.release();
     },
     async submit() {
       if (!this.count) { this.status = 'Choose a photo first.'; return; }
