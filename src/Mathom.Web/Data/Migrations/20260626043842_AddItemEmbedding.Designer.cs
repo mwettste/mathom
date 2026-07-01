@@ -3,6 +3,7 @@ using System;
 using Mathom.Web.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using NpgsqlTypes;
@@ -13,9 +14,11 @@ using Pgvector;
 namespace Mathom.Web.Data.Migrations
 {
     [DbContext(typeof(MathomDbContext))]
-    partial class MathomDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260626043842_AddItemEmbedding")]
+    partial class AddItemEmbedding
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -35,9 +38,6 @@ namespace Mathom.Web.Data.Migrations
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
                         .HasColumnType("text");
-
-                    b.Property<Guid?>("CurrentContextId")
-                        .HasColumnType("uuid");
 
                     b.Property<string>("Email")
                         .HasMaxLength(256)
@@ -84,8 +84,6 @@ namespace Mathom.Web.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CurrentContextId");
-
                     b.HasIndex("NormalizedEmail")
                         .HasDatabaseName("EmailIndex");
 
@@ -96,38 +94,10 @@ namespace Mathom.Web.Data.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
-            modelBuilder.Entity("Mathom.Web.Domain.Context", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId", "Name")
-                        .IsUnique();
-
-                    b.ToTable("Contexts");
-                });
-
             modelBuilder.Entity("Mathom.Web.Domain.GlossaryTerm", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("ContextId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("CreatedAt")
@@ -147,9 +117,7 @@ namespace Mathom.Web.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ContextId");
-
-                    b.HasIndex("UserId", "ContextId", "Term")
+                    b.HasIndex("UserId", "Term")
                         .IsUnique();
 
                     b.ToTable("GlossaryTerms");
@@ -188,15 +156,8 @@ namespace Mathom.Web.Data.Migrations
                     b.Property<bool>("Actionable")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("CaptureNote")
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)");
-
                     b.Property<string>("CleanText")
                         .HasColumnType("text");
-
-                    b.Property<Guid?>("ContextId")
-                        .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -256,8 +217,6 @@ namespace Mathom.Web.Data.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ContextId");
 
                     b.HasIndex("IdempotencyKey")
                         .IsUnique();
@@ -549,30 +508,8 @@ namespace Mathom.Web.Data.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("Mathom.Web.Domain.ApplicationUser", b =>
-                {
-                    b.HasOne("Mathom.Web.Domain.Context", null)
-                        .WithMany()
-                        .HasForeignKey("CurrentContextId")
-                        .OnDelete(DeleteBehavior.SetNull);
-                });
-
-            modelBuilder.Entity("Mathom.Web.Domain.Context", b =>
-                {
-                    b.HasOne("Mathom.Web.Domain.ApplicationUser", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("Mathom.Web.Domain.GlossaryTerm", b =>
                 {
-                    b.HasOne("Mathom.Web.Domain.Context", null)
-                        .WithMany()
-                        .HasForeignKey("ContextId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
                     b.HasOne("Mathom.Web.Domain.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
@@ -591,11 +528,6 @@ namespace Mathom.Web.Data.Migrations
 
             modelBuilder.Entity("Mathom.Web.Domain.Item", b =>
                 {
-                    b.HasOne("Mathom.Web.Domain.Context", null)
-                        .WithMany()
-                        .HasForeignKey("ContextId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("Mathom.Web.Domain.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")

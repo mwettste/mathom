@@ -13,6 +13,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Xunit;
 
+using Microsoft.Extensions.Logging.Abstractions;
+
 namespace Mathom.Tests;
 
 [Collection("postgres")]
@@ -71,7 +73,7 @@ public class VoiceEndToEndTests(PostgresFixture fx)
         await using var verify = fx.NewDbContext();
         var stored = await verify.Items.SingleAsync(i => i.Id == id);
         Assert.Equal("remember to water the basil", stored.RawText); // transcript preserved
-        var results = await new SearchService(verify).SearchAsync(TestUsers.AliceId, null, "basil", new SearchFilters(null, null), 50, CancellationToken.None);
+        var results = await new SearchService(verify, new FakeEmbeddingClient(), NullLogger<SearchService>.Instance).SearchAsync(TestUsers.AliceId, null, "basil", new SearchFilters(null, null), 50, CancellationToken.None);
         Assert.Contains(results, r => r.Id == id);
     }
 }
