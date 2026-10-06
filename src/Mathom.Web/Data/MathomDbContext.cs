@@ -54,6 +54,11 @@ public class MathomDbContext(DbContextOptions<MathomDbContext> options) : Identi
                 .HasIndex(x => x.SearchVector)
                 .HasMethod("GIN");
 #pragma warning restore CS8603
+
+            // Semantic-search embedding. Fixed dimension (EmbeddingConfig.Dimensions); the
+            // HNSW cosine index is created in the AddItemEmbedding migration (raw SQL).
+            e.Property(x => x.Embedding)
+                .HasColumnType($"vector({Mathom.Web.Embeddings.EmbeddingConfig.Dimensions})");
         });
 
         b.Entity<Tag>(e =>

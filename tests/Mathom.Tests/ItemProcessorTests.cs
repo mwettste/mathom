@@ -66,7 +66,7 @@ public class ItemProcessorTests(PostgresFixture fx)
                     new Mathom.Web.Media.ImageVariantProcessor()
                 ),
                 new Mathom.Web.Glossary.GlossaryService(db),
-                new Mathom.Web.Languages.UserLanguageService(db),
+                new Mathom.Web.Languages.UserLanguageService(db), new FakeEmbeddingClient(),
                 NullLogger<ItemProcessor>.Instance
             );
             await processor.ProcessAsync(item.Id, CancellationToken.None);
@@ -118,7 +118,7 @@ public class ItemProcessorTests(PostgresFixture fx)
                     new Mathom.Web.Media.ImageVariantProcessor()
                 ),
                 new Mathom.Web.Glossary.GlossaryService(db),
-                new Mathom.Web.Languages.UserLanguageService(db),
+                new Mathom.Web.Languages.UserLanguageService(db), new FakeEmbeddingClient(),
                 NullLogger<ItemProcessor>.Instance
             );
             await processor.ProcessAsync(item.Id, CancellationToken.None);
@@ -181,7 +181,7 @@ public class ItemProcessorTests(PostgresFixture fx)
                     new Mathom.Web.Media.ImageVariantProcessor()
                 ),
                 new Mathom.Web.Glossary.GlossaryService(db),
-                new Mathom.Web.Languages.UserLanguageService(db),
+                new Mathom.Web.Languages.UserLanguageService(db), new FakeEmbeddingClient(),
                 NullLogger<ItemProcessor>.Instance
             ).ProcessAsync(a.Id, CancellationToken.None);
         await using (var db = fx.NewDbContext())
@@ -197,7 +197,7 @@ public class ItemProcessorTests(PostgresFixture fx)
                     new Mathom.Web.Media.ImageVariantProcessor()
                 ),
                 new Mathom.Web.Glossary.GlossaryService(db),
-                new Mathom.Web.Languages.UserLanguageService(db),
+                new Mathom.Web.Languages.UserLanguageService(db), new FakeEmbeddingClient(),
                 NullLogger<ItemProcessor>.Instance
             ).ProcessAsync(b.Id, CancellationToken.None);
 
@@ -256,7 +256,7 @@ public class ItemProcessorTests(PostgresFixture fx)
                     new Mathom.Web.Media.ImageVariantProcessor()
                 ),
                 new Mathom.Web.Glossary.GlossaryService(db),
-                new Mathom.Web.Languages.UserLanguageService(db),
+                new Mathom.Web.Languages.UserLanguageService(db), new FakeEmbeddingClient(),
                 NullLogger<ItemProcessor>.Instance
             ).ProcessAsync(item.Id, CancellationToken.None);
 
@@ -310,7 +310,7 @@ public class ItemProcessorTests(PostgresFixture fx)
                     new Mathom.Web.Media.ImageVariantProcessor()
                 ),
                 new Mathom.Web.Glossary.GlossaryService(db),
-                new Mathom.Web.Languages.UserLanguageService(db),
+                new Mathom.Web.Languages.UserLanguageService(db), new FakeEmbeddingClient(),
                 NullLogger<ItemProcessor>.Instance
             ).ProcessAsync(item.Id, CancellationToken.None);
 
@@ -393,7 +393,7 @@ public class ItemProcessorTests(PostgresFixture fx)
                 new Mathom.Web.Media.ImageVariantProcessor()
             ),
             new Mathom.Web.Glossary.GlossaryService(db),
-            new Mathom.Web.Languages.UserLanguageService(db),
+            new Mathom.Web.Languages.UserLanguageService(db), new FakeEmbeddingClient(),
             NullLogger<ItemProcessor>.Instance
         );
 
@@ -476,7 +476,7 @@ public class ItemProcessorTests(PostgresFixture fx)
                 new Mathom.Web.Media.ImageVariantProcessor()
             ),
             new Mathom.Web.Glossary.GlossaryService(db),
-            new Mathom.Web.Languages.UserLanguageService(db),
+            new Mathom.Web.Languages.UserLanguageService(db), new FakeEmbeddingClient(),
             Microsoft
                 .Extensions
                 .Logging
@@ -543,7 +543,7 @@ public class ItemProcessorTests(PostgresFixture fx)
                 new Mathom.Web.Media.ImageVariantProcessor()
             ),
             new Mathom.Web.Glossary.GlossaryService(db),
-            new Mathom.Web.Languages.UserLanguageService(db),
+            new Mathom.Web.Languages.UserLanguageService(db), new FakeEmbeddingClient(),
             Microsoft
                 .Extensions
                 .Logging
@@ -618,7 +618,7 @@ public class ItemProcessorTests(PostgresFixture fx)
                 new Mathom.Web.Media.ImageVariantProcessor()
             ),
             new Mathom.Web.Glossary.GlossaryService(db),
-            new Mathom.Web.Languages.UserLanguageService(db),
+            new Mathom.Web.Languages.UserLanguageService(db), new FakeEmbeddingClient(),
             Microsoft
                 .Extensions
                 .Logging
@@ -704,7 +704,7 @@ public class ItemProcessorTests(PostgresFixture fx)
                     new Mathom.Web.Media.ImageVariantProcessor()
                 ),
                 new Mathom.Web.Glossary.GlossaryService(db),
-                new Mathom.Web.Languages.UserLanguageService(db),
+                new Mathom.Web.Languages.UserLanguageService(db), new FakeEmbeddingClient(),
                 NullLogger<ItemProcessor>.Instance
             ).ProcessAsync(item.Id, CancellationToken.None);
 
@@ -781,7 +781,7 @@ public class ItemProcessorTests(PostgresFixture fx)
                 media,
                 variants,
                 new Mathom.Web.Glossary.GlossaryService(db),
-                new Mathom.Web.Languages.UserLanguageService(db),
+                new Mathom.Web.Languages.UserLanguageService(db), new FakeEmbeddingClient(),
                 NullLogger<ItemProcessor>.Instance
             ).ProcessAsync(itemId, CancellationToken.None);
         }
@@ -861,7 +861,7 @@ public class ItemProcessorTests(PostgresFixture fx)
                     new Mathom.Web.Media.ImageVariantProcessor()
                 ),
                 new Mathom.Web.Glossary.GlossaryService(db),
-                new Mathom.Web.Languages.UserLanguageService(db),
+                new Mathom.Web.Languages.UserLanguageService(db), new FakeEmbeddingClient(),
                 NullLogger<ItemProcessor>.Instance
             ).ProcessAsync(item.Id, CancellationToken.None);
 
@@ -943,7 +943,7 @@ public class ItemProcessorTests(PostgresFixture fx)
                     new Mathom.Web.Media.ImageVariantProcessor()
                 ),
                 new Mathom.Web.Glossary.GlossaryService(db),
-                new Mathom.Web.Languages.UserLanguageService(db),
+                new Mathom.Web.Languages.UserLanguageService(db), new FakeEmbeddingClient(),
                 NullLogger<ItemProcessor>.Instance
             );
             await processor.ProcessAsync(item.Id, CancellationToken.None);
@@ -1003,7 +1003,7 @@ public class ItemProcessorTests(PostgresFixture fx)
                     new Mathom.Web.Media.ImageVariantProcessor()
                 ),
                 new Mathom.Web.Glossary.GlossaryService(db),
-                new Mathom.Web.Languages.UserLanguageService(db),
+                new Mathom.Web.Languages.UserLanguageService(db), new FakeEmbeddingClient(),
                 NullLogger<ItemProcessor>.Instance
             ).ProcessAsync(item.Id, CancellationToken.None);
 
@@ -1063,7 +1063,7 @@ public class ItemProcessorTests(PostgresFixture fx)
                     new Mathom.Web.Media.ImageVariantProcessor()
                 ),
                 new Mathom.Web.Glossary.GlossaryService(db),
-                new Mathom.Web.Languages.UserLanguageService(db),
+                new Mathom.Web.Languages.UserLanguageService(db), new FakeEmbeddingClient(),
                 NullLogger<ItemProcessor>.Instance
             ).ProcessAsync(item.Id, CancellationToken.None);
 

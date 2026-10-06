@@ -21,6 +21,7 @@ public class ItemProcessor(
     Mathom.Web.Media.PhotoVariantService variants,
     Mathom.Web.Glossary.GlossaryService glossary,
     Mathom.Web.Languages.UserLanguageService userLanguages,
+    Mathom.Web.Embeddings.IEmbeddingClient embeddings,
     ILogger<ItemProcessor> logger)
 {
     public async Task ProcessAsync(Guid itemId, CancellationToken ct)
@@ -109,6 +110,23 @@ public class ItemProcessor(
             item.ItemType = result.ItemType;
             item.Actionable = result.Actionable;
             item.Error = null;
+
+            // Semantic-search embedding (source language). Best-effort: a failure leaves the
+            // note Ready with a null vector — the backfill will fill it in later.
+            try
+            {
+                var vector = await embeddings.EmbedAsync($"{result.Title}\n{result.CleanText}", ct);
+                item.Embedding = new Pgvector.Vector(vector);
+                item.EmbeddingModel = embeddings.ModelId;
+                item.EmbeddedAt = DateTimeOffset.UtcNow;
+            }
+            catch (Exception eex)
+            {
+                logger.LogWarning(eex, "Embedding failed for item {ItemId}", item.Id);
+                item.Embedding = null;
+                item.EmbeddingModel = null;
+                item.EmbeddedAt = null;
+            }
 
             // Re-translate from scratch so re-processing stays clean and picks up current languages.
             var staleTranslations = await db.ItemTranslations.Where(t => t.ItemId == item.Id).ToListAsync(ct);

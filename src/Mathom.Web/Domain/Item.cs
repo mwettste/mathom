@@ -47,6 +47,14 @@ public class Item
     // Polished variants in the user's other active languages (source lives on this row).
     public List<ItemTranslation> Translations { get; set; } = new();
 
+    // Multilingual semantic-search vector over Title + CleanText (source language).
+    // Null until embedded (pipeline is best-effort; the backfill fills gaps).
+    public Pgvector.Vector? Embedding { get; set; }
+
+    // Model that produced the current Embedding; lets the backfill detect stale vectors.
+    public string? EmbeddingModel { get; set; }
+    public DateTimeOffset? EmbeddedAt { get; set; }
+
     public static Item CreatePending(SourceType sourceType, string rawText, string idempotencyKey, string userId, DateTimeOffset now)
         => new()
         {

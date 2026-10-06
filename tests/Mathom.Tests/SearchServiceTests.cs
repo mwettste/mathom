@@ -7,6 +7,8 @@ using Mathom.Web.Search;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
+using Microsoft.Extensions.Logging.Abstractions;
+
 namespace Mathom.Tests;
 
 [Collection("postgres")]
@@ -73,7 +75,7 @@ public class SearchServiceTests(PostgresFixture fx)
         await using (var seed = fx.NewDbContext()) { seed.Items.AddRange(older, newer); await seed.SaveChangesAsync(); }
 
         await using var db = fx.NewDbContext();
-        var result = await new SearchService(db).TimelineAsync(Uid, null, 50, CancellationToken.None);
+        var result = await new SearchService(db, new FakeEmbeddingClient(), NullLogger<SearchService>.Instance).TimelineAsync(Uid, null, 50, CancellationToken.None);
 
         var ids = result.Select(r => r.Id).ToList();
         Assert.True(ids.IndexOf(newer.Id) < ids.IndexOf(older.Id));
@@ -96,7 +98,7 @@ public class SearchServiceTests(PostgresFixture fx)
         await using (var seed = fx.NewDbContext()) { seed.Items.Add(pending); await seed.SaveChangesAsync(); }
 
         await using var db = fx.NewDbContext();
-        var result = await new SearchService(db).TimelineAsync(Uid, null, 50, CancellationToken.None);
+        var result = await new SearchService(db, new FakeEmbeddingClient(), NullLogger<SearchService>.Instance).TimelineAsync(Uid, null, 50, CancellationToken.None);
 
         var found = result.Single(r => r.Id == pending.Id);
         Assert.Equal(ItemStatus.Pending, found.Status);
@@ -112,7 +114,7 @@ public class SearchServiceTests(PostgresFixture fx)
         await using (var seed = fx.NewDbContext()) { seed.Items.AddRange(match, noMatch); await seed.SaveChangesAsync(); }
 
         await using var db = fx.NewDbContext();
-        var result = await new SearchService(db).SearchAsync(Uid, null, "sourdough", new SearchFilters(null, null), 50, CancellationToken.None);
+        var result = await new SearchService(db, new FakeEmbeddingClient(), NullLogger<SearchService>.Instance).SearchAsync(Uid, null, "sourdough", new SearchFilters(null, null), 50, CancellationToken.None);
 
         Assert.Contains(result, r => r.Id == match.Id);
         Assert.DoesNotContain(result, r => r.Id == noMatch.Id);
@@ -127,7 +129,7 @@ public class SearchServiceTests(PostgresFixture fx)
         await using (var seed = fx.NewDbContext()) { seed.Items.AddRange(idea, note); await seed.SaveChangesAsync(); }
 
         await using var db = fx.NewDbContext();
-        var result = await new SearchService(db).SearchAsync(Uid, null, "alpha", new SearchFilters(ItemType.Idea, null), 50, CancellationToken.None);
+        var result = await new SearchService(db, new FakeEmbeddingClient(), NullLogger<SearchService>.Instance).SearchAsync(Uid, null, "alpha", new SearchFilters(ItemType.Idea, null), 50, CancellationToken.None);
 
         Assert.Contains(result, r => r.Id == idea.Id);
         Assert.DoesNotContain(result, r => r.Id == note.Id);
@@ -141,7 +143,7 @@ public class SearchServiceTests(PostgresFixture fx)
         await SeedTaggedAsync(u, "Other", ItemType.Note, false, "home");
 
         await using var db = fx.NewDbContext();
-        var result = await new SearchService(db)
+        var result = await new SearchService(db, new FakeEmbeddingClient(), NullLogger<SearchService>.Instance)
             .QueryAsync(u, null, null, new SearchFilters(Tag: "work"), 50, CancellationToken.None);
 
         Assert.Contains(result, r => r.Id == match.Id);
@@ -157,7 +159,7 @@ public class SearchServiceTests(PostgresFixture fx)
         await SeedTaggedAsync(b, "B work note", ItemType.Note, false, "work");
 
         await using var db = fx.NewDbContext();
-        var result = await new SearchService(db)
+        var result = await new SearchService(db, new FakeEmbeddingClient(), NullLogger<SearchService>.Instance)
             .QueryAsync(a, null, null, new SearchFilters(Tag: "work"), 50, CancellationToken.None);
 
         Assert.All(result, r => Assert.Equal(aItem.Id, r.Id)); // only A's item
@@ -172,7 +174,7 @@ public class SearchServiceTests(PostgresFixture fx)
         await SeedTaggedAsync(u, "work note", ItemType.Note, false, "work");
 
         await using var db = fx.NewDbContext();
-        var result = await new SearchService(db)
+        var result = await new SearchService(db, new FakeEmbeddingClient(), NullLogger<SearchService>.Instance)
             .QueryAsync(u, null, null, new SearchFilters(ItemType.Task, null, "work"), 50, CancellationToken.None);
 
         Assert.Single(result);
@@ -190,7 +192,7 @@ public class SearchServiceTests(PostgresFixture fx)
         await using (var seed = fx.NewDbContext()) { seed.Items.AddRange(older, newer); await seed.SaveChangesAsync(); }
 
         await using var db = fx.NewDbContext();
-        var result = await new SearchService(db)
+        var result = await new SearchService(db, new FakeEmbeddingClient(), NullLogger<SearchService>.Instance)
             .QueryAsync(u, null, null, new SearchFilters(), 50, CancellationToken.None);
 
         var ids = result.Select(r => r.Id).ToList();
@@ -210,7 +212,7 @@ public class SearchServiceTests(PostgresFixture fx)
         await using (var seed = fx.NewDbContext()) { seed.Items.AddRange(live, trashed); await seed.SaveChangesAsync(); }
 
         await using var db = fx.NewDbContext();
-        var result = await new SearchService(db).TimelineAsync(u, null, 50, CancellationToken.None);
+        var result = await new SearchService(db, new FakeEmbeddingClient(), NullLogger<SearchService>.Instance).TimelineAsync(u, null, 50, CancellationToken.None);
 
         Assert.Contains(result, r => r.Id == live.Id);
         Assert.DoesNotContain(result, r => r.Id == trashed.Id);
@@ -240,7 +242,7 @@ public class SearchServiceTests(PostgresFixture fx)
             await db.SaveChangesAsync();
         }
 
-        var svc = new SearchService(fx.NewDbContext());
+        var svc = new SearchService(fx.NewDbContext(), new FakeEmbeddingClient(), NullLogger<SearchService>.Instance);
         var hits = await svc.SearchAsync(u, null, "hello", new SearchFilters(), 50, CancellationToken.None);
         Assert.Contains(hits, h => h.Id == id);          // matched via English translation
     }
@@ -264,7 +266,7 @@ public class SearchServiceTests(PostgresFixture fx)
             db.Items.Add(item);
             await db.SaveChangesAsync();
         }
-        var svc = new SearchService(fx.NewDbContext());
+        var svc = new SearchService(fx.NewDbContext(), new FakeEmbeddingClient(), NullLogger<SearchService>.Instance);
         var list = await svc.TimelineAsync(u, null, 50, CancellationToken.None);
         var summary = list.Single(i => i.Id == id);
         Assert.Equal("de-CH", summary.SourceLanguage);
@@ -298,7 +300,7 @@ public class SearchServiceTests(PostgresFixture fx)
         }
 
         await using var db = fx.NewDbContext();
-        var svc = new SearchService(db);
+        var svc = new SearchService(db, new FakeEmbeddingClient(), NullLogger<SearchService>.Instance);
 
         var biz = await svc.TimelineAsync(u, ctxId, 50, CancellationToken.None);
         Assert.Equal(new[] { "BizItem" }, biz.Select(i => i.Title).ToArray());
