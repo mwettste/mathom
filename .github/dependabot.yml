@@ -1,0 +1,51 @@
+# Weekly dependency update PRs. Each one is gated by workflows/test.yml; nothing
+# deploys on merge (Deploy is manual), so merging just queues it for the next deploy.
+version: 2
+updates:
+  # .NET packages (src/ and tests/): minor + patch bumps land as one grouped PR,
+  # majors stay separate so a breaking upgrade can be looked at on its own.
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      nuget-minor-patch:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: chore
+      include: scope
+
+  # Build-time CSS toolchain (Tailwind + daisyUI).
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      npm-minor-patch:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: chore
+      include: scope
+
+  # Dockerfile base images (node, dotnet sdk/aspnet).
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: chore
+
+  # SHA-pinned actions; Dependabot bumps the SHA and the `# vN` comment together.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ['*']
+    commit-message:
+      prefix: ci
