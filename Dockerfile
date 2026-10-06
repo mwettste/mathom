@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- css (Tailwind + daisyUI; build-time only) ----
-FROM node:22-alpine AS css
+FROM node:26-alpine AS css
 WORKDIR /css
 COPY package.json package-lock.json ./
 RUN npm ci
