@@ -29,6 +29,9 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    labels:
+      # Nightly encrypted off-site backup (pg_dump), see the platform repo.
+      wettsti.backup.postgres: "true"
 
   web:
     image: ghcr.io/mwettste/mathom:latest
@@ -72,6 +75,8 @@ services:
       # docs/authenticated-origin-pull.md. Rollback = set mode back to verify_if_given.
       caddy.tls.client_auth.mode: require_and_verify
       caddy.tls.client_auth.trusted_ca_cert_file: /certs/cf-aop-ca.pem
+      # Nightly encrypted off-site backup of uploaded media and data-protection keys.
+      wettsti.backup.paths: /app/media,/keys
     depends_on:
       db:
         condition: service_healthy
