@@ -20,10 +20,10 @@ public class InboxApiTests(PostgresFixture fx)
 {
     private static readonly DateTimeOffset Base = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
 
-    private static async Task<JsonElement> JsonAsync(HttpResponseMessage resp) =>
+    internal static async Task<JsonElement> JsonAsync(HttpResponseMessage resp) =>
         await resp.Content.ReadFromJsonAsync<JsonElement>();
 
-    private static async Task<string> LoginAsync(DeviceAuthTestApp app, string email, string password)
+    internal static async Task<string> LoginAsync(DeviceAuthTestApp app, string email, string password)
     {
         var client = app.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var resp = await client.PostAsJsonAsync("/api/v1/auth/login",
