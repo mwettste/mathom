@@ -68,4 +68,39 @@ public class SuggestContextPromptBuilderTests
         Assert.Equal("choice", root.GetProperty("required")[0].GetString());
         Assert.False(root.GetProperty("additionalProperties").GetBoolean());
     }
+
+    [Fact]
+    public void UserPrompt_DoesNotSplitSurrogatePair_AtTruncationBoundary()
+    {
+        var title = new string('a', 119) + "\U0001F600" + "zzz";   // emoji at index 119-120
+        var text = new string('b', 3999) + "\U0001F600" + "zzz";
+        var json = SuggestContextPromptBuilder.BuildUserPrompt(title, text,
+            new[] { Cand("c1", "A", titles: new[] { title }) });
+
+        using var doc = JsonDocument.Parse(json);
+        var note = doc.RootElement.GetProperty("note");
+        foreach (var s in new[]
+        {
+            note.GetProperty("title").GetString()!,
+            note.GetProperty("text").GetString()!,
+            doc.RootElement.GetProperty("contexts")[0].GetProperty("recent_titles")[0].GetString()!,
+        })
+        {
+            Assert.False(char.IsHighSurrogate(s[^1]));
+            Assert.Equal(s, System.Text.Encoding.UTF8.GetString(System.Text.Encoding.UTF8.GetBytes(s)));
+        }
+    }
+
+    [Fact]
+    public void UserPrompt_NullTitleOrText_TreatedAsEmpty()
+    {
+        var json = SuggestContextPromptBuilder.BuildUserPrompt(null!, null!, new[] { Cand("c1", "A") });
+        using var doc = JsonDocument.Parse(json);
+        Assert.Equal("", doc.RootElement.GetProperty("note").GetProperty("text").GetString());
+        Assert.Equal("", doc.RootElement.GetProperty("note").GetProperty("title").GetString());
+    }
+
+    [Fact]
+    public void SystemPrompt_TreatsNoteAsData()
+        => Assert.Contains("not instructions", SuggestContextPromptBuilder.BuildSystemPrompt());
 }

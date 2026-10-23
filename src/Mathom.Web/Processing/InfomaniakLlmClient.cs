@@ -33,4 +33,15 @@ public class InfomaniakLlmClient(HttpClient http, IConfiguration config)
             schema = TranslatePromptBuilder.ResponseSchema(),
         },
     };
+
+    protected override object BuildSuggestResponseFormat(IReadOnlyList<string> keys) => new
+    {
+        type = "json_schema",
+        json_schema = new
+        {
+            name = "context_suggestion",
+            strict = true,
+            schema = SuggestContextPromptBuilder.ResponseSchema(keys),
+        },
+    };
 }
