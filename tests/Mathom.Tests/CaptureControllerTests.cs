@@ -6,7 +6,10 @@ using System.Threading.Tasks;
 using Mathom.Web.Capture;
 using Mathom.Web.Data;
 using Mathom.Web.Domain;
+using Mathom.Web.Media;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Xunit;
 
 namespace Mathom.Tests;
@@ -243,5 +246,111 @@ public class CaptureControllerTests(PostgresFixture fx)
         await using var db = fx.NewDbContext();
         var item = await db.Items.SingleAsync(i => i.IdempotencyKey == "c-old");
         Assert.True((item.CreatedAt - DateTimeOffset.UtcNow).Duration() < TimeSpan.FromMinutes(1));
+    }
+
+    private async Task<TestWebAppFactory> CreateAppAsync(FakeMediaStore media)
+    {
+        var app = new TestWebAppFactory(fx.ConnectionString, s =>
+        {
+            s.RemoveAll(typeof(IMediaStore));
+            s.AddSingleton<IMediaStore>(media);
+        });
+        await app.SeedUsersAsync();
+        return app;
+    }
+
+    private static MultipartFormDataContent PhotoForm(string key, string? target = null, string? capturedAt = null)
+    {
+        var form = new MultipartFormDataContent();
+        var file = new ByteArrayContent(new byte[] { 1, 2, 3 });
+        file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/jpeg");
+        form.Add(file, "images", "p.jpg");
+        form.Add(new StringContent(key), "idempotencyKey");
+        if (target is not null) form.Add(new StringContent(target), "target");
+        if (capturedAt is not null) form.Add(new StringContent(capturedAt), "capturedAt");
+        return form;
+    }
+
+    [Fact]
+    public async Task Photo_TargetInbox_And_CapturedAt_AreHonored()
+    {
+        using var app = await CreateAppAsync();
+        await SetCurrentContextAsync();
+        var at = DateTimeOffset.UtcNow.AddHours(-2);
+        var resp = await app.CreateClient().PostAsync("/capture/photo",
+            PhotoForm("p-inbox", target: "inbox", capturedAt: at.ToString("O")));
+        Assert.Equal(HttpStatusCode.Created, resp.StatusCode);
+
+        await using var db = fx.NewDbContext();
+        var item = await db.Items.Include(i => i.Photos).SingleAsync(i => i.IdempotencyKey == "p-inbox");
+        Assert.Null(item.ContextId);
+        Assert.True((item.CreatedAt - at).Duration() < TimeSpan.FromSeconds(1));
+        Assert.True((item.Photos.Single().CreatedAt - at).Duration() < TimeSpan.FromSeconds(1));
+    }
+
+    [Fact]
+    public async Task Text_Json_TargetInbox_And_CapturedAt_AreHonored()
+    {
+        using var app = await CreateAppAsync();
+        await SetCurrentContextAsync();
+        var at = DateTimeOffset.UtcNow.AddHours(-2);
+        var body = $"{{\"text\":\"hi\",\"idempotencyKey\":\"j-inbox\",\"target\":\"inbox\",\"capturedAt\":\"{at.ToOffset(TimeSpan.FromHours(2)):O}\"}}";
+        var resp = await app.CreateClient().PostAsync("/capture",
+            new StringContent(body, System.Text.Encoding.UTF8, "application/json"));
+        Assert.Equal(HttpStatusCode.Created, resp.StatusCode);
+
+        await using var db = fx.NewDbContext();
+        var item = await db.Items.SingleAsync(i => i.IdempotencyKey == "j-inbox");
+        Assert.Null(item.ContextId);
+        Assert.True((item.CreatedAt - at).Duration() < TimeSpan.FromSeconds(1));
+    }
+
+    [Fact]
+    public async Task Replay_WithDifferentTargetAndCapturedAt_ReturnsSameItemUnchanged()
+    {
+        using var app = await CreateAppAsync();
+        var ctxId = await SetCurrentContextAsync();
+        var client = app.CreateClient();
+        var first = await client.PostAsync("/capture/voice", VoiceForm("replay"));
+        var firstId = (await first.Content.ReadFromJsonAsync<IdResponse>())!.Id;
+        await using var before = fx.NewDbContext();
+        var stored = await before.Items.SingleAsync(i => i.IdempotencyKey == "replay");
+
+        var second = await client.PostAsync("/capture/voice", VoiceForm("replay", target: "inbox",
+            capturedAt: DateTimeOffset.UtcNow.AddHours(-5).ToString("O")));
+
+        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+        Assert.Equal(firstId, (await second.Content.ReadFromJsonAsync<IdResponse>())!.Id);
+        await using var after = fx.NewDbContext();
+        var item = await after.Items.SingleAsync(i => i.IdempotencyKey == "replay");
+        Assert.Equal(ctxId, item.ContextId);
+        Assert.Equal(stored.CreatedAt, item.CreatedAt);
+    }
+
+    [Fact]
+    public async Task InvalidTarget_VoiceAndPhoto_WriteNoMedia()
+    {
+        var media = new FakeMediaStore();
+        using var app = await CreateAppAsync(media);
+        var client = app.CreateClient();
+
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.PostAsync("/capture/voice", VoiceForm("nm-v", target: "x"))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.PostAsync("/capture/photo", PhotoForm("nm-p", target: "x"))).StatusCode);
+
+        Assert.Equal(0, media.Count);
+    }
+
+    [Fact]
+    public async Task Voice_MissingAudio_ReturnsAudioRequiredCode()
+    {
+        using var app = await CreateAppAsync();
+        using var form = new MultipartFormDataContent { { new StringContent("k"), "idempotencyKey" } };
+        var resp = await app.CreateClient().PostAsync("/capture/voice", form);
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+        var json = await resp.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        Assert.Equal("audio_required", json.GetProperty("code").GetString());
+        Assert.Equal("Audio is required.", json.GetProperty("error").GetString());
     }
 }

@@ -120,7 +120,14 @@ builder.Services.AddScoped<Mathom.Web.Glossary.GlossaryService>();
 builder.Services.AddScoped<Mathom.Web.Languages.UserLanguageService>();
 builder.Services.AddScoped<Mathom.Web.Contexts.ContextService>();
 builder.Services.AddScoped<Mathom.Web.Admin.UserAdminService>();
-builder.Services.AddControllers();
+builder.Services.AddControllers().ConfigureApiBehaviorOptions(o =>
+{
+    // /api answers { error, code }; everything else keeps the framework's ProblemDetails response.
+    var defaultFactory = o.InvalidModelStateResponseFactory;
+    o.InvalidModelStateResponseFactory = ctx => ctx.HttpContext.Request.Path.StartsWithSegments("/api")
+        ? Mathom.Web.Auth.ApiError.Result(StatusCodes.Status400BadRequest, "invalid_request", "The request is invalid.")
+        : defaultFactory(ctx);
+});
 
 builder.Services.AddScoped<ItemProcessor>();
 builder.Services.AddSingleton<IMediaStore, LocalDiskMediaStore>();

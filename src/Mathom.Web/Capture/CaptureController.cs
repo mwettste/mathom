@@ -4,6 +4,7 @@ using System.IO;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
+using Mathom.Web.Auth;
 using Mathom.Web.Data;
 using Mathom.Web.Domain;
 using Mathom.Web.Media;
@@ -33,9 +34,9 @@ public class CaptureController(MathomDbContext db, IMediaStore media, Mathom.Web
     public async Task<IActionResult> Post([FromBody] CaptureRequest req, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(req.Text))
-            return BadRequest(new { error = "Text is required." });
+            return ApiError.Result(StatusCodes.Status400BadRequest, "text_required", "Text is required.");
         if (req.Text.Length > MaxTextLength)
-            return BadRequest(new { error = "Text is too long." });
+            return ApiError.Result(StatusCodes.Status400BadRequest, "text_too_long", "Text is too long.");
 
         if (!IsValidTarget(req.Target))
             return InvalidTarget();
@@ -76,12 +77,12 @@ public class CaptureController(MathomDbContext db, IMediaStore media, Mathom.Web
         CancellationToken ct)
     {
         if (audio is null || audio.Length == 0)
-            return BadRequest(new { error = "Audio is required." });
+            return ApiError.Result(StatusCodes.Status400BadRequest, "audio_required", "Audio is required.");
         // Explicit guard in addition to [RequestSizeLimit]: the attribute rejects oversized
         // bodies at the Kestrel layer before buffering; this returns a clean 413 and is
         // enforced regardless of host (e.g. in tests, where the pipe limit isn't applied).
         if (audio.Length > MaxVoiceBytes)
-            return StatusCode(StatusCodes.Status413PayloadTooLarge, new { error = "Audio is too large." });
+            return ApiError.Result(StatusCodes.Status413PayloadTooLarge, "audio_too_large", "Audio is too large.");
         if (!IsValidTarget(target))
             return InvalidTarget();
 
@@ -131,9 +132,9 @@ public class CaptureController(MathomDbContext db, IMediaStore media, Mathom.Web
         CancellationToken ct)
     {
         if (images is null || images.Count == 0)
-            return BadRequest(new { error = "At least one image is required." });
+            return ApiError.Result(StatusCodes.Status400BadRequest, "images_required", "At least one image is required.");
         if (images.Count > MaxPhotoCount)
-            return BadRequest(new { error = $"At most {MaxPhotoCount} images per capture." });
+            return ApiError.Result(StatusCodes.Status400BadRequest, "too_many_images", $"At most {MaxPhotoCount} images per capture.");
         if (!IsValidTarget(target))
             return InvalidTarget();
 
@@ -142,18 +143,18 @@ public class CaptureController(MathomDbContext db, IMediaStore media, Mathom.Web
         {
             var img = images[i];
             if (img.Length == 0)
-                return BadRequest(new { error = "An image was empty." });
+                return ApiError.Result(StatusCodes.Status400BadRequest, "image_empty", "An image was empty.");
             if (img.Length > MaxPhotoBytes)
-                return StatusCode(StatusCodes.Status413PayloadTooLarge, new { error = "An image is too large." });
+                return ApiError.Result(StatusCodes.Status413PayloadTooLarge, "image_too_large", "An image is too large.");
             var ext = PhotoExtension(img);
             if (ext is null)
-                return BadRequest(new { error = "Only JPEG, PNG, or WebP images are supported." });
+                return ApiError.Result(StatusCodes.Status400BadRequest, "unsupported_image_type", "Only JPEG, PNG, or WebP images are supported.");
             exts[i] = ext;
         }
 
         var note = string.IsNullOrWhiteSpace(context) ? null : context.Trim();
         if (note is { Length: > MaxCaptureNoteLength })
-            return BadRequest(new { error = "Context is too long." });
+            return ApiError.Result(StatusCodes.Status400BadRequest, "capture_note_too_long", "Context is too long.");
 
         var key = string.IsNullOrWhiteSpace(idempotencyKey) ? Guid.NewGuid().ToString() : idempotencyKey;
 
@@ -199,7 +200,7 @@ public class CaptureController(MathomDbContext db, IMediaStore media, Mathom.Web
         string.IsNullOrEmpty(target) || target.Equals("inbox", StringComparison.OrdinalIgnoreCase);
 
     private static IActionResult InvalidTarget() =>
-        Mathom.Web.Auth.ApiError.Result(StatusCodes.Status400BadRequest, "invalid_target",
+        ApiError.Result(StatusCodes.Status400BadRequest, "invalid_target",
             "Target must be omitted or \"inbox\".");
 
     private Task<Guid?> ResolveContextAsync(string? target, string userId, CancellationToken ct) =>
@@ -209,7 +210,7 @@ public class CaptureController(MathomDbContext db, IMediaStore media, Mathom.Web
     private DateTimeOffset CreatedAt(DateTimeOffset? capturedAt)
     {
         var now = time.GetUtcNow();
-        return capturedAt is { } c && c <= now && c >= now - MaxCapturedAtAge ? c : now;
+        return capturedAt is { } c && c <= now && c >= now - MaxCapturedAtAge ? c.ToUniversalTime() : now;
     }
 
     // Accepts jpeg/png/webp by content type or file extension; returns the canonical

@@ -30,5 +30,7 @@ public class FakeMediaStore : IMediaStore
         return Task.CompletedTask;
     }
 
+    public int Count => _blobs.Count;
+
     public bool Has(string mediaPath) => _blobs.ContainsKey(mediaPath);
 }

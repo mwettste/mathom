@@ -393,4 +393,31 @@ public class DeviceAuthEndpointTests(PostgresFixture fx)
 
         Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
     }
+
+    [Fact]
+    public async Task Api_BadModelBinding_Returns400InvalidRequestCode()
+    {
+        using var app = new DeviceAuthTestApp(fx.ConnectionString);
+        var (email, password, _) = await app.CreateUserAsync(approved: true);
+        var phone = await LoginOkAsync(app, email, password);
+        using var form = new MultipartFormDataContent();
+        var audio = new ByteArrayContent(new byte[] { 1, 2, 3 });
+        audio.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("audio/mp4");
+        form.Add(audio, "audio", "clip.m4a");
+        form.Add(new StringContent("garbage"), "capturedAt");
+
+        var resp = await app.Bearer(phone.Access).PostAsync("/api/v1/capture/voice", form);
+
+        await AssertErrorAsync(resp, HttpStatusCode.BadRequest, "invalid_request");
+    }
+
+    [Fact]
+    public async Task Login_MalformedJson_Returns400InvalidRequestCode()
+    {
+        using var app = new DeviceAuthTestApp(fx.ConnectionString);
+        var resp = await Raw(app).PostAsync("/api/v1/auth/login",
+            new StringContent("{not json", System.Text.Encoding.UTF8, "application/json"));
+
+        await AssertErrorAsync(resp, HttpStatusCode.BadRequest, "invalid_request");
+    }
 }
