@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -8,6 +9,7 @@ using System.Threading.Tasks;
 using Mathom.Web.Auth;
 using Mathom.Web.Domain;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -339,5 +341,56 @@ public class DeviceAuthEndpointTests(PostgresFixture fx)
 
         Assert.Equal(HttpStatusCode.Redirect, resp.StatusCode);
         Assert.Equal("/Pending", resp.Headers.Location?.OriginalString);
+    }
+
+    [Fact]
+    public async Task ApiVoiceCapture_WithWatchToken_CreatesInboxItemForTokenUser()
+    {
+        using var app = new DeviceAuthTestApp(fx.ConnectionString);
+        var (email, password, userId) = await app.CreateUserAsync(approved: true);
+        var phone = await LoginOkAsync(app, email, password);
+        var watchResp = await app.Bearer(phone.Access).PostAsJsonAsync("/api/v1/auth/devices", new { deviceName = "Watch" });
+        var client = app.Bearer((await JsonAsync(watchResp)).GetProperty("accessToken").GetString()!);
+
+        var key = $"watch-{Guid.NewGuid():N}";
+        var capturedAt = app.Time.GetUtcNow().AddHours(-1);
+        using var form = new MultipartFormDataContent();
+        var audio = new ByteArrayContent(new byte[] { 1, 2, 3, 4 });
+        audio.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("audio/mp4");
+        form.Add(audio, "audio", "clip.m4a");
+        form.Add(new StringContent(key), "idempotencyKey");
+        form.Add(new StringContent("inbox"), "target");
+        form.Add(new StringContent(capturedAt.ToString("O")), "capturedAt");
+
+        var resp = await client.PostAsync("/api/v1/capture/voice", form);
+
+        Assert.Equal(HttpStatusCode.Created, resp.StatusCode);
+        await using var db = fx.NewDbContext();
+        var item = await db.Items.IgnoreQueryFilters().SingleAsync(i => i.IdempotencyKey == key);
+        Assert.Equal(userId, item.UserId);
+        Assert.Null(item.ContextId);
+        Assert.Equal(SourceType.Voice, item.SourceType);
+        Assert.True((item.CreatedAt - capturedAt).Duration() < TimeSpan.FromSeconds(1));
+    }
+
+    [Fact]
+    public async Task ApiCapture_WithCookie_401()
+    {
+        using var app = new DeviceAuthTestApp(fx.ConnectionString);
+        var client = Raw(app);
+        var html = await client.GetStringAsync("/Register");
+        var token = System.Text.RegularExpressions.Regex
+            .Match(html, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+        var reg = await client.PostAsync("/Register", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = token,
+            ["Input.Email"] = $"{Guid.NewGuid():N}@example.com",
+            ["Input.Password"] = "password1",
+        }));
+        Assert.True(reg.Headers.Contains("Set-Cookie")); // signed in via cookie
+
+        var resp = await client.PostAsJsonAsync("/api/v1/capture", new { text = "x", idempotencyKey = "api-cookie" });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
     }
 }

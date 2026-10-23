@@ -17,8 +17,9 @@ namespace Mathom.Web.Capture;
 
 [ApiController]
 [Route("capture")]
+[Route("api/v1/capture")]
 [Authorize]
-public class CaptureController(MathomDbContext db, IMediaStore media, Mathom.Web.Contexts.ContextService contexts) : ControllerBase
+public class CaptureController(MathomDbContext db, IMediaStore media, Mathom.Web.Contexts.ContextService contexts, TimeProvider time) : ControllerBase
 {
     // Upper bounds to keep a single capture from being unbounded (DoS / disk fill).
     private const int MaxTextLength = 100_000;          // ~100 KB of text
@@ -26,6 +27,7 @@ public class CaptureController(MathomDbContext db, IMediaStore media, Mathom.Web
     private const int MaxPhotoCount = 8;
     private const long MaxPhotoBytes = 15 * 1024 * 1024; // 15 MB per image
     private const int MaxCaptureNoteLength = 4_000;
+    private static readonly TimeSpan MaxCapturedAtAge = TimeSpan.FromDays(30);
 
     [HttpPost]
     public async Task<IActionResult> Post([FromBody] CaptureRequest req, CancellationToken ct)
@@ -34,6 +36,9 @@ public class CaptureController(MathomDbContext db, IMediaStore media, Mathom.Web
             return BadRequest(new { error = "Text is required." });
         if (req.Text.Length > MaxTextLength)
             return BadRequest(new { error = "Text is too long." });
+
+        if (!IsValidTarget(req.Target))
+            return InvalidTarget();
 
         var key = string.IsNullOrWhiteSpace(req.IdempotencyKey)
             ? Guid.NewGuid().ToString()
@@ -44,8 +49,8 @@ public class CaptureController(MathomDbContext db, IMediaStore media, Mathom.Web
             return Ok(new { id = existing.Id });
 
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var item = Item.CreatePending(SourceType.Text, req.Text, key, userId, DateTimeOffset.UtcNow);
-        item.ContextId = await contexts.GetCurrentAsync(userId, ct);
+        var item = Item.CreatePending(SourceType.Text, req.Text, key, userId, CreatedAt(req.CapturedAt));
+        item.ContextId = await ResolveContextAsync(req.Target, userId, ct);
         db.Items.Add(item);
         try
         {
@@ -66,6 +71,8 @@ public class CaptureController(MathomDbContext db, IMediaStore media, Mathom.Web
     public async Task<IActionResult> PostVoice(
         [FromForm] IFormFile? audio,
         [FromForm] string? idempotencyKey,
+        [FromForm] string? target,
+        [FromForm] DateTimeOffset? capturedAt,
         CancellationToken ct)
     {
         if (audio is null || audio.Length == 0)
@@ -75,6 +82,8 @@ public class CaptureController(MathomDbContext db, IMediaStore media, Mathom.Web
         // enforced regardless of host (e.g. in tests, where the pipe limit isn't applied).
         if (audio.Length > MaxVoiceBytes)
             return StatusCode(StatusCodes.Status413PayloadTooLarge, new { error = "Audio is too large." });
+        if (!IsValidTarget(target))
+            return InvalidTarget();
 
         var key = string.IsNullOrWhiteSpace(idempotencyKey)
             ? Guid.NewGuid().ToString()
@@ -93,9 +102,9 @@ public class CaptureController(MathomDbContext db, IMediaStore media, Mathom.Web
             mediaPath = await media.SaveAsync(stream, ext, ct);
 
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var item = Item.CreatePending(SourceType.Voice, "", key, userId, DateTimeOffset.UtcNow);
+        var item = Item.CreatePending(SourceType.Voice, "", key, userId, CreatedAt(capturedAt));
         item.MediaPath = mediaPath;
-        item.ContextId = await contexts.GetCurrentAsync(userId, ct);
+        item.ContextId = await ResolveContextAsync(target, userId, ct);
         db.Items.Add(item);
         try
         {
@@ -117,12 +126,16 @@ public class CaptureController(MathomDbContext db, IMediaStore media, Mathom.Web
         [FromForm] List<IFormFile>? images,
         [FromForm] string? idempotencyKey,
         [FromForm] string? context,
+        [FromForm] string? target,
+        [FromForm] DateTimeOffset? capturedAt,
         CancellationToken ct)
     {
         if (images is null || images.Count == 0)
             return BadRequest(new { error = "At least one image is required." });
         if (images.Count > MaxPhotoCount)
             return BadRequest(new { error = $"At most {MaxPhotoCount} images per capture." });
+        if (!IsValidTarget(target))
+            return InvalidTarget();
 
         var exts = new string[images.Count];
         for (var i = 0; i < images.Count; i++)
@@ -149,9 +162,9 @@ public class CaptureController(MathomDbContext db, IMediaStore media, Mathom.Web
             return Ok(new { id = existing.Id });
 
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var item = Item.CreatePending(SourceType.Photo, "", key, userId, DateTimeOffset.UtcNow);
+        var item = Item.CreatePending(SourceType.Photo, "", key, userId, CreatedAt(capturedAt));
         item.CaptureNote = note;
-        item.ContextId = await contexts.GetCurrentAsync(userId, ct);
+        item.ContextId = await ResolveContextAsync(target, userId, ct);
         for (var i = 0; i < images.Count; i++)
         {
             string mediaPath;
@@ -162,7 +175,7 @@ public class CaptureController(MathomDbContext db, IMediaStore media, Mathom.Web
                 Id = Guid.NewGuid(),
                 MediaPath = mediaPath,
                 Order = i,
-                CreatedAt = DateTimeOffset.UtcNow,
+                CreatedAt = item.CreatedAt,
             });
         }
 
@@ -179,6 +192,24 @@ public class CaptureController(MathomDbContext db, IMediaStore media, Mathom.Web
         }
 
         return Created((string?)null, new { id = item.Id });
+    }
+
+    // null/empty = the user's current context; "inbox" = no context. Anything else is rejected.
+    private static bool IsValidTarget(string? target) =>
+        string.IsNullOrEmpty(target) || target.Equals("inbox", StringComparison.OrdinalIgnoreCase);
+
+    private static IActionResult InvalidTarget() =>
+        Mathom.Web.Auth.ApiError.Result(StatusCodes.Status400BadRequest, "invalid_target",
+            "Target must be omitted or \"inbox\".");
+
+    private Task<Guid?> ResolveContextAsync(string? target, string userId, CancellationToken ct) =>
+        string.IsNullOrEmpty(target) ? contexts.GetCurrentAsync(userId, ct) : Task.FromResult<Guid?>(null);
+
+    // A client-supplied capture time is honored only within [now - 30 days, now].
+    private DateTimeOffset CreatedAt(DateTimeOffset? capturedAt)
+    {
+        var now = time.GetUtcNow();
+        return capturedAt is { } c && c <= now && c >= now - MaxCapturedAtAge ? c : now;
     }
 
     // Accepts jpeg/png/webp by content type or file extension; returns the canonical
