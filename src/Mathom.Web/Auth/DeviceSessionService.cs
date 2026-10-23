@@ -67,14 +67,14 @@ public class DeviceSessionService(MathomDbContext db, TimeProvider time, IOption
         token.SupersededAt ??= now;
         session.LastUsedAt = now;
 
-        var cutoff = now - TokenRetention;
-        var stale = await db.Set<DeviceToken>()
-            .Where(t => t.SessionId == session.Id && t.ExpiresAt < cutoff)
-            .ToListAsync(ct);
-        db.Set<DeviceToken>().RemoveRange(stale);
-
         var issued = IssueTokens(session, now);
         await db.SaveChangesAsync(ct);
+
+        // Set-based so concurrent refreshes cannot fail on rows another one already deleted.
+        var cutoff = now - TokenRetention;
+        await db.Set<DeviceToken>()
+            .Where(t => t.SessionId == session.Id && t.ExpiresAt < cutoff)
+            .ExecuteDeleteAsync(ct);
         return (issued, session.UserId);
     }
 
@@ -98,11 +98,14 @@ public class DeviceSessionService(MathomDbContext db, TimeProvider time, IOption
     }
 
     public async Task<IReadOnlyList<DeviceSessionView>> ListActiveAsync(string userId, CancellationToken ct)
-        => await db.Set<DeviceSession>()
-            .Where(s => s.UserId == userId && s.RevokedAt == null)
+    {
+        var idleCutoff = time.GetUtcNow() - Opt.RefreshTokenIdleLifetime;
+        return await db.Set<DeviceSession>()
+            .Where(s => s.UserId == userId && s.RevokedAt == null && s.LastUsedAt > idleCutoff)
             .OrderByDescending(s => s.LastUsedAt)
             .Select(s => new DeviceSessionView(s.Id, s.Name, s.Kind, s.CreatedAt, s.LastUsedAt))
             .ToListAsync(ct);
+    }
 
     // Returns the token when usable; null when unknown/expired/revoked. Revokes the session on reuse.
     private async Task<DeviceToken?> FindUsableRefreshTokenAsync(string refreshToken, DateTimeOffset now, CancellationToken ct)

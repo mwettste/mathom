@@ -420,4 +420,74 @@ public class DeviceAuthEndpointTests(PostgresFixture fx)
 
         await AssertErrorAsync(resp, HttpStatusCode.BadRequest, "invalid_request");
     }
+
+    [Fact]
+    public async Task Refresh_ReuseBeyondGraceWindow_401_AndRevokesSession()
+    {
+        using var app = new DeviceAuthTestApp(fx.ConnectionString);
+        var (email, password, _) = await app.CreateUserAsync(approved: true);
+        var r0 = await LoginOkAsync(app, email, password);
+        var first = await JsonAsync(await Raw(app).PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = r0.Refresh }));
+        var access1 = first.GetProperty("accessToken").GetString()!;
+        var refresh1 = first.GetProperty("refreshToken").GetString()!;
+
+        app.Time.Advance(TimeSpan.FromMinutes(2) + TimeSpan.FromSeconds(1));
+        var reuse = await Raw(app).PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = r0.Refresh });
+
+        await AssertErrorAsync(reuse, HttpStatusCode.Unauthorized, "invalid_refresh_token");
+        Assert.Equal(HttpStatusCode.Unauthorized, (await app.Bearer(access1).GetAsync("/api/v1/me")).StatusCode);
+        await AssertErrorAsync(await Raw(app).PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = refresh1 }),
+            HttpStatusCode.Unauthorized, "invalid_refresh_token");
+    }
+
+    [Fact]
+    public async Task Refresh_ReuseInsideGraceWindow_200_AndNewTokenWorks()
+    {
+        using var app = new DeviceAuthTestApp(fx.ConnectionString);
+        var (email, password, _) = await app.CreateUserAsync(approved: true);
+        var r0 = await LoginOkAsync(app, email, password);
+        Assert.Equal(HttpStatusCode.OK,
+            (await Raw(app).PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = r0.Refresh })).StatusCode);
+
+        app.Time.Advance(TimeSpan.FromMinutes(1));
+        var again = await Raw(app).PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = r0.Refresh });
+
+        Assert.Equal(HttpStatusCode.OK, again.StatusCode);
+        var access = (await JsonAsync(again)).GetProperty("accessToken").GetString()!;
+        Assert.Equal(HttpStatusCode.OK, (await app.Bearer(access).GetAsync("/api/v1/me")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Watch_CanRefreshAndLogout_PhoneSessionUnaffected()
+    {
+        using var app = new DeviceAuthTestApp(fx.ConnectionString);
+        var (email, password, _) = await app.CreateUserAsync(approved: true);
+        var phone = await LoginOkAsync(app, email, password);
+        var watchJson = await JsonAsync(await app.Bearer(phone.Access)
+            .PostAsJsonAsync("/api/v1/auth/devices", new { deviceName = "Watch" }));
+
+        var refreshed = await Raw(app).PostAsJsonAsync("/api/v1/auth/refresh",
+            new { refreshToken = watchJson.GetProperty("refreshToken").GetString() });
+
+        Assert.Equal(HttpStatusCode.OK, refreshed.StatusCode);
+        var watchAccess = (await JsonAsync(refreshed)).GetProperty("accessToken").GetString()!;
+        Assert.Equal(HttpStatusCode.OK, (await app.Bearer(watchAccess).GetAsync("/api/v1/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await app.Bearer(watchAccess).PostAsync("/api/v1/auth/logout", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await app.Bearer(watchAccess).GetAsync("/api/v1/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await app.Bearer(phone.Access).GetAsync("/api/v1/me")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Logout_UserUnapprovedAfterLogin_204_AndSessionRevoked()
+    {
+        using var app = new DeviceAuthTestApp(fx.ConnectionString);
+        var (email, password, userId) = await app.CreateUserAsync(approved: true);
+        var session = await LoginOkAsync(app, email, password);
+        await SetApprovedAsync(app, userId, false);
+
+        var resp = await app.Bearer(session.Access).PostAsync("/api/v1/auth/logout", null);
+
+        Assert.Equal(HttpStatusCode.NoContent, resp.StatusCode);
+        Assert.Equal(0, await ActiveSessionCountAsync(app, userId));
+    }
 }

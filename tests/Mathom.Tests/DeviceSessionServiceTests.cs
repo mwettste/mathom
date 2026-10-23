@@ -168,4 +168,57 @@ public class DeviceSessionServiceTests(PostgresFixture fx)
         Assert.Equal(keep.SessionId, only.Id);
         Assert.Equal("Keep", only.Name);
     }
+
+    [Fact]
+    public async Task Refresh_ConcurrentOnSessionWithStaleTokens_NoneThrows_AllPairsValidate()
+    {
+        var (svc, time, db, u) = await SetupAsync("dev-concurrent");
+        await using var _ = db;
+        var t = await svc.CreateAsync(u, "iPhone", DeviceKind.Phone, null, Ct);
+        time.Advance(TimeSpan.FromMinutes(1));
+        var current = (await svc.RefreshAsync(t.RefreshToken, Ct))!.Value.Tokens;
+        time.Advance(TimeSpan.FromDays(2)); // both earlier access tokens are now stale (expired > 1 day ago)
+
+        var results = await Task.WhenAll(Enumerable.Range(0, 16).Select(async _ =>
+        {
+            await using var ctx = fx.NewDbContext();
+            var s = new DeviceSessionService(ctx, time, Options.Create(new DeviceAuthOptions()));
+            return await s.RefreshAsync(current.RefreshToken, Ct);
+        }));
+
+        Assert.All(results, r => Assert.NotNull(r));
+        foreach (var r in results)
+        {
+            await using var ctx = fx.NewDbContext();
+            var s = new DeviceSessionService(ctx, time, Options.Create(new DeviceAuthOptions()));
+            Assert.NotNull(await s.ValidateAccessTokenAsync(r!.Value.Tokens.AccessToken, Ct));
+        }
+    }
+
+    [Fact]
+    public async Task Refresh_GraceWindow_IsNotExtendedByRepeatedUse()
+    {
+        var (svc, time, db, u) = await SetupAsync("dev-grace-fixed");
+        await using var _ = db;
+        var t = await svc.CreateAsync(u, "iPhone", DeviceKind.Phone, null, Ct);
+        Assert.NotNull(await svc.RefreshAsync(t.RefreshToken, Ct));
+        time.Advance(TimeSpan.FromMinutes(1));
+        Assert.NotNull(await svc.RefreshAsync(t.RefreshToken, Ct));
+        time.Advance(TimeSpan.FromMinutes(1) + TimeSpan.FromSeconds(1));
+        Assert.Null(await svc.RefreshAsync(t.RefreshToken, Ct));
+
+        await using var fresh = fx.NewDbContext();
+        var session = await fresh.Set<DeviceSession>().SingleAsync(s => s.Id == t.SessionId, Ct);
+        Assert.NotNull(session.RevokedAt);
+    }
+
+    [Fact]
+    public async Task ListActive_HidesSessionsIdleBeyondRefreshLifetime()
+    {
+        var (svc, time, db, u) = await SetupAsync("dev-list-idle");
+        await using var _ = db;
+        await svc.CreateAsync(u, "Idle", DeviceKind.Phone, null, Ct);
+        time.Advance(TimeSpan.FromDays(90) + TimeSpan.FromSeconds(1));
+        Assert.Empty(await svc.ListActiveAsync(u, Ct));
+    }
 }

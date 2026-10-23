@@ -95,4 +95,5 @@ This repo has a security-hardening focus (recent commits enforce Cloudflare Auth
 Pulls). `Program.cs` handles forwarded headers / Secure cookies carefully: the standalone
 `docker-compose.yml` is directly exposed and must NOT trust `X-Forwarded-*`, while the deploy compose
 (behind Caddy) sets `ForwardedHeaders:Enabled=true`. Preserve these distinctions when touching auth,
-cookies, or proxy handling.
+cookies, or proxy handling. `AuthRateLimit:ClientIpHeader` follows the same trust split as
+`ForwardedHeaders:Enabled`: set it only in the deploy/preview composes, never the standalone compose.

@@ -12,7 +12,9 @@ public class ApprovalGateMiddleware(RequestDelegate next)
 {
     private static readonly string[] Allowlist = { "/Pending", "/Login", "/Register", "/Logout", "/healthz",
         // These two check approval themselves (the caller may hold a bearer of a different, unapproved user).
-        "/api/v1/auth/login", "/api/v1/auth/refresh" };
+        "/api/v1/auth/login", "/api/v1/auth/refresh",
+        // An unapproved user's device can still sign itself out.
+        "/api/v1/auth/logout" };
 
     public async Task InvokeAsync(HttpContext ctx, UserAdminService userAdmin)
     {
