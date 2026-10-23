@@ -78,6 +78,29 @@ public class ItemsApiTests(PostgresFixture fx)
     }
 
     [Fact]
+    public async Task Item_Detail_TagsAndTranslations_AreOrdered()
+    {
+        using var app = new DeviceAuthTestApp(fx.ConnectionString);
+        var (email, password, alice) = await app.CreateUserAsync(true);
+        var p = "o" + Guid.NewGuid().ToString("N");
+        var item = await SeedAsync(alice, i =>
+        {
+            foreach (var n in new[] { "m", "B", "z", "a" })
+                i.ItemTags.Add(new ItemTag { Tag = new Tag { Name = p + n } });
+            i.Translations.Add(new ItemTranslation { Locale = "fr", Title = "t", CleanText = "c" });
+            i.Translations.Add(new ItemTranslation { Locale = "de", Title = "t", CleanText = "c" });
+        });
+        var token = await LoginAsync(app, email, password);
+
+        var j = await JsonAsync(await app.Bearer(token).GetAsync($"/api/v1/items/{item.Id}"));
+
+        Assert.Equal(new[] { p + "a", p + "B", p + "m", p + "z" },
+            j.GetProperty("tags").EnumerateArray().Select(t => t.GetString()).ToArray());
+        Assert.Equal(new[] { "de", "fr" },
+            j.GetProperty("translations").EnumerateArray().Select(t => t.GetProperty("locale").GetString()).ToArray());
+    }
+
+    [Fact]
     public async Task Item_Detail_InboxItem_HasNullContext()
     {
         using var app = new DeviceAuthTestApp(fx.ConnectionString);
