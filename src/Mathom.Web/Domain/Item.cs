@@ -35,6 +35,8 @@ public class Item
     public string UserId { get; set; } = string.Empty;
     // Null = Inbox (no context). FK to Context with ON DELETE SET NULL.
     public Guid? ContextId { get; set; }
+    // Model-suggested context for an Inbox item; never applied automatically. FK to Context with ON DELETE SET NULL.
+    public Guid? SuggestedContextId { get; set; }
     public List<ItemTag> ItemTags { get; set; } = new();
     public List<ItemPhoto> Photos { get; set; } = new();
 

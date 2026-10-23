@@ -21,6 +21,7 @@ public class ItemProcessor(
     Mathom.Web.Media.PhotoVariantService variants,
     Mathom.Web.Glossary.GlossaryService glossary,
     Mathom.Web.Languages.UserLanguageService userLanguages,
+    Mathom.Web.Contexts.ContextService contexts,
     ILogger<ItemProcessor> logger)
 {
     public async Task ProcessAsync(Guid itemId, CancellationToken ct)
@@ -137,6 +138,20 @@ public class ItemProcessor(
                 }
             }
 
+            // Best-effort: only Inbox items get a suggestion; any failure leaves it null.
+            item.SuggestedContextId = null;
+            if (item.ContextId is null)
+            {
+                try
+                {
+                    item.SuggestedContextId = await SuggestContextAsync(item, result, ct);
+                }
+                catch (Exception sex)
+                {
+                    logger.LogWarning(sex, "Context suggestion failed for item {ItemId}", item.Id);
+                }
+            }
+
             var desiredTagIds = new List<int>();
             foreach (var t in result.Tags)
             {
@@ -169,6 +184,40 @@ public class ItemProcessor(
             item.Error = ex.Message;
             await db.SaveChangesAsync(ct);
         }
+    }
+
+    private const int MaxSuggestTerms = 30;
+    private const int MaxSuggestTitles = 10;
+
+    // Asks the model which of the user's contexts fits an Inbox item. Never moves anything; returns
+    // null when there are no contexts, the model says none, or it answers with an unknown key.
+    private async Task<Guid?> SuggestContextAsync(Item item, CleanupResult result, CancellationToken ct)
+    {
+        var list = await contexts.ListAsync(item.UserId, ct);
+        if (list.Count == 0) return null;
+
+        var keyToId = new Dictionary<string, Guid>();
+        var candidates = new List<ContextCandidate>();
+        for (var i = 0; i < list.Count; i++)
+        {
+            var c = list[i];
+            var key = "c" + (i + 1);
+            keyToId[key] = c.Id;
+
+            var terms = (await glossary.GetEntriesAsync(item.UserId, c.Id, ct))
+                .Select(e => e.Term).Take(MaxSuggestTerms).ToList();
+            var titles = await db.Items.AsNoTracking()
+                .Where(x => x.UserId == item.UserId && x.ContextId == c.Id && x.Status == ItemStatus.Ready
+                            && x.Id != item.Id && x.Title != null && x.Title != "")
+                .OrderByDescending(x => x.CreatedAt)
+                .Select(x => x.Title!)
+                .Take(MaxSuggestTitles)
+                .ToListAsync(ct);
+            candidates.Add(new ContextCandidate(key, c.Name, terms, titles));
+        }
+
+        var chosen = await llm.SuggestContextAsync(result.Title, result.CleanText, candidates, ct);
+        return chosen is not null && keyToId.TryGetValue(chosen, out var id) ? id : null;
     }
 
     // Someone else (e.g. a move) re-queued the item while this run held a stale copy. Writing our
