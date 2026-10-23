@@ -6,10 +6,15 @@ using Microsoft.AspNetCore.Http;
 
 namespace Mathom.Web.Auth;
 
-// Redirects authenticated-but-unapproved users to /Pending for any non-allowlisted path.
+// Redirects authenticated-but-unapproved users to /Pending for any non-allowlisted path;
+// /api paths get a 403 pending_approval JSON error instead.
 public class ApprovalGateMiddleware(RequestDelegate next)
 {
-    private static readonly string[] Allowlist = { "/Pending", "/Login", "/Register", "/Logout", "/healthz" };
+    private static readonly string[] Allowlist = { "/Pending", "/Login", "/Register", "/Logout", "/healthz",
+        // These two check approval themselves (the caller may hold a bearer of a different, unapproved user).
+        "/api/v1/auth/login", "/api/v1/auth/refresh",
+        // An unapproved user's device can still sign itself out.
+        "/api/v1/auth/logout" };
 
     public async Task InvokeAsync(HttpContext ctx, UserAdminService userAdmin)
     {
@@ -18,7 +23,12 @@ public class ApprovalGateMiddleware(RequestDelegate next)
             var id = ctx.User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (id is not null && !await userAdmin.IsApprovedAsync(id, ctx.RequestAborted))
             {
-                ctx.Response.Redirect("/Pending");
+                // API clients get JSON, not a redirect to an HTML page.
+                if (ctx.Request.Path.StartsWithSegments("/api"))
+                    await ApiError.WriteAsync(ctx, StatusCodes.Status403Forbidden, "pending_approval",
+                        "Your account is waiting for admin approval.");
+                else
+                    ctx.Response.Redirect("/Pending");
                 return;
             }
         }

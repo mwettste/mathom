@@ -61,6 +61,13 @@ re-transcribing.
   `AdminBootstrap` (run from `Program.cs` on startup) promotes the `AdminEmail` user to the Admin role
   and auto-approves them.
 
+**Device sessions (native clients)**: `/api/*` authenticates with bearer device tokens only
+(`DeviceTokenHandler`, sessions in `DeviceSessionService`); every other path keeps the cookie. Clients
+log in at `POST /api/v1/auth/login` and rotate with `/refresh`. Only a `phone` session may provision a
+`watch` session (`POST /api/v1/auth/devices`). `ApprovalGateMiddleware` answers unapproved `/api` calls
+with 403 `pending_approval` JSON, and `DeviceScopeMiddleware` limits watch sessions to capture, `/me`,
+refresh and logout (403 `forbidden_scope` otherwise). API errors use `{ error, code }`.
+
 Search (`Search/SearchService.cs`) uses a generated Postgres `tsvector` column over `Title + CleanText`
 (GIN-indexed), configured in `Data/MathomDbContext.cs`.
 
@@ -88,4 +95,5 @@ This repo has a security-hardening focus (recent commits enforce Cloudflare Auth
 Pulls). `Program.cs` handles forwarded headers / Secure cookies carefully: the standalone
 `docker-compose.yml` is directly exposed and must NOT trust `X-Forwarded-*`, while the deploy compose
 (behind Caddy) sets `ForwardedHeaders:Enabled=true`. Preserve these distinctions when touching auth,
-cookies, or proxy handling.
+cookies, or proxy handling. `AuthRateLimit:ClientIpHeader` follows the same trust split as
+`ForwardedHeaders:Enabled`: set it only in the deploy/preview composes, never the standalone compose.

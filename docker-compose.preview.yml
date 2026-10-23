@@ -53,6 +53,8 @@ services:
       ASPNETCORE_HTTP_PORTS: "8080"
       # Behind Caddy: trust X-Forwarded-Proto so the app flags cookies Secure.
       ForwardedHeaders__Enabled: "true"
+      # Rate limits key on this header; the edge firewall admits only Cloudflare IPs, which set it.
+      AuthRateLimit__ClientIpHeader: "CF-Connecting-IP"
       ConnectionStrings__Mathom: "Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
       Media__Root: /app/media
       DataProtection__KeysPath: /keys

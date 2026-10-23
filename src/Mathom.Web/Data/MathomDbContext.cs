@@ -15,6 +15,8 @@ public class MathomDbContext(DbContextOptions<MathomDbContext> options) : Identi
     public DbSet<GlossaryTerm> GlossaryTerms => Set<GlossaryTerm>()!;
     public DbSet<GlossaryVariant> GlossaryVariants => Set<GlossaryVariant>()!;
     public DbSet<UserLanguage> UserLanguages => Set<UserLanguage>()!;
+    public DbSet<DeviceSession> DeviceSessions => Set<DeviceSession>()!;
+    public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>()!;
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -168,6 +170,30 @@ public class MathomDbContext(DbContextOptions<MathomDbContext> options) : Identi
                 .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => new { x.UserId, x.Locale }).IsUnique();
+        });
+
+        b.Entity<DeviceSession>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.UserId).IsRequired();
+            e.Property(x => x.Name).IsRequired().HasMaxLength(100);
+            e.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.UserId);
+            // ProvisionedBySessionId is a plain column on purpose: no FK.
+        });
+
+        b.Entity<DeviceToken>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Hash).IsRequired();
+            e.HasOne(x => x.Session)
+                .WithMany(s => s.Tokens)
+                .HasForeignKey(x => x.SessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.Hash).IsUnique();
         });
     }
 }

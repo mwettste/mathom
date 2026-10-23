@@ -43,6 +43,30 @@ builder.Services
     .AddEntityFrameworkStores<MathomDbContext>()
     .AddDefaultTokenProviders();
 
+// /api/* authenticates with bearer device tokens only; every other path keeps the cookie.
+builder.Services
+    .AddAuthentication(o =>
+    {
+        o.DefaultAuthenticateScheme = o.DefaultChallengeScheme = o.DefaultForbidScheme = "Mathom";
+    })
+    .AddPolicyScheme("Mathom", null, o =>
+    {
+        o.ForwardDefaultSelector = ctx =>
+            ctx.Request.Path.StartsWithSegments("/api")
+                ? Mathom.Web.Auth.DeviceTokenDefaults.Scheme
+                : IdentityConstants.ApplicationScheme;
+    })
+    .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, Mathom.Web.Auth.DeviceTokenHandler>(
+        Mathom.Web.Auth.DeviceTokenDefaults.Scheme, _ => { });
+
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy(Mathom.Web.Auth.DevicePolicies.PhoneSession, p => p
+        .RequireClaim(Mathom.Web.Auth.DeviceTokenDefaults.DeviceKindClaim, "phone"));
+builder.Services.AddSingleton(TimeProvider.System);
+Mathom.Web.Auth.AuthRateLimiting.AddAuthRateLimiting(builder.Services, builder.Configuration);
+builder.Services.Configure<Mathom.Web.Auth.DeviceAuthOptions>(builder.Configuration.GetSection("DeviceAuth"));
+builder.Services.AddScoped<Mathom.Web.Auth.DeviceSessionService>();
+
 builder.Services.ConfigureApplicationCookie(o =>
 {
     o.LoginPath = "/Login";
@@ -96,7 +120,14 @@ builder.Services.AddScoped<Mathom.Web.Glossary.GlossaryService>();
 builder.Services.AddScoped<Mathom.Web.Languages.UserLanguageService>();
 builder.Services.AddScoped<Mathom.Web.Contexts.ContextService>();
 builder.Services.AddScoped<Mathom.Web.Admin.UserAdminService>();
-builder.Services.AddControllers();
+builder.Services.AddControllers().ConfigureApiBehaviorOptions(o =>
+{
+    // /api answers { error, code }; everything else keeps the framework's ProblemDetails response.
+    var defaultFactory = o.InvalidModelStateResponseFactory;
+    o.InvalidModelStateResponseFactory = ctx => ctx.HttpContext.Request.Path.StartsWithSegments("/api")
+        ? Mathom.Web.Auth.ApiError.Result(StatusCodes.Status400BadRequest, "invalid_request", "The request is invalid.")
+        : defaultFactory(ctx);
+});
 
 builder.Services.AddScoped<ItemProcessor>();
 builder.Services.AddSingleton<IMediaStore, LocalDiskMediaStore>();
@@ -144,9 +175,11 @@ app.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = contentTypes })
 
 app.MapGet("/healthz", () => Results.Ok("ok"));
 
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<Mathom.Web.Auth.ApprovalGateMiddleware>();
+app.UseMiddleware<Mathom.Web.Auth.DeviceScopeMiddleware>();
 
 app.MapControllers();
 app.MapRazorPages();

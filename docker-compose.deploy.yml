@@ -50,6 +50,8 @@ services:
       # auth/anti-forgery cookies Secure. Only safe here because nothing but the
       # edge proxy can reach this container (no published host port).
       ForwardedHeaders__Enabled: "true"
+      # Rate limits key on this header; trusted only because Cloudflare AOP / the edge sets it.
+      AuthRateLimit__ClientIpHeader: "CF-Connecting-IP"
       # Connection string is composed from the Postgres credentials so they stay in one place.
       ConnectionStrings__Mathom: "Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
       # Durable storage lives on the named volumes mounted below.

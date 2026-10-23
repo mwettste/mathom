@@ -6,6 +6,7 @@ using Mathom.Web.Domain;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -226,7 +227,9 @@ public class AuthTests(PostgresFixture fx)
     [Fact]
     public async Task Login_LocksAccount_AfterRepeatedFailures()
     {
-        using var app = CreateApp();
+        // 11 login posts: raise the limiter so this measures lockout, not rate limiting.
+        using var app = CreateApp().WithWebHostBuilder(b => b.ConfigureTestServices(s =>
+            s.Configure<Mathom.Web.Auth.AuthRateLimitOptions>(o => o.LoginPermitsPerMinute = 100)));
         var email = "lockout-" + System.Guid.NewGuid().ToString("N") + "@example.com";
 
         // Register (auto signs in on a throwaway client).

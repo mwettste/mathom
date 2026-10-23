@@ -253,6 +253,7 @@ optional):
   top of the existing chain.
 - **Rollback:** images are also tagged `sha-<commit>`. To pin a known-good build,
   set `image:` in `docker-compose.deploy.yml` to that tag and redeploy.
+- **Login rate limits** (10/min login, 30/min refresh, per client IP) read the IP from `CF-Connecting-IP` (`AuthRateLimit__ClientIpHeader`). That header is trusted only because Authenticated Origin Pulls (prod) or the Cloudflare-only firewall (previews) means only Cloudflare reaches the origin from outside (containers on the shared `edge` network could still reach `web:8080` directly, the same exposure the `X-Forwarded-Proto` trust already has); the standalone `docker-compose.yml` leaves it unset because clients could spoof it there.
 - **HTTPS:** Caddy terminates TLS with the platform's Cloudflare Origin CA cert
   (the mandatory `caddy.tls` label). Mathom is a PWA and needs HTTPS to install /
   go offline — `mathom.wettsti.ch` satisfies that.
