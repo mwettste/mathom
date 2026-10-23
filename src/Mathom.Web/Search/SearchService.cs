@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Mathom.Web.Api;
 using Mathom.Web.Data;
 using Mathom.Web.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -23,6 +24,9 @@ public record ItemSummary(
     IReadOnlyList<string> Tags,
     string? SourceLanguage,
     IReadOnlyList<TranslationSummary> Translations);
+
+public record InboxEntry(
+    Guid Id, ItemStatus Status, SourceType SourceType, string? Title, string? Snippet, DateTimeOffset CreatedAt);
 
 public record SearchFilters(ItemType? ItemType = null, bool? Actionable = null, string? Tag = null);
 
@@ -77,6 +81,32 @@ public class SearchService(MathomDbContext db)
                 i.ItemTags.Select(it => it.Tag.Name).ToList(),
                 i.SourceLanguage,
                 i.Translations.Select(t => new TranslationSummary(t.Locale, t.Title, t.CleanText)).ToList()))
+            .ToListAsync(ct);
+    }
+
+    // Inbox page for the native API: keyset-paginated on (CreatedAt DESC, Id DESC), all statuses.
+    public async Task<IReadOnlyList<InboxEntry>> InboxPageAsync(
+        string userId, InboxCursor? after, int take, CancellationToken ct)
+    {
+        var items = db.Items.Where(i => i.UserId == userId && i.ContextId == null);
+        if (after is { } c)
+        {
+            var at = c.CreatedAt;
+            var id = c.Id;
+            items = items.Where(i => i.CreatedAt < at || (i.CreatedAt == at && i.Id.CompareTo(id) < 0));
+        }
+        return await items
+            .OrderByDescending(i => i.CreatedAt).ThenByDescending(i => i.Id)
+            .Take(take)
+            .Select(i => new
+            {
+                i.Id, i.Status, i.SourceType, i.Title, i.CreatedAt,
+                Source = i.CleanText != null && i.CleanText != "" ? i.CleanText : i.RawText,
+            })
+            .Select(x => new InboxEntry(
+                x.Id, x.Status, x.SourceType, x.Title,
+                x.Source == "" ? null : x.Source.Substring(0, Math.Min(x.Source.Length, 200)),
+                x.CreatedAt))
             .ToListAsync(ct);
     }
 
