@@ -10,7 +10,9 @@ namespace Mathom.Web.Auth;
 // /api paths get a 403 pending_approval JSON error instead.
 public class ApprovalGateMiddleware(RequestDelegate next)
 {
-    private static readonly string[] Allowlist = { "/Pending", "/Login", "/Register", "/Logout", "/healthz" };
+    private static readonly string[] Allowlist = { "/Pending", "/Login", "/Register", "/Logout", "/healthz",
+        // These two check approval themselves (the caller may hold a bearer of a different, unapproved user).
+        "/api/v1/auth/login", "/api/v1/auth/refresh" };
 
     public async Task InvokeAsync(HttpContext ctx, UserAdminService userAdmin)
     {

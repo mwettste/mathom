@@ -50,4 +50,9 @@ public class DeviceTokenHandler(
         ], Scheme.Name);
         return AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), Scheme.Name));
     }
+
+    // An authenticated session that fails a policy (e.g. a watch calling a phone-only endpoint).
+    protected override Task HandleForbiddenAsync(AuthenticationProperties properties) =>
+        ApiError.WriteAsync(Context, StatusCodes.Status403Forbidden, "forbidden_scope",
+            "This device is not allowed to use this endpoint.");
 }

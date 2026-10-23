@@ -205,9 +205,29 @@ public class DeviceAuthEndpointTests(PostgresFixture fx)
         var denied = await Raw(app).PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = first.Refresh });
         await AssertErrorAsync(denied, HttpStatusCode.Forbidden, "pending_approval");
 
+        // Past the grace window: had the denied call rotated the token, reuse would now be rejected.
+        app.Time.Advance(TimeSpan.FromMinutes(2) + TimeSpan.FromSeconds(1));
         await SetApprovedAsync(app, userId, true);
         var ok = await Raw(app).PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = first.Refresh });
         Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
+    }
+
+    [Fact]
+    public async Task Login_WithBearerOfUnapprovedUser_IsNotGated()
+    {
+        using var app = new DeviceAuthTestApp(fx.ConnectionString);
+        var (emailA, passwordA, userA) = await app.CreateUserAsync(approved: true);
+        var (emailB, passwordB, _) = await app.CreateUserAsync(approved: true);
+        var a = await LoginOkAsync(app, emailA, passwordA);
+        await SetApprovedAsync(app, userA, false);
+
+        var client = app.Bearer(a.Access);
+        var login = await client.PostAsJsonAsync("/api/v1/auth/login",
+            new { email = emailB, password = passwordB, deviceName = "iPhone", deviceKind = "phone" });
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+
+        var refresh = await client.PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = a.Refresh });
+        await AssertErrorAsync(refresh, HttpStatusCode.Forbidden, "pending_approval");
     }
 
     [Fact]
@@ -277,7 +297,7 @@ public class DeviceAuthEndpointTests(PostgresFixture fx)
 
         var resp = await app.Bearer(watchToken).PostAsJsonAsync("/api/v1/auth/devices", new { deviceName = "Another" });
 
-        Assert.Equal(HttpStatusCode.Forbidden, resp.StatusCode);
+        await AssertErrorAsync(resp, HttpStatusCode.Forbidden, "forbidden_scope");
     }
 
     [Fact]
@@ -289,7 +309,7 @@ public class DeviceAuthEndpointTests(PostgresFixture fx)
 
         var resp = await app.Bearer(other.Access).PostAsJsonAsync("/api/v1/auth/devices", new { deviceName = "Watch" });
 
-        Assert.Equal(HttpStatusCode.Forbidden, resp.StatusCode);
+        await AssertErrorAsync(resp, HttpStatusCode.Forbidden, "forbidden_scope");
     }
 
     [Fact]
