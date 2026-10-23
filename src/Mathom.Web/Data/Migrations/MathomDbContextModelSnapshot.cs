@@ -120,6 +120,75 @@ namespace Mathom.Web.Data.Migrations
                     b.ToTable("Contexts");
                 });
 
+            modelBuilder.Entity("Mathom.Web.Domain.DeviceSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("LastUsedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid?>("ProvisionedBySessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("DeviceSessions");
+                });
+
+            modelBuilder.Entity("Mathom.Web.Domain.DeviceToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Hash")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("SupersededAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Hash")
+                        .IsUnique();
+
+                    b.HasIndex("SessionId");
+
+                    b.ToTable("DeviceTokens");
+                });
+
             modelBuilder.Entity("Mathom.Web.Domain.GlossaryTerm", b =>
                 {
                     b.Property<Guid>("Id")
@@ -556,6 +625,26 @@ namespace Mathom.Web.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Mathom.Web.Domain.DeviceSession", b =>
+                {
+                    b.HasOne("Mathom.Web.Domain.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Mathom.Web.Domain.DeviceToken", b =>
+                {
+                    b.HasOne("Mathom.Web.Domain.DeviceSession", "Session")
+                        .WithMany("Tokens")
+                        .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Session");
+                });
+
             modelBuilder.Entity("Mathom.Web.Domain.GlossaryTerm", b =>
                 {
                     b.HasOne("Mathom.Web.Domain.Context", null)
@@ -692,6 +781,11 @@ namespace Mathom.Web.Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Mathom.Web.Domain.DeviceSession", b =>
+                {
+                    b.Navigation("Tokens");
                 });
 
             modelBuilder.Entity("Mathom.Web.Domain.GlossaryTerm", b =>
