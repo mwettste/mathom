@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Sockets;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
@@ -19,14 +21,29 @@ public static class AuthRateLimiting
     public const string LoginPolicy = "auth-login";
     public const string RefreshPolicy = "auth-refresh";
 
+    // Rate-limit bucket for a request. IPv6 clients are keyed by their /64 prefix: an attacker
+    // typically controls a whole /64 (2^64 addresses), so per-address buckets would make the
+    // limit useless against password spraying. IPv4-mapped IPv6 collapses to plain IPv4.
+    // A configured header that is missing or not a single valid IP is ignored (falls back to
+    // the socket address), so spoofed junk cannot mint its own bucket.
     public static string ClientKey(HttpContext ctx)
     {
         var header = ctx.RequestServices.GetRequiredService<IOptions<AuthRateLimitOptions>>().Value.ClientIpHeader;
+        IPAddress? ip = null;
         if (!string.IsNullOrWhiteSpace(header)
             && ctx.Request.Headers.TryGetValue(header, out var value)
-            && !string.IsNullOrWhiteSpace(value.ToString()))
-            return value.ToString().Trim();
-        return ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            && IPAddress.TryParse(value.ToString().Trim(), out var fromHeader))
+            ip = fromHeader;
+        ip ??= ctx.Connection.RemoteIpAddress;
+        if (ip is null) return "unknown";
+
+        if (ip.IsIPv4MappedToIPv6) ip = ip.MapToIPv4();
+        if (ip.AddressFamily != AddressFamily.InterNetworkV6) return ip.ToString();
+
+        Span<byte> bytes = stackalloc byte[16];
+        ip.TryWriteBytes(bytes, out _);
+        bytes[8..].Clear();
+        return $"{new IPAddress(bytes)}/64";
     }
 
     public static IServiceCollection AddAuthRateLimiting(this IServiceCollection services, IConfiguration config)

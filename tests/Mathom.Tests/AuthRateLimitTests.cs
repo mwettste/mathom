@@ -118,4 +118,18 @@ public class AuthRateLimitTests(PostgresFixture fx)
         Assert.Equal(HttpStatusCode.Unauthorized, (await ApiLoginAsync(client, UnknownEmail(), "1.1.1.1")).StatusCode);
         await AssertRateLimitedAsync(await ApiLoginAsync(client, UnknownEmail(), "2.2.2.2"));
     }
+
+    [Fact]
+    public async Task ClientIpHeader_Ipv6InSameSlash64_SharesBucket()
+    {
+        using var app = new DeviceAuthTestApp(fx.ConnectionString, s => s.Configure<AuthRateLimitOptions>(o =>
+        {
+            o.LoginPermitsPerMinute = 1;
+            o.ClientIpHeader = "CF-Connecting-IP";
+        }));
+        var client = Raw(app);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await ApiLoginAsync(client, UnknownEmail(), "2001:db8:1:2::1")).StatusCode);
+        await AssertRateLimitedAsync(await ApiLoginAsync(client, UnknownEmail(), "2001:db8:1:2:ffff::9"));
+        Assert.Equal(HttpStatusCode.Unauthorized, (await ApiLoginAsync(client, UnknownEmail(), "2001:db8:1:3::1")).StatusCode);
+    }
 }
