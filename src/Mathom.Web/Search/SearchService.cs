@@ -103,7 +103,7 @@ public class SearchService(MathomDbContext db)
             .Select(i => new
             {
                 i.Id, i.Status, i.SourceType, i.Title, i.CreatedAt, i.SuggestedContextId,
-                SuggestedContextName = db.Contexts.Where(c => c.Id == i.SuggestedContextId).Select(c => c.Name).FirstOrDefault(),
+                SuggestedContextName = db.Contexts.Where(c => c.Id == i.SuggestedContextId && c.UserId == userId).Select(c => c.Name).FirstOrDefault(),
                 Source = i.CleanText != null && i.CleanText != "" ? i.CleanText : i.RawText,
             })
             .Select(x => new InboxEntry(

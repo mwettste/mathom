@@ -144,7 +144,7 @@ public class ContextSuggestionPipelineTests(PostgresFixture fx)
         items.Add(Make(uid, ctxs[0].Id, "", ItemStatus.Ready, 102));
         items.Add(Make(uid, ctxs[0].Id, null, ItemStatus.Ready, 103));
         items.Add(Make(uid, null, "INBOX", ItemStatus.Ready, 104));
-        items.Add(Make(other, null, "OTHERUSER", ItemStatus.Ready, 105));
+        items.Add(Make(other, ctxs[0].Id, "OTHERUSER", ItemStatus.Ready, 105));
         items.Add(Make(uid, ctxs[1].Id, "B1", ItemStatus.Ready, 1));
         await using (var seed = fx.NewDbContext())
         {
@@ -188,6 +188,65 @@ public class ContextSuggestionPipelineTests(PostgresFixture fx)
         Assert.Equal("term00", a.GlossaryTerms[0]);
         var b = fake.LastCandidates.Single(c => c.Name == "B");
         Assert.Equal(new[] { "onlyB" }, b.GlossaryTerms);
+    }
+
+    [Fact]
+    public async Task SuggestedContextDeletedMidRun_ItemStillReady_NullSuggestion()
+    {
+        var (_, ctxs, item) = await SeedAsync(2);
+        var fake = new FakeLlmClient
+        {
+            SuggestRespond = (_, _, _) =>
+            {
+                using var other = fx.NewDbContext();
+                other.Contexts.Where(c => c.Id == ctxs[0].Id).ExecuteDelete();
+                return "c1";
+            },
+        };
+        var loaded = await RunAsync(fake, item.Id);
+        Assert.Equal(ItemStatus.Ready, loaded.Status);
+        Assert.Null(loaded.Error);
+        Assert.Null(loaded.SuggestedContextId);
+    }
+
+    [Fact]
+    public async Task ConcurrentMoveDuringSuggestion_RunAbandoned_NoSuggestionStored()
+    {
+        var (_, ctxs, item) = await SeedAsync(2);
+        var fake = new FakeLlmClient
+        {
+            SuggestRespond = (_, _, _) =>
+            {
+                using var other = fx.NewDbContext();
+                other.Items.Where(i => i.Id == item.Id).ExecuteUpdate(s => s
+                    .SetProperty(i => i.ContextId, ctxs[1].Id)
+                    .SetProperty(i => i.Status, ItemStatus.Pending));
+                return "c1";
+            },
+        };
+        var loaded = await RunAsync(fake, item.Id);
+        Assert.Equal(ItemStatus.Pending, loaded.Status);
+        Assert.Equal(ctxs[1].Id, loaded.ContextId);
+        Assert.Null(loaded.SuggestedContextId);
+    }
+
+    [Fact]
+    public async Task Candidates_CappedAtFirst30Contexts()
+    {
+        var uid = "suggest-" + Guid.NewGuid().ToString("N");
+        await fx.EnsureUserAsync(uid, uid + "@example.com");
+        var item = Item.CreatePending(SourceType.Text, "raw note", Guid.NewGuid().ToString(), uid, DateTimeOffset.UtcNow);
+        await using (var seed = fx.NewDbContext())
+        {
+            for (var i = 0; i < 31; i++)
+                seed.Contexts.Add(new Context { Id = Guid.NewGuid(), UserId = uid, Name = $"Ctx{i:00}", CreatedAt = DateTimeOffset.UtcNow });
+            seed.Items.Add(item);
+            await seed.SaveChangesAsync();
+        }
+        var fake = new FakeLlmClient();
+        await RunAsync(fake, item.Id);
+        Assert.Equal(30, fake.LastCandidates.Count);
+        Assert.Equal("c30", fake.LastCandidates[^1].Key);
     }
 
     [Fact]
