@@ -154,6 +154,8 @@ public class ItemProcessor(
             // Reconcile: drop tags no longer in the cleanup result (keeps re-processing clean).
             item.ItemTags.RemoveAll(it => !desiredTagIds.Contains(it.TagId));
 
+            if (await WasRequeuedAsync(itemId, ct)) return;
+
             item.ProcessedAt = DateTimeOffset.UtcNow;
             item.Status = ItemStatus.Ready;
             await db.SaveChangesAsync(ct);
@@ -161,9 +163,25 @@ public class ItemProcessor(
         catch (Exception ex)
         {
             logger.LogError(ex, "Processing failed for item {ItemId}", itemId);
+            if (await WasRequeuedAsync(itemId, ct)) return;
+
             item.Status = ItemStatus.Failed;
             item.Error = ex.Message;
             await db.SaveChangesAsync(ct);
         }
+    }
+
+    // Someone else (e.g. a move) re-queued the item while this run held a stale copy. Writing our
+    // result would clobber that Pending status and lose the re-clean, so drop our changes instead.
+    private async Task<bool> WasRequeuedAsync(Guid itemId, CancellationToken ct)
+    {
+        var current = await db.Items.IgnoreQueryFilters().AsNoTracking()
+            .Where(i => i.Id == itemId)
+            .Select(i => i.Status)
+            .FirstAsync(ct);
+        if (current == ItemStatus.Processing) return false;
+        logger.LogInformation("Item {ItemId} changed to {Status} during processing; abandoning this run.", itemId, current);
+        db.ChangeTracker.Clear();
+        return true;
     }
 }

@@ -36,6 +36,9 @@ public class NoteService(MathomDbContext db, IMediaStore media)
         var item = await db.Items.FirstOrDefaultAsync(i => i.Id == id && i.UserId == userId, ct);
         if (item is null) return false;
 
+        // Retry of a move that already landed: stay put, don't re-queue a re-clean.
+        if (item.ContextId == contextId) return true;
+
         item.ContextId = contextId;
         // Re-clean with the destination context's glossary (no re-transcribe; raw text is kept).
         item.Status = ItemStatus.Pending;
@@ -64,8 +67,9 @@ public class NoteService(MathomDbContext db, IMediaStore media)
 
     public async Task<bool> SoftDeleteAsync(string userId, Guid id, CancellationToken ct)
     {
-        var item = await db.Items.FirstOrDefaultAsync(i => i.Id == id && i.UserId == userId, ct);
+        var item = await db.Items.IgnoreQueryFilters().FirstOrDefaultAsync(i => i.Id == id && i.UserId == userId, ct);
         if (item is null) return false;
+        if (item.DeletedAt is not null) return true; // already deleted: idempotent, keep the original timestamp
         item.DeletedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
         return true;
