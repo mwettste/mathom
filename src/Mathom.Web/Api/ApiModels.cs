@@ -3,7 +3,8 @@ using System.Text.Json.Serialization;
 namespace Mathom.Web.Api;
 
 public record InboxItemDto(
-    Guid Id, string Status, string SourceType, string? Title, string? Snippet, DateTimeOffset CreatedAt);
+    Guid Id, string Status, string SourceType, string? Title, string? Snippet, DateTimeOffset CreatedAt,
+    ContextDto? SuggestedContext);
 
 public record InboxPageDto(IReadOnlyList<InboxItemDto> Items, string? NextCursor);
 
@@ -17,7 +18,8 @@ public record TranslationDto(string Locale, string Title, string CleanText);
 public record ItemDetailDto(
     Guid Id, string Status, string SourceType, string? Type, bool Actionable, string? Title, string? CleanText,
     string RawText, string? SourceLanguage, IReadOnlyList<string> Tags, IReadOnlyList<TranslationDto> Translations, string? Error,
-    DateTimeOffset CreatedAt, DateTimeOffset? ProcessedAt, ContextDto? Context);
+    DateTimeOffset CreatedAt, DateTimeOffset? ProcessedAt, ContextDto? Context,
+    ContextDto? SuggestedContext);
 
 public static class ApiEnums
 {

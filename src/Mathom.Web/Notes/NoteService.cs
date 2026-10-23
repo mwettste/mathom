@@ -40,6 +40,7 @@ public class NoteService(MathomDbContext db, IMediaStore media)
         if (item.ContextId == contextId) return true;
 
         item.ContextId = contextId;
+        item.SuggestedContextId = null;
         // Re-clean with the destination context's glossary (no re-transcribe; raw text is kept).
         item.Status = ItemStatus.Pending;
         item.Error = null;

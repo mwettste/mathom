@@ -138,4 +138,63 @@ public class MoveContextTests(PostgresFixture fx)
         await using var db = fx.NewDbContext();
         Assert.Equal(ctxId, (await db.Items.SingleAsync(i => i.Id == item.Id)).ContextId);
     }
+
+    private async Task<(string U, Guid CtxId, Guid OtherId, Item Item)> SeedSuggestedAsync(bool inContext)
+    {
+        var u = "move-sugg-" + Guid.NewGuid().ToString("N");
+        await fx.EnsureUserAsync(u, u + "@example.com");
+        var ctxId = Guid.NewGuid();
+        var otherId = Guid.NewGuid();
+        var item = new Item
+        {
+            Id = Guid.NewGuid(), Status = ItemStatus.Ready, SourceType = SourceType.Text,
+            RawText = "x", IdempotencyKey = Guid.NewGuid().ToString(), UserId = u,
+            ContextId = inContext ? ctxId : null, SuggestedContextId = otherId, CreatedAt = DateTimeOffset.UtcNow,
+        };
+        await using var seed = fx.NewDbContext();
+        seed.Contexts.Add(new Context { Id = ctxId, UserId = u, Name = "Biz", CreatedAt = DateTimeOffset.UtcNow });
+        seed.Contexts.Add(new Context { Id = otherId, UserId = u, Name = "Other", CreatedAt = DateTimeOffset.UtcNow });
+        seed.Items.Add(item);
+        await seed.SaveChangesAsync();
+        return (u, ctxId, otherId, item);
+    }
+
+    [Fact]
+    public async Task Move_ClearsSuggestedContext()
+    {
+        var (u, ctxId, _, item) = await SeedSuggestedAsync(inContext: false);
+        await using var db = fx.NewDbContext();
+        Assert.True(await new NoteService(db, new FakeMediaStore()).MoveAsync(u, item.Id, ctxId, CancellationToken.None));
+
+        await using var verify = fx.NewDbContext();
+        var loaded = await verify.Items.SingleAsync(i => i.Id == item.Id);
+        Assert.Equal(ctxId, loaded.ContextId);
+        Assert.Null(loaded.SuggestedContextId);
+    }
+
+    [Fact]
+    public async Task Move_ToCurrentContext_KeepsSuggestedContext()
+    {
+        var (u, ctxId, otherId, item) = await SeedSuggestedAsync(inContext: true);
+        await using var db = fx.NewDbContext();
+        Assert.True(await new NoteService(db, new FakeMediaStore()).MoveAsync(u, item.Id, ctxId, CancellationToken.None));
+
+        await using var verify = fx.NewDbContext();
+        var loaded = await verify.Items.SingleAsync(i => i.Id == item.Id);
+        Assert.Equal(otherId, loaded.SuggestedContextId);
+    }
+
+    [Fact]
+    public async Task DeleteContext_SetsSuggestedContextNull()
+    {
+        var (_, _, otherId, item) = await SeedSuggestedAsync(inContext: false);
+        await using (var db = fx.NewDbContext())
+        {
+            db.Contexts.Remove(await db.Contexts.SingleAsync(c => c.Id == otherId));
+            await db.SaveChangesAsync();
+        }
+        await using var verify = fx.NewDbContext();
+        var loaded = await verify.Items.SingleAsync(i => i.Id == item.Id);
+        Assert.Null(loaded.SuggestedContextId);
+    }
 }

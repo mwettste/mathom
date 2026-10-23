@@ -307,6 +307,9 @@ namespace Mathom.Web.Data.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
+                    b.Property<Guid?>("SuggestedContextId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Title")
                         .HasColumnType("text");
 
@@ -326,6 +329,8 @@ namespace Mathom.Web.Data.Migrations
                     NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SearchVector"), "GIN");
 
                     b.HasIndex("Status");
+
+                    b.HasIndex("SuggestedContextId");
 
                     b.HasIndex("UserId", "CreatedAt");
 
@@ -673,6 +678,11 @@ namespace Mathom.Web.Data.Migrations
                     b.HasOne("Mathom.Web.Domain.Context", null)
                         .WithMany()
                         .HasForeignKey("ContextId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Mathom.Web.Domain.Context", null)
+                        .WithMany()
+                        .HasForeignKey("SuggestedContextId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Mathom.Web.Domain.ApplicationUser", null)

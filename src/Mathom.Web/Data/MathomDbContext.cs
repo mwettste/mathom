@@ -44,6 +44,11 @@ public class MathomDbContext(DbContextOptions<MathomDbContext> options) : Identi
                 .WithMany()
                 .HasForeignKey(x => x.ContextId)
                 .OnDelete(DeleteBehavior.SetNull);
+            // Deleting a context clears suggestions pointing at it.
+            e.HasOne<Context>()
+                .WithMany()
+                .HasForeignKey(x => x.SuggestedContextId)
+                .OnDelete(DeleteBehavior.SetNull);
             // Per-user timeline ordering.
             e.HasIndex(x => new { x.UserId, x.CreatedAt });
 
