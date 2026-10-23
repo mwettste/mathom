@@ -120,7 +120,9 @@ builder.Services.AddScoped<Mathom.Web.Glossary.GlossaryService>();
 builder.Services.AddScoped<Mathom.Web.Languages.UserLanguageService>();
 builder.Services.AddScoped<Mathom.Web.Contexts.ContextService>();
 builder.Services.AddScoped<Mathom.Web.Admin.UserAdminService>();
-builder.Services.AddControllers().ConfigureApiBehaviorOptions(o =>
+builder.Services.AddControllers(o => o.Filters.Add<Mathom.Web.Api.ApiClientErrorFilter>())
+.AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new Mathom.Web.Api.UtcMillisDateTimeOffsetConverter()))
+.ConfigureApiBehaviorOptions(o =>
 {
     // /api answers { error, code }; everything else keeps the framework's ProblemDetails response.
     var defaultFactory = o.InvalidModelStateResponseFactory;
@@ -174,6 +176,20 @@ contentTypes.Mappings[".webmanifest"] = "application/manifest+json";
 app.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = contentTypes });
 
 app.MapGet("/healthz", () => Results.Ok("ok"));
+
+// Bodiless 404/405/415 under /api become { error, code }; web paths keep the default (empty) response.
+app.UseStatusCodePages(ctx =>
+{
+    var http = ctx.HttpContext;
+    if (!http.Request.Path.StartsWithSegments("/api")) return Task.CompletedTask;
+    return http.Response.StatusCode switch
+    {
+        StatusCodes.Status404NotFound => Mathom.Web.Auth.ApiError.WriteAsync(http, StatusCodes.Status404NotFound, "not_found", "Not found."),
+        StatusCodes.Status405MethodNotAllowed => Mathom.Web.Auth.ApiError.WriteAsync(http, StatusCodes.Status405MethodNotAllowed, "method_not_allowed", "Method not allowed."),
+        StatusCodes.Status415UnsupportedMediaType => Mathom.Web.Auth.ApiError.WriteAsync(http, StatusCodes.Status415UnsupportedMediaType, "unsupported_media_type", "Unsupported media type."),
+        _ => Task.CompletedTask,
+    };
+});
 
 app.UseRateLimiter();
 app.UseAuthentication();

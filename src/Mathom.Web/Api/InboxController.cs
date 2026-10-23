@@ -27,7 +27,7 @@ public class InboxController(SearchService search) : ControllerBase
 
         var take = Math.Clamp(limit ?? DefaultLimit, 1, MaxLimit);
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var entries = await search.InboxPageAsync(userId, after, take, ct);
+        var entries = await search.InboxPageAsync(userId, after is { } a ? (a.CreatedAt, a.Id) : null, take, ct);
 
         var items = entries
             .Select(e => new InboxItemDto(e.Id, ApiEnums.Lower(e.Status), ApiEnums.Lower(e.SourceType),

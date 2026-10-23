@@ -21,6 +21,50 @@ public class ItemProcessorTests(PostgresFixture fx)
     private const string Uid = "processor-tests-user";
 
     [Fact]
+    public async Task ProcessAsync_ItemRequeuedDuringCleanup_AbandonsResult_LeavesPending()
+    {
+        var uid = "processor-race-user";
+        await fx.EnsureUserAsync(uid, uid + "@example.com");
+        var ctxId = Guid.NewGuid();
+        var item = Item.CreatePending(SourceType.Text, "race me", Guid.NewGuid().ToString(), uid, DateTimeOffset.UtcNow);
+        await using (var seed = fx.NewDbContext())
+        {
+            seed.Contexts.Add(new Context { Id = ctxId, UserId = uid, Name = "Other", CreatedAt = DateTimeOffset.UtcNow });
+            seed.Items.Add(item);
+            await seed.SaveChangesAsync();
+        }
+
+        var fake = new FakeLlmClient();
+        var inner = fake.Respond;
+        fake.Respond = raw =>
+        {
+            // Concurrent move: another writer re-queues the item while cleanup runs.
+            using var other = fx.NewDbContext();
+            var row = other.Items.Single(i => i.Id == item.Id);
+            row.ContextId = ctxId;
+            row.Status = ItemStatus.Pending;
+            other.SaveChanges();
+            return inner(raw);
+        };
+
+        await using (var db = fx.NewDbContext())
+        {
+            var processor = new ItemProcessor(
+                db, fake, new FakeTranscriber(), new FakeImageReader(), new FakeMediaStore(),
+                new Mathom.Web.Media.PhotoVariantService(db, new FakeMediaStore(), new Mathom.Web.Media.ImageVariantProcessor()),
+                new Mathom.Web.Glossary.GlossaryService(db),
+                new Mathom.Web.Languages.UserLanguageService(db),
+                NullLogger<ItemProcessor>.Instance);
+            await processor.ProcessAsync(item.Id, CancellationToken.None);
+        }
+
+        await using var verify = fx.NewDbContext();
+        var loaded = await verify.Items.AsNoTracking().SingleAsync(i => i.Id == item.Id);
+        Assert.Equal(ItemStatus.Pending, loaded.Status);
+        Assert.Equal(ctxId, loaded.ContextId);
+    }
+
+    [Fact]
     public async Task ProcessAsync_FillsFieldsAndTags_SetsReady()
     {
         await fx.EnsureUserAsync(Uid, "processor@example.com");

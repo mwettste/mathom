@@ -31,7 +31,7 @@ public class ItemsController(SearchService search, ContextService contexts, Note
         return Ok(new ItemDetailDto(
             item.Id, ApiEnums.Lower(item.Status), ApiEnums.Lower(item.SourceType),
             item.ItemType is { } type ? ApiEnums.Lower(type) : null,
-            item.Actionable, item.Title, item.CleanText, item.SourceLanguage,
+            item.Actionable, item.Title, item.CleanText, item.RawText, item.SourceLanguage,
             item.Tags.Order(StringComparer.OrdinalIgnoreCase).ToList(),
             item.Translations.OrderBy(t => t.Locale, StringComparer.Ordinal).Select(t => new TranslationDto(t.Locale, t.Title, t.CleanText)).ToList(),
             item.Error, item.CreatedAt, item.ProcessedAt, context));

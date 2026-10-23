@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Mathom.Web.Api;
 using Mathom.Web.Data;
 using Mathom.Web.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -86,7 +85,7 @@ public class SearchService(MathomDbContext db)
 
     // Inbox page for the native API: keyset-paginated on (CreatedAt DESC, Id DESC), all statuses.
     public async Task<IReadOnlyList<InboxEntry>> InboxPageAsync(
-        string userId, InboxCursor? after, int take, CancellationToken ct)
+        string userId, (DateTimeOffset CreatedAt, Guid Id)? after, int take, CancellationToken ct)
     {
         var items = db.Items.Where(i => i.UserId == userId && i.ContextId == null);
         if (after is { } c)

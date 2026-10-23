@@ -67,9 +67,16 @@ log in at `POST /api/v1/auth/login` and rotate with `/refresh`. Only a `phone` s
 `watch` session (`POST /api/v1/auth/devices`). `ApprovalGateMiddleware` answers unapproved `/api` calls
 with 403 `pending_approval` JSON, and `DeviceScopeMiddleware` limits watch sessions to capture, `/me`,
 refresh and logout (403 `forbidden_scope` otherwise). API errors use `{ error, code }`. The Inbox API
-(`Api/ItemsController.cs`, `InboxController.cs`) serves `GET /api/v1/inbox`, `GET /api/v1/items/{id}`,
-`GET /api/v1/contexts`, `POST .../items/{id}/move`, `DELETE .../items/{id}` and `POST .../reprocess`;
-move requires `contextId` in the body (explicit `null` = Inbox, a missing property is 400 `invalid_request`).
+(`Api/InboxController.cs`, `Api/ItemsController.cs`, `Api/ContextsController.cs`) serves `GET /api/v1/inbox`
+(opaque `cursor` + `limit`, default 50, max 100, clamped; bad cursor = 400 `invalid_cursor`),
+`GET /api/v1/items/{id}`, `GET /api/v1/contexts`, `POST /api/v1/items/{id}/move`,
+`DELETE /api/v1/items/{id}` and `POST /api/v1/items/{id}/reprocess`. Another user's or unknown id is 404
+`not_found`; reprocess of a queued or running item is 409 `not_reprocessable`. Move requires `contextId`
+in the body (explicit `null` = Inbox, a missing property is 400 `invalid_request`). Retries are safe:
+moving to the current context is a 204 no-op (no re-clean), deleting your own already-deleted item is 204,
+reprocess retry is 409 because it means "already queued". Bodiless 404/405/415 under `/api` answer
+`not_found` / `method_not_allowed` / `unsupported_media_type`. All timestamps are UTC with milliseconds
+(`2026-10-23T08:15:00.000Z`, `UtcMillisDateTimeOffsetConverter`).
 
 Search (`Search/SearchService.cs`) uses a generated Postgres `tsvector` column over `Title + CleanText`
 (GIN-indexed), configured in `Data/MathomDbContext.cs`.

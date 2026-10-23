@@ -16,7 +16,7 @@ public record TranslationDto(string Locale, string Title, string CleanText);
 
 public record ItemDetailDto(
     Guid Id, string Status, string SourceType, string? Type, bool Actionable, string? Title, string? CleanText,
-    string? SourceLanguage, IReadOnlyList<string> Tags, IReadOnlyList<TranslationDto> Translations, string? Error,
+    string RawText, string? SourceLanguage, IReadOnlyList<string> Tags, IReadOnlyList<TranslationDto> Translations, string? Error,
     DateTimeOffset CreatedAt, DateTimeOffset? ProcessedAt, ContextDto? Context);
 
 public static class ApiEnums

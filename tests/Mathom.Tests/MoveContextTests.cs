@@ -42,6 +42,41 @@ public class MoveContextTests(PostgresFixture fx)
     }
 
     [Fact]
+    public async Task Move_ToCurrentContext_DoesNotRequeue()
+    {
+        var u = "move-same-user";
+        await fx.EnsureUserAsync(u, u + "@example.com");
+        var ctxId = Guid.NewGuid();
+        var inboxItem = new Item
+        {
+            Id = Guid.NewGuid(), Status = ItemStatus.Ready, SourceType = SourceType.Text,
+            RawText = "x", IdempotencyKey = Guid.NewGuid().ToString(),
+            UserId = u, ContextId = null, CreatedAt = DateTimeOffset.UtcNow,
+        };
+        var ctxItem = new Item
+        {
+            Id = Guid.NewGuid(), Status = ItemStatus.Ready, SourceType = SourceType.Text,
+            RawText = "y", IdempotencyKey = Guid.NewGuid().ToString(),
+            UserId = u, ContextId = ctxId, CreatedAt = DateTimeOffset.UtcNow,
+        };
+        await using (var seed = fx.NewDbContext())
+        {
+            seed.Contexts.Add(new Context { Id = ctxId, UserId = u, Name = "Biz", CreatedAt = DateTimeOffset.UtcNow });
+            seed.Items.AddRange(inboxItem, ctxItem);
+            await seed.SaveChangesAsync();
+        }
+
+        await using var db = fx.NewDbContext();
+        var svc = new NoteService(db, new FakeMediaStore());
+        Assert.True(await svc.MoveAsync(u, inboxItem.Id, null, CancellationToken.None));
+        Assert.True(await svc.MoveAsync(u, ctxItem.Id, ctxId, CancellationToken.None));
+
+        await using var verify = fx.NewDbContext();
+        Assert.Equal(ItemStatus.Ready, (await verify.Items.SingleAsync(i => i.Id == inboxItem.Id)).Status);
+        Assert.Equal(ItemStatus.Ready, (await verify.Items.SingleAsync(i => i.Id == ctxItem.Id)).Status);
+    }
+
+    [Fact]
     public async Task Move_RejectsContextNotOwnedByUser()
     {
         var u = "move-owner"; var other = "move-other";

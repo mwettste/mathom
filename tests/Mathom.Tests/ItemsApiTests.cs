@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Mathom.Web.Contexts;
 using Mathom.Web.Domain;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 using static Mathom.Tests.InboxApiTests;
@@ -75,8 +76,7 @@ public class ItemsApiTests(PostgresFixture fx)
         Assert.Equal("Work", j.GetProperty("context").GetProperty("name").GetString());
         Assert.Equal(JsonValueKind.Null, j.GetProperty("error").ValueKind);
         Assert.NotEqual(JsonValueKind.Null, j.GetProperty("processedAt").ValueKind);
-        Assert.False(j.TryGetProperty("rawText", out _));
-        Assert.DoesNotContain("secret raw transcript", j.GetRawText());
+        Assert.Equal("secret raw transcript", j.GetProperty("rawText").GetString());
         Assert.False(j.TryGetProperty("photoExternalIds", out _));
     }
 
@@ -407,11 +407,167 @@ public class ItemsApiTests(PostgresFixture fx)
         var reprocess = await client.PostAsync($"/api/v1/items/{item.Id}/reprocess", null);
 
         Assert.Equal(HttpStatusCode.NotFound, move.StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, delete.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode); // idempotent retry of own delete
         Assert.Equal(HttpStatusCode.NotFound, reprocess.StatusCode);
         var row = await ReloadAsync(item.Id);
         Assert.Equal(Base, row.DeletedAt);
         Assert.Equal(ItemStatus.Failed, row.Status);
+    }
+
+    private const string IsoMillis = @"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$";
+
+    [Fact]
+    public async Task Move_Twice_SecondCallDoesNotRequeue()
+    {
+        using var app = new DeviceAuthTestApp(fx.ConnectionString);
+        var (email, password, alice) = await app.CreateUserAsync(true);
+        var ctx = await NewContextAsync(alice, "Work");
+        var item = await SeedAsync(alice, i => i.Status = ItemStatus.Ready);
+        var client = app.Bearer(await LoginAsync(app, email, password));
+
+        var first = await client.PostAsJsonAsync($"/api/v1/items/{item.Id}/move", new { contextId = ctx.Id });
+        Assert.Equal(ItemStatus.Pending, (await ReloadAsync(item.Id)).Status);
+        await using (var db = fx.NewDbContext())
+            await db.Items.Where(i => i.Id == item.Id).ExecuteUpdateAsync(u => u.SetProperty(i => i.Status, ItemStatus.Ready));
+        var second = await client.PostAsJsonAsync($"/api/v1/items/{item.Id}/move", new { contextId = ctx.Id });
+
+        Assert.Equal(HttpStatusCode.NoContent, first.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, second.StatusCode);
+        Assert.Equal(ItemStatus.Ready, (await ReloadAsync(item.Id)).Status);
+    }
+
+    [Fact]
+    public async Task Delete_Twice_BothNoContent()
+    {
+        using var app = new DeviceAuthTestApp(fx.ConnectionString);
+        var (email, password, alice) = await app.CreateUserAsync(true);
+        var item = await SeedAsync(alice, i => i.Status = ItemStatus.Ready);
+        var client = app.Bearer(await LoginAsync(app, email, password));
+
+        var first = await client.DeleteAsync($"/api/v1/items/{item.Id}");
+        var second = await client.DeleteAsync($"/api/v1/items/{item.Id}");
+
+        Assert.Equal(HttpStatusCode.NoContent, first.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, second.StatusCode);
+    }
+
+    [Fact]
+    public async Task Delete_OtherUsersSoftDeletedItem_404()
+    {
+        using var app = new DeviceAuthTestApp(fx.ConnectionString);
+        var (email, password, _) = await app.CreateUserAsync(true);
+        var (_, _, bob) = await app.CreateUserAsync(true);
+        var item = await SeedAsync(bob, i => i.DeletedAt = Base);
+        var client = app.Bearer(await LoginAsync(app, email, password));
+
+        var resp = await client.DeleteAsync($"/api/v1/items/{item.Id}");
+
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Reprocess_Twice_202ThenConflict()
+    {
+        using var app = new DeviceAuthTestApp(fx.ConnectionString);
+        var (email, password, alice) = await app.CreateUserAsync(true);
+        var item = await SeedAsync(alice, i => i.Status = ItemStatus.Failed);
+        var client = app.Bearer(await LoginAsync(app, email, password));
+
+        var first = await client.PostAsync($"/api/v1/items/{item.Id}/reprocess", null);
+        var second = await client.PostAsync($"/api/v1/items/{item.Id}/reprocess", null);
+
+        Assert.Equal(HttpStatusCode.Accepted, first.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+        Assert.Equal("not_reprocessable", (await JsonAsync(second)).GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task ApiFallback_NonGuidId_404_NotFound()
+    {
+        using var app = new DeviceAuthTestApp(fx.ConnectionString);
+        var (email, password, _) = await app.CreateUserAsync(true);
+        var client = app.Bearer(await LoginAsync(app, email, password));
+
+        var resp = await client.GetAsync("/api/v1/items/abc");
+
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+        Assert.Equal("not_found", (await JsonAsync(resp)).GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task ApiFallback_UnknownPath_404_NotFound()
+    {
+        using var app = new DeviceAuthTestApp(fx.ConnectionString);
+        var (email, password, _) = await app.CreateUserAsync(true);
+        var client = app.Bearer(await LoginAsync(app, email, password));
+
+        var resp = await client.GetAsync("/api/v1/nope");
+
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+        var j = await JsonAsync(resp);
+        Assert.Equal("not_found", j.GetProperty("code").GetString());
+        Assert.True(j.TryGetProperty("error", out _));
+    }
+
+    [Fact]
+    public async Task ApiFallback_WrongMethod_405_MethodNotAllowed()
+    {
+        using var app = new DeviceAuthTestApp(fx.ConnectionString);
+        var (email, password, alice) = await app.CreateUserAsync(true);
+        var item = await SeedAsync(alice);
+        var client = app.Bearer(await LoginAsync(app, email, password));
+
+        var resp = await client.PutAsync($"/api/v1/items/{item.Id}", Raw("{}"));
+
+        Assert.Equal(HttpStatusCode.MethodNotAllowed, resp.StatusCode);
+        Assert.Equal("method_not_allowed", (await JsonAsync(resp)).GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task ApiFallback_MoveWithTextPlain_415_UnsupportedMediaType()
+    {
+        using var app = new DeviceAuthTestApp(fx.ConnectionString);
+        var (email, password, alice) = await app.CreateUserAsync(true);
+        var item = await SeedAsync(alice, i => i.Status = ItemStatus.Ready);
+        var client = app.Bearer(await LoginAsync(app, email, password));
+
+        var resp = await client.PostAsync($"/api/v1/items/{item.Id}/move",
+            new StringContent("{\"contextId\":null}", Encoding.UTF8, "text/plain"));
+
+        Assert.Equal(HttpStatusCode.UnsupportedMediaType, resp.StatusCode);
+        Assert.Equal("unsupported_media_type", (await JsonAsync(resp)).GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task WebNotFound_IsNotJson()
+    {
+        using var app = new DeviceAuthTestApp(fx.ConnectionString);
+        var client = app.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        var resp = await client.GetAsync("/does-not-exist");
+
+        Assert.NotEqual("application/json", resp.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(123)]
+    public async Task Timestamps_AreUtcWithMilliseconds(int millis)
+    {
+        using var app = new DeviceAuthTestApp(fx.ConnectionString);
+        var (email, password, alice) = await app.CreateUserAsync(true);
+        var created = Base.AddMilliseconds(millis);
+        var item = await SeedAsync(alice, i => { i.CreatedAt = created; i.ProcessedAt = created; i.Status = ItemStatus.Ready; });
+        var client = app.Bearer(await LoginAsync(app, email, password));
+
+        var detail = await JsonAsync(await client.GetAsync($"/api/v1/items/{item.Id}"));
+        var inbox = await JsonAsync(await client.GetAsync("/api/v1/inbox"));
+
+        Assert.Matches(IsoMillis, detail.GetProperty("createdAt").GetString()!);
+        Assert.Matches(IsoMillis, detail.GetProperty("processedAt").GetString()!);
+        var entry = inbox.GetProperty("items").EnumerateArray().Single(e => e.GetProperty("id").GetGuid() == item.Id);
+        Assert.Matches(IsoMillis, entry.GetProperty("createdAt").GetString()!);
+        Assert.Equal($"2026-01-01T12:00:00.{millis:000}Z", entry.GetProperty("createdAt").GetString());
     }
 
     [Theory]
