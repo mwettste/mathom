@@ -74,7 +74,7 @@ refresh and logout (403 `forbidden_scope` otherwise). API errors use `{ error, c
 `not_found`; reprocess of a queued or running item is 409 `not_reprocessable`. Move requires `contextId`
 in the body (explicit `null` = Inbox, a missing property is 400 `invalid_request`). Retries are safe:
 moving to the current context is a 204 no-op (no re-clean), deleting your own already-deleted item is 204,
-reprocess retry is 409 because it means "already queued". Bodiless 404/405/415 under `/api` answer
+reprocess retry is 409 because it means "already queued". For Inbox items the pipeline also makes one extra best-effort LLM call that suggests one of the user's contexts (`Item.SuggestedContextId`); `GET /api/v1/inbox` and `GET /api/v1/items/{id}` expose it as `suggestedContext: { id, name } | null`, and only while the item is still in the Inbox. Bodiless 404/405/415 under `/api` answer
 `not_found` / `method_not_allowed` / `unsupported_media_type`. All timestamps are UTC with milliseconds
 (`2026-10-23T08:15:00.000Z`, `UtcMillisDateTimeOffsetConverter`).
 

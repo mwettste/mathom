@@ -594,4 +594,53 @@ public class ItemsApiTests(PostgresFixture fx)
         Assert.Null(row.DeletedAt);
         Assert.Equal(ItemStatus.Ready, row.Status);
     }
+
+    [Fact]
+    public async Task Item_Detail_ShowsSuggestedContext()
+    {
+        using var app = new DeviceAuthTestApp(fx.ConnectionString);
+        var (email, password, alice) = await app.CreateUserAsync(true);
+        var ctx = await NewContextAsync(alice, "Work");
+        var item = await SeedAsync(alice, i => i.SuggestedContextId = ctx.Id);
+        var token = await LoginAsync(app, email, password);
+
+        var j = await JsonAsync(await app.Bearer(token).GetAsync($"/api/v1/items/{item.Id}"));
+
+        var s = j.GetProperty("suggestedContext");
+        Assert.Equal(ctx.Id, s.GetProperty("id").GetGuid());
+        Assert.Equal("Work", s.GetProperty("name").GetString());
+    }
+
+    [Fact]
+    public async Task SuggestedContextDeleted_DetailShowsNull_No500()
+    {
+        using var app = new DeviceAuthTestApp(fx.ConnectionString);
+        var (email, password, alice) = await app.CreateUserAsync(true);
+        var ctx = await NewContextAsync(alice, "Work");
+        var item = await SeedAsync(alice, i => i.SuggestedContextId = ctx.Id);
+        await using (var db = fx.NewDbContext())
+            Assert.True(await new ContextService(db).DeleteAsync(alice, ctx.Id, CancellationToken.None));
+        var token = await LoginAsync(app, email, password);
+
+        var resp = await app.Bearer(token).GetAsync($"/api/v1/items/{item.Id}");
+
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        Assert.Equal(JsonValueKind.Null, (await JsonAsync(resp)).GetProperty("suggestedContext").ValueKind);
+    }
+
+    [Fact]
+    public async Task Item_Detail_InContext_StaleSuggestion_IsHidden()
+    {
+        using var app = new DeviceAuthTestApp(fx.ConnectionString);
+        var (email, password, alice) = await app.CreateUserAsync(true);
+        var x = await NewContextAsync(alice, "X");
+        var y = await NewContextAsync(alice, "Y");
+        var item = await SeedAsync(alice, i => { i.ContextId = x.Id; i.SuggestedContextId = y.Id; });
+        var token = await LoginAsync(app, email, password);
+
+        var j = await JsonAsync(await app.Bearer(token).GetAsync($"/api/v1/items/{item.Id}"));
+
+        Assert.Equal(x.Id, j.GetProperty("context").GetProperty("id").GetGuid());
+        Assert.Equal(JsonValueKind.Null, j.GetProperty("suggestedContext").ValueKind);
+    }
 }

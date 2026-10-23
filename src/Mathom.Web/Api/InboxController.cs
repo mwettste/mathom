@@ -31,7 +31,8 @@ public class InboxController(SearchService search) : ControllerBase
 
         var items = entries
             .Select(e => new InboxItemDto(e.Id, ApiEnums.Lower(e.Status), ApiEnums.Lower(e.SourceType),
-                e.Title, e.Snippet, e.CreatedAt))
+                e.Title, e.Snippet, e.CreatedAt,
+                e.SuggestedContextId is { } sid && e.SuggestedContextName is { } sname ? new ContextDto(sid, sname) : null))
             .ToList();
         var next = entries.Count == take ? new InboxCursor(entries[^1].CreatedAt, entries[^1].Id).Encode() : null;
         return Ok(new InboxPageDto(items, next));

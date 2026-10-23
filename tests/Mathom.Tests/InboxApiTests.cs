@@ -211,4 +211,56 @@ public class InboxApiTests(PostgresFixture fx)
 
         Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
     }
+
+    private async Task<ContextView> NewContextAsync(string userId, string name)
+    {
+        await using var db = fx.NewDbContext();
+        return (await new ContextService(db).CreateAsync(userId, name, CancellationToken.None))!;
+    }
+
+    [Fact]
+    public async Task Inbox_ShowsSuggestedContext_IdAndName()
+    {
+        using var app = new DeviceAuthTestApp(fx.ConnectionString);
+        var (email, password, alice) = await app.CreateUserAsync(true);
+        var ctx = await NewContextAsync(alice, "Work");
+        await SeedAsync(alice, Base, i => i.SuggestedContextId = ctx.Id);
+        var token = await LoginAsync(app, email, password);
+
+        var page = await JsonAsync(await app.Bearer(token).GetAsync("/api/v1/inbox"));
+
+        var s = page.GetProperty("items")[0].GetProperty("suggestedContext");
+        Assert.Equal(ctx.Id, s.GetProperty("id").GetGuid());
+        Assert.Equal("Work", s.GetProperty("name").GetString());
+    }
+
+    [Fact]
+    public async Task Inbox_NoSuggestion_SuggestedContextNull()
+    {
+        using var app = new DeviceAuthTestApp(fx.ConnectionString);
+        var (email, password, alice) = await app.CreateUserAsync(true);
+        await SeedAsync(alice, Base);
+        var token = await LoginAsync(app, email, password);
+
+        var page = await JsonAsync(await app.Bearer(token).GetAsync("/api/v1/inbox"));
+
+        Assert.Equal(JsonValueKind.Null, page.GetProperty("items")[0].GetProperty("suggestedContext").ValueKind);
+    }
+
+    [Fact]
+    public async Task SuggestedContextDeleted_InboxShowsNull_No500()
+    {
+        using var app = new DeviceAuthTestApp(fx.ConnectionString);
+        var (email, password, alice) = await app.CreateUserAsync(true);
+        var ctx = await NewContextAsync(alice, "Work");
+        await SeedAsync(alice, Base, i => i.SuggestedContextId = ctx.Id);
+        await using (var db = fx.NewDbContext())
+            Assert.True(await new ContextService(db).DeleteAsync(alice, ctx.Id, CancellationToken.None));
+        var token = await LoginAsync(app, email, password);
+
+        var resp = await app.Bearer(token).GetAsync("/api/v1/inbox");
+
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        Assert.Equal(JsonValueKind.Null, (await JsonAsync(resp)).GetProperty("items")[0].GetProperty("suggestedContext").ValueKind);
+    }
 }

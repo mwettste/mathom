@@ -25,7 +25,8 @@ public record ItemSummary(
     IReadOnlyList<TranslationSummary> Translations);
 
 public record InboxEntry(
-    Guid Id, ItemStatus Status, SourceType SourceType, string? Title, string? Snippet, DateTimeOffset CreatedAt);
+    Guid Id, ItemStatus Status, SourceType SourceType, string? Title, string? Snippet, DateTimeOffset CreatedAt,
+    Guid? SuggestedContextId, string? SuggestedContextName);
 
 public record SearchFilters(ItemType? ItemType = null, bool? Actionable = null, string? Tag = null);
 
@@ -45,7 +46,8 @@ public record ItemDetail(
     IReadOnlyList<string> Tags,
     IReadOnlyList<string> PhotoExternalIds,
     string? SourceLanguage,
-    IReadOnlyList<TranslationSummary> Translations);
+    IReadOnlyList<TranslationSummary> Translations,
+    Guid? SuggestedContextId);
 
 public class SearchService(MathomDbContext db)
 {
@@ -60,7 +62,8 @@ public class SearchService(MathomDbContext db)
                 i.ItemTags.Select(it => it.Tag.Name).ToList(),
                 i.Photos.OrderBy(p => p.Order).Select(p => p.ExternalId).ToList(),
                 i.SourceLanguage,
-                i.Translations.Select(t => new TranslationSummary(t.Locale, t.Title, t.CleanText)).ToList()))
+                i.Translations.Select(t => new TranslationSummary(t.Locale, t.Title, t.CleanText)).ToList(),
+                i.SuggestedContextId))
             .FirstOrDefaultAsync(ct);
     }
 
@@ -99,13 +102,14 @@ public class SearchService(MathomDbContext db)
             .Take(take)
             .Select(i => new
             {
-                i.Id, i.Status, i.SourceType, i.Title, i.CreatedAt,
+                i.Id, i.Status, i.SourceType, i.Title, i.CreatedAt, i.SuggestedContextId,
+                SuggestedContextName = db.Contexts.Where(c => c.Id == i.SuggestedContextId).Select(c => c.Name).FirstOrDefault(),
                 Source = i.CleanText != null && i.CleanText != "" ? i.CleanText : i.RawText,
             })
             .Select(x => new InboxEntry(
                 x.Id, x.Status, x.SourceType, x.Title,
                 x.Source == "" ? null : x.Source.Substring(0, Math.Min(x.Source.Length, 200)),
-                x.CreatedAt))
+                x.CreatedAt, x.SuggestedContextId, x.SuggestedContextName))
             .ToListAsync(ct);
     }
 

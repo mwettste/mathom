@@ -22,10 +22,17 @@ public class ItemsController(SearchService search, ContextService contexts, Note
             return ApiError.Result(StatusCodes.Status404NotFound, "not_found", "Item not found.");
 
         ContextDto? context = null;
+        ContextDto? suggested = null;
         if (item.ContextId is { } contextId)
         {
             var own = (await contexts.ListAsync(userId, ct)).FirstOrDefault(c => c.Id == contextId);
             if (own is not null) context = new ContextDto(own.Id, own.Name);
+        }
+        else if (item.SuggestedContextId is { } suggestedId)
+        {
+            // Only Inbox items carry a suggestion; a stale one on a moved item stays hidden.
+            var own = (await contexts.ListAsync(userId, ct)).FirstOrDefault(c => c.Id == suggestedId);
+            if (own is not null) suggested = new ContextDto(own.Id, own.Name);
         }
 
         return Ok(new ItemDetailDto(
@@ -34,7 +41,7 @@ public class ItemsController(SearchService search, ContextService contexts, Note
             item.Actionable, item.Title, item.CleanText, item.RawText, item.SourceLanguage,
             item.Tags.Order(StringComparer.OrdinalIgnoreCase).ToList(),
             item.Translations.OrderBy(t => t.Locale, StringComparer.Ordinal).Select(t => new TranslationDto(t.Locale, t.Title, t.CleanText)).ToList(),
-            item.Error, item.CreatedAt, item.ProcessedAt, context));
+            item.Error, item.CreatedAt, item.ProcessedAt, context, suggested));
     }
 
     [HttpPost("{id:guid}/move")]
