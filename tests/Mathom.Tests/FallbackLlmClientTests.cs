@@ -55,4 +55,21 @@ public class FallbackLlmClientTests
         var r = await fallback.TranslateAsync("Title", "Body", "en", "", System.Array.Empty<string>(), System.Threading.CancellationToken.None);
         Assert.Equal("T-en", r.Title);
     }
+
+    [Fact]
+    public async Task SuggestContext_FallsBackToSecondProvider()
+    {
+        var good = new Mathom.Tests.FakeLlmClient { SuggestRespond = (_, _, _) => "c1" };
+        var bad = new Mathom.Tests.FakeLlmClient { ThrowSuggest = true };
+        var fallback = new Mathom.Web.Processing.FallbackLlmClient(
+            new Mathom.Web.Processing.ILlmClient[] { bad, good },
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<Mathom.Web.Processing.FallbackLlmClient>.Instance,
+            System.TimeSpan.Zero);
+
+        var candidates = new[] { new Mathom.Web.Processing.ContextCandidate("c1", "A", System.Array.Empty<string>(), System.Array.Empty<string>()) };
+        var r = await fallback.SuggestContextAsync("Title", "Body", candidates, System.Threading.CancellationToken.None);
+        Assert.Equal("c1", r);
+        Assert.Equal(2, bad.SuggestCalls);
+        Assert.Equal(1, good.SuggestCalls);
+    }
 }

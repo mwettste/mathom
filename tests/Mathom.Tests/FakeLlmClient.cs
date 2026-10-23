@@ -43,4 +43,19 @@ public class FakeLlmClient : ILlmClient
         if (ThrowTranslate) throw new InvalidOperationException("fake translate failure");
         return Task.FromResult(TranslateRespond(sourceTitle, sourceText, targetLocale));
     }
+
+    public bool ThrowSuggest { get; set; }
+    public int SuggestCalls { get; private set; }
+    public IReadOnlyList<ContextCandidate> LastCandidates { get; private set; } = Array.Empty<ContextCandidate>();
+    // (title, text, candidates) -> chosen key or null
+    public Func<string, string, IReadOnlyList<ContextCandidate>, string?> SuggestRespond { get; set; } = (_, _, _) => null;
+
+    public Task<string?> SuggestContextAsync(
+        string title, string text, IReadOnlyList<ContextCandidate> candidates, CancellationToken ct)
+    {
+        SuggestCalls++;
+        LastCandidates = candidates;
+        if (ThrowSuggest) throw new InvalidOperationException("fake suggest failure");
+        return Task.FromResult(SuggestRespond(title, text, candidates));
+    }
 }

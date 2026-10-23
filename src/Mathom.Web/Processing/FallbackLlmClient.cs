@@ -21,6 +21,10 @@ public class FallbackLlmClient(IEnumerable<ILlmClient> providers, ILogger<Fallba
         IReadOnlyList<string> glossaryTerms, CancellationToken ct)
         => WithFallbackAsync("translate", (p, c) => p.TranslateAsync(sourceTitle, sourceText, targetLocale, styleHint, glossaryTerms, c), ct);
 
+    public Task<string?> SuggestContextAsync(
+        string title, string text, IReadOnlyList<ContextCandidate> candidates, CancellationToken ct)
+        => WithFallbackAsync("suggest-context", (p, c) => p.SuggestContextAsync(title, text, candidates, c), ct);
+
     // Try each provider in order, AttemptsPerProvider times each, delaying between
     // attempts. Shared by every ILlmClient operation so the retry policy lives in one place.
     private async Task<T> WithFallbackAsync<T>(string op, Func<ILlmClient, CancellationToken, Task<T>> call, CancellationToken ct)

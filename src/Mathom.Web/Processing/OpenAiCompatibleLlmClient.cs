@@ -85,6 +85,33 @@ public abstract class OpenAiCompatibleLlmClient : ILlmClient
         return TranslationResultParser.Parse(content);
     }
 
+    public async Task<string?> SuggestContextAsync(
+        string title, string text, IReadOnlyList<ContextCandidate> candidates, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(_model))
+            throw new InvalidOperationException(
+                $"LLM model is not configured for '{_providerName}'.");
+
+        var keys = candidates.Select(c => c.Key).ToList();
+        var payload = new
+        {
+            model = _model,
+            response_format = BuildSuggestResponseFormat(keys),
+            messages = new object[]
+            {
+                new { role = "system", content = SuggestContextPromptBuilder.BuildSystemPrompt() },
+                new { role = "user", content = SuggestContextPromptBuilder.BuildUserPrompt(title, text, candidates) }
+            }
+        };
+
+        using var resp = await _http.PostAsJsonAsync("chat/completions", payload, ct);
+        resp.EnsureSuccessStatusCode();
+        using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(ct));
+        var content = doc.RootElement
+            .GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString()!;
+        return SuggestContextResultParser.Parse(content, keys);
+    }
+
     /// <summary>
     /// The OpenAI <c>response_format</c> object. Defaults to <c>json_object</c> (works on most
     /// providers, e.g. OpenRouter); a provider can override to require a JSON schema.
@@ -96,4 +123,10 @@ public abstract class OpenAiCompatibleLlmClient : ILlmClient
     /// <c>json_object</c>; a provider can override to require a JSON schema.
     /// </summary>
     protected virtual object BuildTranslateResponseFormat() => new { type = "json_object" };
+
+    /// <summary>
+    /// The OpenAI <c>response_format</c> for the context suggestion call. Defaults to
+    /// <c>json_object</c>; the schema depends on the offered keys, so it is a method.
+    /// </summary>
+    protected virtual object BuildSuggestResponseFormat(IReadOnlyList<string> keys) => new { type = "json_object" };
 }
