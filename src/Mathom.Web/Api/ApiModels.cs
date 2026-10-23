@@ -1,9 +1,14 @@
+using System.Text.Json.Serialization;
+
 namespace Mathom.Web.Api;
 
 public record InboxItemDto(
     Guid Id, string Status, string SourceType, string? Title, string? Snippet, DateTimeOffset CreatedAt);
 
 public record InboxPageDto(IReadOnlyList<InboxItemDto> Items, string? NextCursor);
+
+// ContextId must be present: null moves the item to the Inbox, a missing property is a 400.
+public record MoveRequest([property: JsonRequired] Guid? ContextId);
 
 public record ContextDto(Guid Id, string Name);
 

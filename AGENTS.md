@@ -66,7 +66,10 @@ re-transcribing.
 log in at `POST /api/v1/auth/login` and rotate with `/refresh`. Only a `phone` session may provision a
 `watch` session (`POST /api/v1/auth/devices`). `ApprovalGateMiddleware` answers unapproved `/api` calls
 with 403 `pending_approval` JSON, and `DeviceScopeMiddleware` limits watch sessions to capture, `/me`,
-refresh and logout (403 `forbidden_scope` otherwise). API errors use `{ error, code }`.
+refresh and logout (403 `forbidden_scope` otherwise). API errors use `{ error, code }`. The Inbox API
+(`Api/ItemsController.cs`, `InboxController.cs`) serves `GET /api/v1/inbox`, `GET /api/v1/items/{id}`,
+`GET /api/v1/contexts`, `POST .../items/{id}/move`, `DELETE .../items/{id}` and `POST .../reprocess`;
+move requires `contextId` in the body (explicit `null` = Inbox, a missing property is 400 `invalid_request`).
 
 Search (`Search/SearchService.cs`) uses a generated Postgres `tsvector` column over `Title + CleanText`
 (GIN-indexed), configured in `Data/MathomDbContext.cs`.
