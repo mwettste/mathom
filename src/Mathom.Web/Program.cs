@@ -59,6 +59,9 @@ builder.Services
     .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, Mathom.Web.Auth.DeviceTokenHandler>(
         Mathom.Web.Auth.DeviceTokenDefaults.Scheme, _ => { });
 
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy(Mathom.Web.Auth.DevicePolicies.PhoneSession, p => p
+        .RequireClaim(Mathom.Web.Auth.DeviceTokenDefaults.DeviceKindClaim, "phone"));
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.Configure<Mathom.Web.Auth.DeviceAuthOptions>(builder.Configuration.GetSection("DeviceAuth"));
 builder.Services.AddScoped<Mathom.Web.Auth.DeviceSessionService>();
@@ -167,6 +170,7 @@ app.MapGet("/healthz", () => Results.Ok("ok"));
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<Mathom.Web.Auth.ApprovalGateMiddleware>();
+app.UseMiddleware<Mathom.Web.Auth.DeviceScopeMiddleware>();
 
 app.MapControllers();
 app.MapRazorPages();
