@@ -1,0 +1,26 @@
+@using Mathom.Web.Auth
+@model IReadOnlyList<DeviceSessionView>
+
+@if (Model.Count == 0)
+{
+    <p class="text-sm text-base-content/60">No devices signed in.</p>
+}
+else
+{
+    <ul class="divide-y divide-base-300">
+        @foreach (var d in Model)
+        {
+            <li class="flex items-center justify-between gap-3 py-3">
+                <span class="font-medium">
+                    @d.Name
+                    <span class="badge badge-primary badge-sm ml-2">@d.Kind.ToString().ToLowerInvariant()</span>
+                    <span class="block font-mono text-xs text-base-content/40">added @RelativeTime.Ago(d.CreatedAt) · last used @RelativeTime.Ago(d.LastUsedAt)</span>
+                </span>
+                <form method="post" hx-post="/Settings?handler=RevokeDevice&amp;id=@d.Id" hx-target="#device-list" hx-swap="innerHTML">
+                    @Html.AntiForgeryToken()
+                    <button class="btn btn-ghost btn-xs text-error" type="submit">Revoke</button>
+                </form>
+            </li>
+        }
+    </ul>
+}

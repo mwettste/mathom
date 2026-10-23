@@ -1,8 +1,10 @@
 // src/Mathom.Web/Pages/Settings.cshtml.cs
+using System;
 using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
+using Mathom.Web.Auth;
 using Mathom.Web.Languages;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,15 +13,19 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 namespace Mathom.Web.Pages;
 
 [Authorize]
-public class SettingsModel(UserLanguageService languages) : PageModel
+public class SettingsModel(UserLanguageService languages, DeviceSessionService devices) : PageModel
 {
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
     public IReadOnlyList<UserLanguageView> Languages { get; private set; } = new List<UserLanguageView>();
+    public IReadOnlyList<DeviceSessionView> Devices { get; private set; } = new List<DeviceSessionView>();
     public IReadOnlyList<Locale> Catalog { get; } = Locales.All;
 
     public async Task OnGetAsync(CancellationToken ct)
-        => Languages = await languages.GetViewsAsync(UserId, ct);
+    {
+        Languages = await languages.GetViewsAsync(UserId, ct);
+        Devices = await devices.ListActiveAsync(UserId, ct);
+    }
 
     public async Task<IActionResult> OnPostAddAsync(string? locale, CancellationToken ct)
     {
@@ -40,5 +46,12 @@ public class SettingsModel(UserLanguageService languages) : PageModel
         await languages.SetPrimaryAsync(UserId, locale, ct);
         Languages = await languages.GetViewsAsync(UserId, ct);
         return Partial("Shared/_LanguageList", Languages);
+    }
+
+    public async Task<IActionResult> OnPostRevokeDeviceAsync(Guid id, CancellationToken ct)
+    {
+        await devices.RevokeAsync(UserId, id, ct);
+        Devices = await devices.ListActiveAsync(UserId, ct);
+        return Partial("Shared/_DeviceList", Devices);
     }
 }
