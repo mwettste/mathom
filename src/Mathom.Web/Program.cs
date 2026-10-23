@@ -43,6 +43,26 @@ builder.Services
     .AddEntityFrameworkStores<MathomDbContext>()
     .AddDefaultTokenProviders();
 
+// /api/* authenticates with bearer device tokens only; every other path keeps the cookie.
+builder.Services
+    .AddAuthentication(o =>
+    {
+        o.DefaultAuthenticateScheme = o.DefaultChallengeScheme = o.DefaultForbidScheme = "Mathom";
+    })
+    .AddPolicyScheme("Mathom", null, o =>
+    {
+        o.ForwardDefaultSelector = ctx =>
+            ctx.Request.Path.StartsWithSegments("/api")
+                ? Mathom.Web.Auth.DeviceTokenDefaults.Scheme
+                : IdentityConstants.ApplicationScheme;
+    })
+    .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, Mathom.Web.Auth.DeviceTokenHandler>(
+        Mathom.Web.Auth.DeviceTokenDefaults.Scheme, _ => { });
+
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.Configure<Mathom.Web.Auth.DeviceAuthOptions>(builder.Configuration.GetSection("DeviceAuth"));
+builder.Services.AddScoped<Mathom.Web.Auth.DeviceSessionService>();
+
 builder.Services.ConfigureApplicationCookie(o =>
 {
     o.LoginPath = "/Login";
