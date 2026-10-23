@@ -110,7 +110,9 @@ public class DeviceAuthEndpointTests(PostgresFixture fx)
     [Fact]
     public async Task Login_LockedOut_After10Failures_429()
     {
-        using var app = new DeviceAuthTestApp(fx.ConnectionString);
+        // Measure lockout, not the rate limiter.
+        using var app = new DeviceAuthTestApp(fx.ConnectionString,
+            s => s.Configure<AuthRateLimitOptions>(o => o.LoginPermitsPerMinute = 100));
         var (email, password, _) = await app.CreateUserAsync(approved: true);
         for (var i = 0; i < 9; i++)
             Assert.Equal(HttpStatusCode.Unauthorized, (await LoginAsync(app, email, "wrong-password")).StatusCode);

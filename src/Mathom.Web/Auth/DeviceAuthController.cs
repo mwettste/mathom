@@ -4,6 +4,7 @@ using Mathom.Web.Domain;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Mathom.Web.Auth;
 
@@ -23,6 +24,7 @@ public class DeviceAuthController(
 
     [HttpPost("login")]
     [AllowAnonymous]
+    [EnableRateLimiting(AuthRateLimiting.LoginPolicy)]
     public async Task<IActionResult> Login([FromBody] LoginRequest req, CancellationToken ct)
     {
         var name = NormalizeName(req.DeviceName);
@@ -54,6 +56,7 @@ public class DeviceAuthController(
 
     [HttpPost("refresh")]
     [AllowAnonymous]
+    [EnableRateLimiting(AuthRateLimiting.RefreshPolicy)]
     public async Task<IActionResult> Refresh([FromBody] RefreshRequest req, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(req.RefreshToken)) return InvalidRefreshToken();

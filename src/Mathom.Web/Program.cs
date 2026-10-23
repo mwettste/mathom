@@ -63,6 +63,7 @@ builder.Services.AddAuthorizationBuilder()
     .AddPolicy(Mathom.Web.Auth.DevicePolicies.PhoneSession, p => p
         .RequireClaim(Mathom.Web.Auth.DeviceTokenDefaults.DeviceKindClaim, "phone"));
 builder.Services.AddSingleton(TimeProvider.System);
+Mathom.Web.Auth.AuthRateLimiting.AddAuthRateLimiting(builder.Services, builder.Configuration);
 builder.Services.Configure<Mathom.Web.Auth.DeviceAuthOptions>(builder.Configuration.GetSection("DeviceAuth"));
 builder.Services.AddScoped<Mathom.Web.Auth.DeviceSessionService>();
 
@@ -167,6 +168,7 @@ app.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = contentTypes })
 
 app.MapGet("/healthz", () => Results.Ok("ok"));
 
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<Mathom.Web.Auth.ApprovalGateMiddleware>();

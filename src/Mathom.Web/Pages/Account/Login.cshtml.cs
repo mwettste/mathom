@@ -1,12 +1,15 @@
 using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
+using Mathom.Web.Auth;
 using Mathom.Web.Domain;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Mathom.Web.Pages.Account;
 
+[EnableRateLimiting(AuthRateLimiting.LoginPolicy)]
 public class LoginModel(SignInManager<ApplicationUser> signIn) : PageModel
 {
     [BindProperty] public InputModel Input { get; set; } = new();
