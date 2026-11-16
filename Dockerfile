@@ -9,7 +9,7 @@ COPY src/ src/
 RUN npx tailwindcss -i src/Mathom.Web/Styles/app.css -o src/Mathom.Web/wwwroot/css/app.css --minify
 
 # ---- build ----
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:11.0 AS build
 WORKDIR /src
 
 # Restore as its own cached layer — only the web project is needed to run the app.
