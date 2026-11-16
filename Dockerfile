@@ -23,7 +23,7 @@ COPY --from=css /css/src/Mathom.Web/wwwroot/css/app.css src/Mathom.Web/wwwroot/c
 RUN dotnet publish src/Mathom.Web/Mathom.Web.csproj -c Release -o /app/publish /p:UseAppHost=false
 
 # ---- runtime ----
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:11.0 AS final
 WORKDIR /app
 COPY --from=build /app/publish .
 # The aspnet image listens on 8080 by default; make it explicit.
